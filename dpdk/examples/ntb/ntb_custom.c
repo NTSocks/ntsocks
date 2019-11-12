@@ -179,11 +179,11 @@ int ntb_send(struct ntb_custom_sublink *sublink, uint16_t process_id)
 	return 0;
 }
 
-int ntb_receive(struct ntb_custom_sublink *sublink,struct rte_mempool *send_message_pool)
+int ntb_receive(struct ntb_custom_sublink *sublink,struct rte_mempool *recevie_message_pool)
 {
 	void *receive_buff = NULL;
 	//get receive block
-	while (rte_mempool_get(send_message_pool, &receive_buff) < 0)
+	while (rte_mempool_get(recevie_message_pool, &receive_buff) < 0)
 	{
 		printf("ntb_receive failed to get reveive block\n");
 	}
