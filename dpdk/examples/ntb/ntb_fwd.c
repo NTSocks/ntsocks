@@ -55,9 +55,9 @@ static const char *_PRI_2_SEC = "PRI_2_SEC";
 
 struct rte_ring *send_ring, *recv_ring;
 struct rte_mempool *send_message_pool, *recv_message_pool;
-struct ntb_custom_sublink *sublink
+struct ntb_custom_sublink *sublink;
 
-	const unsigned flags = 0;
+const unsigned flags = 0;
 const unsigned ring_size = 4096;
 const unsigned pool_size = 1024;
 const unsigned pool_cache = 32;
@@ -72,7 +72,6 @@ daemon_send_thread(__attribute__((unused)) void *arg)
 	void *msg;
 	while (1)
 	{
-		//prev_tsc = rte_rdtsc();
 		//读取send_ring中的指针
 		if (rte_ring_dequeue(send_ring, &msg) < 0)
 		{
@@ -83,19 +82,7 @@ daemon_send_thread(__attribute__((unused)) void *arg)
 		ntb_send(sublink, 555);
 		//put 回send pool
 		rte_mempool_put(send_message_pool, msg);
-		//printf("send 1 block\n");
-		// counter++;
-		// cur_tsc = rte_rdtsc();
-		// diff_tsc = cur_tsc - prev_tsc;
-		// timer_tsc += diff_tsc;
-		// //timer_tsc 大于10秒则break
-		// if (unlikely(timer_tsc >= timer_period))
-		// {
-		// 	break;
-		// }
-		// prev_tsc = rte_rdtsc();
 	}
-	//printf("send buff = %d; loop counter = %ld ; BW (bits/s) = %'ld \n", pool_elt_size, counter, (counter * pool_elt_size * 8) / RUN_TIME_CUSTOM);
 }
 static int
 daemon_receive_thread(__attribute__((unused)) void *arg)
@@ -135,8 +122,6 @@ lcore_ntb_daemon(__attribute__((unused)) void *arg)
 
 	ntb_link = ntb_custom_start(dev_id);
 
-	//uint64_t timer_period = RUN_TIME_CUSTOM * rte_get_timer_hz();
-	//printf("timer_period == %'ld \n", timer_period);
 	printf("mem addr == %ld ,len == %ld\n", ntb_link->hw->pci_dev->mem_resource[2].phys_addr, ntb_link->hw->pci_dev->mem_resource[2].len);
 	printf("I'm daemon!\n");
 	uint16_t reg_val;
@@ -180,22 +165,16 @@ lcore_ntb_daemon(__attribute__((unused)) void *arg)
 	switch (ntb_link->hw->topo)
 	{
 	case NTB_TOPO_B2B_USD:
-		//prev_tsc = rte_rdtsc();
 		ntb_send_open_link(sublink, 555);
 		while (1)
 		{
 			ntb_mss_dequeue(sublink, socket.rev_buff);
 			if (sublink->process_map[555].rev_buff)
 			{
-				//cur_tsc = rte_rdtsc();
 				break;
 			}
 		}
-		printf("start send mss\n");
-		// printf("Round trip tests Lasted : %lg us\n",
-		// 	   (double)(cur_tsc-prev_tsc) /
-		// 		   rte_get_tsc_hz() * US_PER_S);
-		//sublink->process_map[555].send_buff->data_len = NTB_BUFF_SIZE;
+		printf("run daemon send and receive thread\n");
 		RTE_LCORE_FOREACH_SLAVE(lcore_id)
 		{
 			if (lcore_id == 20)
@@ -229,6 +208,7 @@ lcore_ntb_daemon(__attribute__((unused)) void *arg)
 				break;
 			}
 		}
+		printf("run daemon send and receive thread\n");
 		RTE_LCORE_FOREACH_SLAVE(lcore_id)
 		{
 			if (lcore_id == 20)
@@ -243,7 +223,6 @@ lcore_ntb_daemon(__attribute__((unused)) void *arg)
 				rte_eal_remote_launch(daemon_receive_thread, NULL, lcore_id);
 			}
 		}
-		printf("start receive mss\n");
 		break;
 	default:
 		break;
