@@ -8,7 +8,26 @@ AC_CANONICAL_SYSTEM
 
 AM_INIT_AUTOMAKE([-Wall])
 
+dnl Checks for programs
+AC_PROG_CC
 AC_PROG_CXX
+AC_GNU_SOURCE
+AC_PROG_LN_S
+
+
+dnl Checks for libraries
+
+
+dnl Checks for header files
+
+
+dnl Checks for typedefs, structures, and compiler characteristics
+
+
+dnl Checks for library functions
+
+
+
 
 AC_CONFIG_FILES(Makefile 
                 include/Makefile

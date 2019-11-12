@@ -13,6 +13,6 @@
 
 #include <stdio.h>
 
-extern void print_hello ();
+extern void print_hello();
 
 #endif /* NTB_PROXY_H_ */
