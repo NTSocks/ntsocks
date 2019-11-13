@@ -11,8 +11,9 @@
 #ifndef NTB_PROXY_H_
 #define NTB_PROXY_H_
 
-#include <stdio.h>
 
-extern void print_hello();
+extern int print_hello();
+
+extern int add(int a, int b);
 
 #endif /* NTB_PROXY_H_ */

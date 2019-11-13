@@ -9,8 +9,10 @@
  */
 
 #include "ntb-proxy.h"
+#include "func.h"
 
 int main(void) {
 	print_hello();
+	func(1, 2);
 	return 0;
 }

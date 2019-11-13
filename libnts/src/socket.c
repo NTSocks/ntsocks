@@ -10,6 +10,7 @@
 
 #include "socket.h"
 
-void print_socket(){
+int print_socket(){
 	printf("Hello NTB Socket!\n");
+	return 0;
 }

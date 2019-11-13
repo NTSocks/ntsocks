@@ -14,7 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-extern void print_socket();
+extern int print_socket();
 
 
 #endif /* SOCKET_H_ */
