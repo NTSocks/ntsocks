@@ -8,7 +8,7 @@
  * @version 1.0
  */
 
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 
 extern "C" {
 #include "ntb-proxy.h"
