@@ -99,7 +99,7 @@ int ntb_mss_add_header(struct ntb_custom_message *mss, uint16_t process_id, int 
 	//End of Memnode
 	if (eon)
 	{
-		mss->header.mss_type = |= 1 << 6;
+		mss->header.mss_type |= 1 << 6;
 	}
 	return 0;
 }
@@ -112,13 +112,13 @@ int ntb_mss_enqueue(struct ntb_custom_sublink *sublink, struct ntb_custom_messag
 	//looping send
 	while (next_serial == *sublink->local_cum_ptr)
 	{
+
 	}
 	if ((next_serial - *sublink->local_cum_ptr) % REV_MSS_COUNTER == 0)
 	{
 		//PSH
 		mss->header.mss_type |= 1 << 7;
 	}
-
 	uint8_t *ptr = r->start_addr + r->cur_serial * MAX_NTB_MSS_LEN;
 	rte_memcpy(ptr, mss, mss_len);
 	r->cur_serial = next_serial;
@@ -149,7 +149,7 @@ int ntb_mss_dequeue(struct ntb_custom_sublink *sublink, struct ntb_buff *rev_buf
 	//rev_buff is NULL,return -1
 	if (rev_buff == NULL || rev_buff->buff == NULL)
 	{
-		printf("ntb socket rev_buff is NULL\n");
+		NTB_LOG(ERR,"ntb socket rev_buff is NULL.");
 		return -1;
 	}
 	rte_memcpy(rev_buff->buff, mss->mss, mss->header.mss_len - NTB_HEADER_LEN);
@@ -171,7 +171,6 @@ int ntb_send(struct ntb_custom_sublink *sublink, uint16_t process_id)
 		ntb_mss_enqueue(sublink, mss);
 		sent += MAX_NTB_MSS_LEN - NTB_HEADER_LEN;
 	}
-
 	rte_memcpy(mss->mss, sublink->process_map[process_id].send_buff->buff + sent, data_len - sent);
 	ntb_mss_add_header(mss, process_id, data_len - sent, true);
 	ntb_mss_enqueue(sublink, mss);
@@ -182,33 +181,36 @@ int ntb_send(struct ntb_custom_sublink *sublink, uint16_t process_id)
 int ntb_receive(struct ntb_custom_sublink *sublink,struct rte_mempool *recevie_message_pool)
 {
 	void *receive_buff = NULL;
-	//get receive block
+	//get receive node
 	while (rte_mempool_get(recevie_message_pool, &receive_buff) < 0)
 	{
-		printf("ntb_receive failed to get reveive block\n");
+		NTB_LOG(ERR,"ntb_receive failed to get reveive node.");
 	}
 	struct ntb_ring *r = sublink->local_ring;
-	int send = 0;
+	int received = 0;
 	while (1)
 	{
-		uint8_t *ptr = r->start_addr + (r->cur_serial * MAX_NTB_MSS_LEN);
-		struct ntb_custom_message *mss = (struct ntb_custom_message *)ptr;
+		__asm__("mfence");
+		//volatile uint8_t *ptr = (volatile uint8_t *)(r->start_addr + (r->cur_serial * MAX_NTB_MSS_LEN));
+		struct ntb_custom_message *mss = (struct ntb_custom_message *)(r->start_addr + (r->cur_serial * MAX_NTB_MSS_LEN));
 		int mss_len = mss->header.mss_len;
 		//if no mss,continue
-		if (!mss_len)
+		if (mss_len == 0)
 		{
 			continue;
 		}
-		rte_memcpy(receive_buff + send, mss->mss, mss_len - NTB_HEADER_LEN);
+		rte_memcpy((uint8_t *)receive_buff + received, mss->mss, mss_len - NTB_HEADER_LEN);
 		r->cur_serial = (r->cur_serial + 1) % (r->capacity);
-		send += mss_len - NTB_HEADER_LEN;
+		ntb_prot_header_parser(sublink, mss);
+		received += mss_len - NTB_HEADER_LEN;
+		mss->header.mss_len = 0;
 		//if detected end of node sign,put into recv_ing
-		if (mss->mss_type &= 1 << 6)
+		if (mss->header.mss_type &= 1 << 6)
 		{
 			struct rte_ring *recv_ring = rte_ring_lookup("SEC_2_PRI");
 			while (rte_ring_enqueue(recv_ring, receive_buff) < 0)
 			{
-				printf("Failed to enqueue receive_buff to recv_ring\n");
+				NTB_LOG(ERR,"Failed to enqueue receive_buff to recv_ring.");
 			}
 			break;
 		}
@@ -225,7 +227,7 @@ rte_ring_create_custom(uint8_t *ptr, uint64_t ring_size)
 	r->start_addr = ptr;
 	r->end_addr = r->start_addr + ring_size;
 	r->capacity = ring_size / MAX_NTB_MSS_LEN;
-	printf("ring_capacity == %ld\n", r->capacity);
+	NTB_LOG(DEBUG,"ring_capacity == %ld.", r->capacity);
 	return r;
 }
 
@@ -255,7 +257,7 @@ struct ntb_custom_link *
 ntb_custom_start(uint16_t dev_id)
 {
 	struct rte_rawdev *dev;
-	printf("Start dev_id=%d\n", dev_id);
+	NTB_LOG(DEBUG,"Start dev_id=%d.", dev_id);
 
 	dev = &rte_rawdevs[dev_id];
 
@@ -267,7 +269,7 @@ ntb_custom_start(uint16_t dev_id)
 
 	if (dev->started != 0)
 	{
-		printf("Device with dev_id=%d already started",
+		NTB_LOG(ERR,"Device with dev_id=%d already started",
 			   dev_id);
 		return 0;
 	}
@@ -281,6 +283,5 @@ ntb_custom_start(uint16_t dev_id)
 	uint8_t *local_ptr = (uint8_t *)ntb_link->hw->mz[0]->addr;
 	uint8_t *remote_ptr = (uint8_t *)ntb_link->hw->pci_dev->mem_resource[2].addr;
 	ntb_creat_all_sublink(ntb_link, local_ptr, remote_ptr);
-	printf("establish connection succeed\n");
 	return ntb_link;
 }
