@@ -1,3 +1,5 @@
 ACLOCAL_AMFLAGS = -I m4
-SUBDIRS = src include examples
+SUBDIRS = lib src include tests examples
 EXTRA_DIST = autogen.sh
+
+AUTOMAKE_OPTIONS=foreign

@@ -5,7 +5,7 @@ libntslibdir = $(libdir)
 ACLOCAL_AMFLAGS = -I config -I m4
 AM_CFLAGS = -g -Wall
 
-SUBDIRS = src include examples
+SUBDIRS = lib src include tests examples
 EXTRA_DIST = autogen.sh
 
 # AUTOMAKE_OPTIONS 是Automake 的选项。Automake 主要是帮助开发 GNU 软
