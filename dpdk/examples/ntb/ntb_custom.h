@@ -102,6 +102,8 @@ int ntb_mss_dequeue(struct ntb_custom_sublink *sublink, struct ntb_buff *rev_buf
 
 int ntb_send(struct ntb_custom_sublink *sublink, uint16_t process_id);
 
+int ntb_receive(struct ntb_custom_sublink *sublink,struct rte_mempool *recevie_message_pool);
+
 struct ntb_ring *
 rte_ring_create_custom(uint8_t *ptr, uint64_t ring_size);
 

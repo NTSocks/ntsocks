@@ -196,29 +196,24 @@ int ntb_prot_header_parser(struct ntb_custom_sublink *sublink, struct ntb_custom
     {
         ntb_trans_cum_ptr(sublink);
     }
-    mss_type &= 0x7f;
+    mss_type &= 0x3f;
     switch (mss_type)
     {
     case DATA_TYPE:
         break;
     case OPEN_LINK:
-        //printf("receive OPEN_LINK\n");
         ntb_open_link_handler(sublink, mss);
         break;
     case OPEN_LINK_ACK:
-        //printf("receive OPEN_LINK_ACK\n");
         ntb_open_link_ack_handler(sublink, mss);
         break;
     case OPEN_LINK_FAIL:
-        //printf("receive OPEN_LINK_FAIL\n");
         ntb_open_link_fail_handler(sublink, mss);
         break;
     case FIN_LINK:
-        //printf("receive FIN_LINK\n");
         ntb_fin_link_handler(sublink, mss);
         break;
     case FIN_LINK_ACK:
-        //printf("receive FIN_LINK_FAIL\n");
         ntb_fin_link_ack_handler(sublink, mss);
         break;
     default:
