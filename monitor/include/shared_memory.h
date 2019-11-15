@@ -12,5 +12,9 @@
 #define SHARED_MEMORY_H_
 
 
+#include "constant.h"
+#include "log.h"
+
+extern int ntb_malloc();
 
 #endif /* SHARED_MEMORY_H_ */

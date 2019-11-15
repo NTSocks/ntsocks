@@ -11,6 +11,9 @@
 #ifndef NTB_MONITOR_H_
 #define NTB_MONITOR_H_
 
+#include "constant.h"
+#include "log.h"
 
+extern int print_monitor();
 
 #endif /* NTB_MONITOR_H_ */

@@ -12,4 +12,4 @@ check_PROGRAMS =
 TESTS += socket_test
 check_PROGRAMS += socket_test
 socket_test_SOURCES = socket_test.cpp
-socket_test_LDADD = $(top_builddir)/src/libnts_la-socket.o
+socket_test_LDADD = $(top_builddir)/src/lib_libnts_la-socket.o
