@@ -30,7 +30,7 @@ int ntb_open_link_ack_handler(struct ntb_custom_sublink *sublink, struct ntb_cus
 
 int ntb_open_link_fail_handler(struct ntb_custom_sublink *sublink, struct ntb_custom_message *mss);
 
-int ntb_fin_link_handler(struct ntb_custom_sublink *sublink, struct ntb_custom_message *mss);
+// int ntb_fin_link_handler(struct ntb_custom_sublink *sublink, struct ntb_custom_message *mss);
 
 int ntb_fin_link_ack_handler(struct ntb_custom_sublink *sublink, struct ntb_custom_message *mss);
 

@@ -48,12 +48,12 @@
 
 static uint16_t dev_id;
 
-static const char *_SEC_MSG_POOL = "SEC_MSG_POOL";
-static const char *_PRI_MSG_POOL = "RPI_MSG_POOL";
-static const char *_SEC_2_PRI = "SEC_2_PRI";
-static const char *_PRI_2_SEC = "PRI_2_SEC";
+static const char *_SEND_MSG_POOL = "RPI_MSG_POOL";
+static const char *_RECV_MSG_POOL = "SEC_MSG_POOL";
+static const char *_SEND_QUE_0 = "PRI_2_SEC_0";
 
-struct rte_ring *send_ring, *recv_ring;
+
+struct rte_ring *send_ring;
 struct rte_mempool *send_message_pool, *recv_message_pool;
 struct ntb_custom_sublink *sublink;
 
@@ -63,6 +63,9 @@ const unsigned pool_cache = 0;
 const unsigned priv_data_sz = 0;
 const unsigned pool_size = 0x1000;
 const unsigned pool_elt_size = 0x800;
+const unsigned app_data_len = 0x800 - MEM_NODE_HEADER_LEB;
+const unsigned how_many_app = 2;
+const unsigned start_locre = 1;
 
 unsigned lcore_id;
 
@@ -77,9 +80,7 @@ daemon_send_thread(__attribute__((unused)) void *arg)
 		{
 			continue;
 		}
-		sublink->process_map[555].send_buff->buff = (uint8_t *)msg;
-		sublink->process_map[555].send_buff->data_len = (uint64_t)pool_elt_size;
-		ntb_send(sublink, 555);
+		ntb_send(sublink, msg);
 		//put 回send pool
 		rte_mempool_put(send_message_pool, msg);
 	}
@@ -88,18 +89,20 @@ daemon_send_thread(__attribute__((unused)) void *arg)
 static int
 daemon_receive_thread(__attribute__((unused)) void *arg)
 {
+	struct ntb_ring *r = sublink->local_ring;
+	struct ntb_custom_message *mss;
+	int mss_len;
+	int mss_type;
 	while (1)
 	{
 		__asm__("mfence");
-		struct ntb_ring *r = sublink->local_ring;
-		uint8_t *ptr = r->start_addr + (r->cur_serial * MAX_NTB_MSS_LEN);
-		struct ntb_custom_message *mss = (struct ntb_custom_message *)ptr;
-		int mss_len = mss->header.mss_len;
+		mss = (struct ntb_custom_message *)(r->start_addr + (r->cur_serial * MAX_NTB_MSS_LEN));
+		mss_len = mss->header.mss_len;
 		if (mss_len == 0)
 		{
 			continue;
 		}
-		int mss_type = ntb_prot_header_parser(sublink, mss);
+		mss_type = ntb_prot_header_parser(sublink, mss);
 		if (mss_type == DATA_TYPE)
 		{
 			ntb_receive(sublink, recv_message_pool);
@@ -154,79 +157,58 @@ lcore_ntb_daemon(__attribute__((unused)) void *arg)
 	}
 	//使用sublink0，端口号555
 	sublink = &ntb_link->sublink[0];
-	struct ntb_socket socket = sublink->process_map[555];
 	//daemon共享的发送ring、接收ring、发送mempool、接收mempool
-	send_ring = rte_ring_create(_PRI_2_SEC, ring_size, rte_socket_id(), flags);
-	recv_ring = rte_ring_create(_SEC_2_PRI, ring_size, rte_socket_id(), flags);
-	send_message_pool = rte_mempool_create(_PRI_MSG_POOL, pool_size,
-										   pool_elt_size, pool_cache, priv_data_sz,
-										   NULL, NULL, NULL, NULL,
-										   rte_socket_id(), flags);
-	recv_message_pool = rte_mempool_create(_SEC_MSG_POOL, pool_size,
-										   pool_elt_size, pool_cache, priv_data_sz,
-										   NULL, NULL, NULL, NULL,
-										   rte_socket_id(), flags);
-	switch (ntb_link->hw->topo)
+	send_ring = rte_ring_create(_SEND_QUE_0, ring_size, rte_socket_id(), flags);
+	for (int temp = 0; temp < (int)how_many_app; temp++)
 	{
-	case NTB_TOPO_B2B_DSD:
-		ntb_send_open_link(sublink, 555);
-		while (1)
-		{
-			ntb_mss_dequeue(sublink, socket.rev_buff);
-			if (sublink->process_map[555].rev_buff)
-			{
-				break;
-			}
-		}
-		NTB_LOG(DEBUG, "run receive thread.");
-		RTE_LCORE_FOREACH_SLAVE(lcore_id)
-		{
-			if (lcore_id == 8)
-			{
-				rte_eal_remote_launch(daemon_receive_thread, NULL, lcore_id);
-			}
-		}
-
-		NTB_LOG(DEBUG, "run send thread.");
-		daemon_send_thread(arg);
-		break;
-	case NTB_TOPO_B2B_USD:
-		while (1)
-		{
-			ntb_mss_dequeue(sublink, socket.rev_buff);
-			if (sublink->process_map[555].rev_buff)
-			{
-				break;
-			}
-		}
-		NTB_LOG(DEBUG, "run receive thread.");
-		RTE_LCORE_FOREACH_SLAVE(lcore_id)
-		{
-			if (lcore_id == 8)
-			{
-				rte_eal_remote_launch(daemon_receive_thread, NULL, lcore_id);
-			}
-		}
-		NTB_LOG(DEBUG, "run send thread.");
-		daemon_send_thread(arg);
-		break;
-	default:
-		break;
+		char recv_temp[12] = "SEC_2_PRI_x";
+		recv_temp[10] = (char)(temp + 48);
+		const char *recv_que = recv_temp;
+		rte_ring_create(recv_que, ring_size, rte_socket_id(), flags);
+		NTB_LOG(DEBUG, "daemon_recv_ring = %s.", recv_que);
 	}
+
+	send_message_pool = rte_mempool_create(_SEND_MSG_POOL, pool_size,
+										   pool_elt_size, pool_cache, priv_data_sz,
+										   NULL, NULL, NULL, NULL,
+										   rte_socket_id(), flags);
+	recv_message_pool = rte_mempool_create(_RECV_MSG_POOL, pool_size,
+										   pool_elt_size, pool_cache, priv_data_sz,
+										   NULL, NULL, NULL, NULL,
+										   rte_socket_id(), flags);
+	NTB_LOG(DEBUG, "run receive thread.");
+	RTE_LCORE_FOREACH_SLAVE(lcore_id)
+	{
+		if (lcore_id == 8)
+		{
+			rte_eal_remote_launch(daemon_receive_thread, NULL, lcore_id);
+		}
+	}
+	NTB_LOG(DEBUG, "run send thread.");
+	daemon_send_thread(arg);
 	return 0;
 }
 
 static int
 lcore_ntb_app(__attribute__((unused)) void *arg)
 {
+	struct rte_ring *recv_ring;
+	struct ntb_uuid myuuid;
+	myuuid.ntb_port = (uint16_t)(lcore_id - start_locre);
 	uint64_t prev_tsc, cur_tsc, timer_tsc = 0;
 	uint64_t counter = 0;
 	uint64_t timer_hz = rte_get_timer_hz();
 	//unsigned lcore_id = rte_lcore_id();
-	send_ring = rte_ring_lookup(_PRI_2_SEC);
-	recv_ring = rte_ring_lookup(_SEC_2_PRI);
-	send_message_pool = rte_mempool_lookup(_PRI_MSG_POOL);
-	recv_message_pool = rte_mempool_lookup(_SEC_MSG_POOL);
+	send_ring = rte_ring_lookup(_SEND_QUE_0);
+	//查找自己的接收队列
+	char recv_temp[12] = "SEC_2_PRI_x";
+	NTB_LOG(DEBUG, "my_lcore_id = %d.", lcore_id);
+	recv_temp[10] = (char)((int)lcore_id - start_locre + 48);
+	const char *recv_que = recv_temp;
+	recv_ring = rte_ring_lookup(recv_que);
+	NTB_LOG(DEBUG, "app_recv_ring = %s.", recv_que);
+	send_message_pool = rte_mempool_lookup(_SEND_MSG_POOL);
+	recv_message_pool = rte_mempool_lookup(_RECV_MSG_POOL);
 	NTB_LOG(DEBUG, "I'm app.");
 	void *msg = NULL;
 	while (1)
@@ -237,7 +219,8 @@ lcore_ntb_app(__attribute__((unused)) void *arg)
 			//接收recv中的memnode
 			rte_mempool_put(recv_message_pool, msg);
 			//get memnode后放入send ring
-			rte_mempool_get(send_message_pool, &msg);
+			ntb_app_mempool_get(send_message_pool, &msg, &myuuid);
+			*(uint16_t *)((uint8_t *)msg + 2) = app_data_len;
 			while (rte_ring_enqueue(send_ring, msg) < 0)
 			{
 				//入ring 失败，//放回mempool
@@ -255,7 +238,7 @@ lcore_ntb_app(__attribute__((unused)) void *arg)
 			NTB_LOG(DEBUG, "time_tsc = %ld,app latency = %lg us.", timer_tsc, (double)timer_tsc * US_PER_S / counter / timer_hz);
 			// }
 			rte_mempool_put(recv_message_pool, msg);
-			rte_mempool_get(send_message_pool, &msg);
+			ntb_app_mempool_get(send_message_pool, &msg, &myuuid);
 			while (rte_ring_enqueue(send_ring, msg) < 0)
 			{
 				//入ring 失败，//放回mempool
@@ -270,13 +253,21 @@ lcore_ntb_app(__attribute__((unused)) void *arg)
 static int
 lcore_ntb_app_sr(__attribute__((unused)) void *arg)
 {
-	send_ring = rte_ring_lookup(_PRI_2_SEC);
-	recv_ring = rte_ring_lookup(_SEC_2_PRI);
-	send_message_pool = rte_mempool_lookup(_PRI_MSG_POOL);
-	recv_message_pool = rte_mempool_lookup(_SEC_MSG_POOL);
+	struct rte_ring *recv_ring;
+	struct ntb_uuid myuuid;
+	myuuid.ntb_port = (uint16_t)(lcore_id - start_locre);
+	send_ring = rte_ring_lookup(_SEND_QUE_0);
+	char recv_temp[12] = "SEC_2_PRI_x";
+	NTB_LOG(DEBUG, "my_lcore_id = %d.", lcore_id);
+	recv_temp[10] = (char)((int)lcore_id - start_locre + 48);
+	const char *recv_que = recv_temp;
+	recv_ring = rte_ring_lookup(recv_que);
+	NTB_LOG(DEBUG, "app_recv_ring = %s.", recv_que);
+	send_message_pool = rte_mempool_lookup(_SEND_MSG_POOL);
+	recv_message_pool = rte_mempool_lookup(_RECV_MSG_POOL);
 	NTB_LOG(DEBUG, "I'm app.");
 	void *msg = NULL;
-	rte_mempool_get(send_message_pool, &msg);
+	ntb_app_mempool_get(send_message_pool, &msg, &myuuid);
 	while (rte_ring_enqueue(send_ring, msg) < 0)
 	{
 		//入ring 失败，//放回mempool
@@ -290,7 +281,8 @@ lcore_ntb_app_sr(__attribute__((unused)) void *arg)
 			//接收recv中的memnode
 			rte_mempool_put(recv_message_pool, msg);
 			//get memnode后放入send ring
-			rte_mempool_get(send_message_pool, &msg);
+			ntb_app_mempool_get(send_message_pool, &msg, &myuuid);
+			*(uint16_t *)((uint8_t *)msg + 2) = app_data_len;
 			while (rte_ring_enqueue(send_ring, msg) < 0)
 			{
 				//入ring 失败，//放回mempool
@@ -324,7 +316,7 @@ int main(int argc, char **argv)
 		{
 			RTE_LCORE_FOREACH_SLAVE(lcore_id)
 			{
-				if (lcore_id == 6)
+				if (lcore_id == start_locre || lcore_id == start_locre + 1)
 				{
 					rte_eal_remote_launch(lcore_ntb_app, NULL, lcore_id);
 				}
@@ -334,7 +326,7 @@ int main(int argc, char **argv)
 		{
 			RTE_LCORE_FOREACH_SLAVE(lcore_id)
 			{
-				if (lcore_id == 6)
+				if (lcore_id == start_locre || lcore_id == start_locre + 1)
 				{
 					rte_eal_remote_launch(lcore_ntb_app_sr, NULL, lcore_id);
 				}
