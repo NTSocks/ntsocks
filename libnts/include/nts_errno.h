@@ -1,7 +1,7 @@
 /*
  * <p>Title: nts_errno.h</p>
  * <p>Description: </p>
- * <p>Copyright: Copyright (c) 2019 </p>
+ * <p>Copyright: Copyright (c) 2019 FDU NiSL </p>
  *
  * @author Bob Huang
  * @date Nov 23, 2019 
