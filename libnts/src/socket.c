@@ -9,8 +9,12 @@
  */
 
 #include "socket.h"
+#include "debug.h"
 
 int print_socket(){
 	printf("Hello NTB Socket!\n");
+
+	debug_print();
+
 	return 0;
 }

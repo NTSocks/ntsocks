@@ -24,7 +24,7 @@ hello_ntsock_SOURCES= hello-ntsock.c
 
 # 通过_LDADD告诉Automake需要链接哪些库
 #hello_ntsock_LDADD = ../src/libnts.la
-hello_ntsock_LDADD = $(top_builddir)/src/libnts.la
+hello_ntsock_LDADD = $(top_builddir)/src/lib/libnts.la
 
 # Compiler options for a.out
 hello_ntsock_CPPFLAGS = -I$(top_srcdir)/include
