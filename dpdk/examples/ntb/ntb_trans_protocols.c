@@ -165,19 +165,19 @@ int ntb_open_link_fail_handler(struct ntb_custom_sublink *sublink, struct ntb_cu
 //     return 0;
 // }
 
-int ntb_fin_link_handler(struct ntb_custom_sublink *sublink, struct ntb_custom_message *mss)
-{
-    int process_id = mss->header.process_id;
-    //how to handler rev_buff?
-    free(sublink->process_map[process_id].rev_buff);
-    sublink->process_map[process_id].rev_buff = NULL;
+// int ntb_fin_link_handler(struct ntb_custom_sublink *sublink, struct ntb_custom_message *mss)
+// {
+//     int process_id = mss->header.process_id;
+//     //how to handler rev_buff?
+//     free(sublink->process_map[process_id].rev_buff);
+//     sublink->process_map[process_id].rev_buff = NULL;
 
-    ntb_send(sublink, process_id);
-    sublink->process_map[process_id].occupied = false;
-    free(sublink->process_map[process_id].send_buff);
-    sublink->process_map[process_id].send_buff = NULL;
-    return 0;
-}
+//     ntb_send(sublink, process_id);
+//     sublink->process_map[process_id].occupied = false;
+//     free(sublink->process_map[process_id].send_buff);
+//     sublink->process_map[process_id].send_buff = NULL;
+//     return 0;
+// }
 
 int ntb_fin_link_ack_handler(struct ntb_custom_sublink *sublink, struct ntb_custom_message *mss)
 {
@@ -211,7 +211,7 @@ int ntb_prot_header_parser(struct ntb_custom_sublink *sublink, struct ntb_custom
         ntb_open_link_fail_handler(sublink, mss);
         break;
     case FIN_LINK:
-        ntb_fin_link_handler(sublink, mss);
+        //ntb_fin_link_handler(sublink, mss);
         break;
     case FIN_LINK_ACK:
         ntb_fin_link_ack_handler(sublink, mss);

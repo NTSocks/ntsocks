@@ -12,20 +12,31 @@
 #define NTB_HEADER_LEN 4
 #define UPDATE_CUM_LINE 500
 #define REV_MSS_COUNTER 1000
+#define MEM_NODE_HEADER_LEB 6
 
+struct ntb_uuid
+{
+	uint16_t ntb_port;
+};
+struct ntb_mempool_node_header
+{
+	uint16_t ntb_port;
+	uint16_t data_len;
+	uint16_t mp_elt_size;
+};
 struct ntb_buff
 {
 	//struct rte_ring *ring;
-    uint8_t *buff;
-    uint64_t buff_size;
-    uint64_t data_len;
+	uint8_t *buff;
+	uint64_t buff_size;
+	uint64_t data_len;
 };
 
 struct ntb_socket
 {
-    uint8_t occupied;
-    struct ntb_buff *rev_buff;
-    struct ntb_buff *send_buff;
+	uint8_t occupied;
+	struct ntb_buff *rev_buff;
+	struct ntb_buff *send_buff;
 };
 
 struct ntb_ring
@@ -89,20 +100,24 @@ struct ntb_custom_message
 	char mss[124];
 };
 
+int ntb_app_mempool_get(struct rte_mempool *mp, void **obj_p, struct ntb_uuid *app_uuid);
+
 int ntb_set_mw_trans(struct rte_rawdev *dev, const char *mw_name, int mw_idx, uint64_t mw_size);
 
 // int
 // ntb_set_mw_trans_custom(struct rte_rawdev *dev,struct rte_memzone *mz,int mw_idx);
 
-int ntb_mss_add_header(struct ntb_custom_message *mss, uint16_t process_id, int payload_len,bool eon);
+int ntb_mss_add_header(struct ntb_custom_message *mss, uint16_t process_id, int payload_len, bool eon);
 
 int ntb_mss_enqueue(struct ntb_custom_sublink *sublink, struct ntb_custom_message *mss);
 
 int ntb_mss_dequeue(struct ntb_custom_sublink *sublink, struct ntb_buff *rev_buff);
 
-int ntb_send(struct ntb_custom_sublink *sublink, uint16_t process_id);
+// int ntb_send(struct ntb_custom_sublink *sublink, uint16_t process_id);
 
-int ntb_receive(struct ntb_custom_sublink *sublink,struct rte_mempool *recevie_message_pool);
+int ntb_send(struct ntb_custom_sublink *sublink, void *mp_node);
+
+int ntb_receive(struct ntb_custom_sublink *sublink, struct rte_mempool *recevie_message_pool);
 
 struct ntb_ring *
 rte_ring_create_custom(uint8_t *ptr, uint64_t ring_size);
