@@ -12,7 +12,7 @@ include_HADERS =
 INC_DIR = include
 
 # Sources for libTest
-lib_libnts_la_SOURCES = socket.c \
+lib_libnts_la_SOURCES = socket.c libnts.c \
 		debug.c $(INC_DIR)/debug.h		\
 		clock.c $(INC_DIR)/clock.h				\
 		eventpoll.c $(INC_DIR)/eventpoll.h			\

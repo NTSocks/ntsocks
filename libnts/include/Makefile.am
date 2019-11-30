@@ -5,7 +5,8 @@ include_HEADERS = socket.h \
 		nts_config.h	\
 		nts_epoll.h		\
 		nts_errno.h		\
-		nts_event.h
+		nts_event.h		\
+		libnts.h
 		
 
 
