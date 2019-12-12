@@ -8,7 +8,7 @@
  * @version 1.0
  */
 
-#include "ntb-monitor.h"
+#include "ntb_monitor.h"
 
 int main(int argc, char **argv) {
 
