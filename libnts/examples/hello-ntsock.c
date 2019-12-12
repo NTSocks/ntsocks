@@ -11,8 +11,12 @@
 #include "socket.h"
 
 int main(int argc, char * argv[]) {
+	printf("Hello libnts app!\n");
 
-	print_socket();
+//	print_socket();
+	test_ntm_shm();
+
+	printf("Bye, libnts app.\n");
 
 	return 0;
 }

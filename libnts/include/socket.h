@@ -16,5 +16,7 @@
 
 extern int print_socket();
 
+extern int test_ntm_shm();
+
 
 #endif /* SOCKET_H_ */

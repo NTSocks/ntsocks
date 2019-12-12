@@ -17,6 +17,7 @@
 #include <string.h>
 #include <linux/eventpoll.h>
 #include <unistd.h>
+#include <assert.h>
 
 #define __USE_GNU
 #include <sched.h>
@@ -49,7 +50,7 @@ static int (*real_listen)(int, int);
 static int (*real_setsockopt)(int, int, int, const void *, socklen_t);
 
 static int (*real_accept)(int, struct sockaddr *, socklen_t *);
-static int (*real_accept4)(int, struct sockaddr *, socklen_t *, int);
+//static int (*real_accept4)(int, struct sockaddr *, socklen_t *, int);
 static int (*real_recv)(int, void*, size_t, int);
 static int (*real_send)(int, const void *, size_t, int);
 
@@ -132,7 +133,7 @@ int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
 	}
 
 	if (nts_fdisused(sockfd)) {
-		return nts_connect(sockfd, (struct linux_sockaddr *) addr, addrlen);
+		return nts_connect(sockfd, addr, addrlen);
 	} else {
 		return real_connect(sockfd, addr, addrlen);
 	}
@@ -145,7 +146,7 @@ ssize_t send(int sockfd, const void *buf, size_t len, int flags) {
 	}
 
 	if (nts_fdisused(sockfd)) {
-		return ff_send(sockfd, buf, len, flags);
+		return nts_send(sockfd, buf, len, flags);
 	} else {
 		return real_send(sockfd, buf, len, flags);
 	}
@@ -204,18 +205,18 @@ int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen) {
 	}
 }
 
-int accept4(int sockfd, struct sockaddr *addr, socklen_t *addrlen, int flags) {
-	if (unlikely(inited == 0)) {
-		INIT_FUNCTION(accept4);
-		return real_accept4(sockfd, addr, addrlen, flags);
-	}
-
-	if (nts_fdisused(sockfd)) {
-		return nts_accept4(sockfd, addr, addrlen, flags);
-	} else {
-		return real_accept4(sockfd, addr, addrlen, flags);
-	}
-}
+//int accept4(int sockfd, struct sockaddr *addr, socklen_t *addrlen, int flags) {
+//	if (unlikely(inited == 0)) {
+//		INIT_FUNCTION(accept4);
+//		return real_accept4(sockfd, addr, addrlen, flags);
+//	}
+//
+//	if (nts_fdisused(sockfd)) {
+//		return nts_accept4(sockfd, addr, addrlen, flags);
+//	} else {
+//		return real_accept4(sockfd, addr, addrlen, flags);
+//	}
+//}
 
 int close(int sockfd) {
 	if (unlikely(inited == 0)) {
