@@ -1839,7 +1839,7 @@ launch_packet_forwarding(lcore_function_t *pkt_fwd_on_lcore)
 		lc_id = fwd_lcores_cpuids[i];
 		if ((interactive == 0) || (lc_id != rte_lcore_id())) {
 			fwd_lcores[i]->stopped = 0;
-			diag = rte_eal_remote_launch(pkt_fwd_on_lcore,
+			diag = (pkt_fwd_on_lcore,
 						     fwd_lcores[i], lc_id);
 			if (diag != 0)
 				printf("launch lcore %u failed - diag=%d\n",
