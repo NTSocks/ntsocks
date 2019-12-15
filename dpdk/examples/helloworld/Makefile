@@ -2,10 +2,12 @@
 # Copyright(c) 2010-2014 Intel Corporation
 
 # binary name
-APP = helloworld
+#APP = helloworld
+# library name
+LIB = helloworld.a
 
 # all source are stored in SRCS-y
-SRCS-y := main.c
+SRCS-y := helloworld.c
 
 # Build using pkg-config variables if possible
 ifeq ($(shell pkg-config --exists libdpdk && echo 0),0)
@@ -52,6 +54,6 @@ include $(RTE_SDK)/mk/rte.vars.mk
 CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS)
 
-include $(RTE_SDK)/mk/rte.extapp.mk
+include $(RTE_SDK)/mk/rte.extlib.mk
 
 endif

@@ -253,7 +253,7 @@ parse_args(int argc, char **argv, struct test_params *tp)
 			print_usage(argv[0]);
 			return 0;
 		default:
-			printf("ERROR: Unknown option: -%c\n", opt);
+			printf(": Unknown option: -%c\n", opt);
 			return -1;
 		}
 
