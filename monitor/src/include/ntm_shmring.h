@@ -8,6 +8,10 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define NTM_MAX_BUFS 1024 // define NTM_MAX_BUFS as a power of 2 (65536 in our case)
 #define NTM_BUF_SIZE 256
 
@@ -30,5 +34,9 @@ bool ntm_shmring_push(ntm_shmring_handle_t self, char *element, size_t len);
 int ntm_shmring_pop(ntm_shmring_handle_t self, char *element, size_t len);
 
 void ntm_shmring_free(ntm_shmring_handle_t self, int unlink);
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif //NTM_SHMRING_H

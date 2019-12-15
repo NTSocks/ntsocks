@@ -5,6 +5,10 @@
 
 #include "ntm_shmring.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum ntm_shm_stat {
 	NTM_SHM_UNREADY = 0,
 	NTM_SHM_READY,
@@ -37,5 +41,9 @@ int ntm_shm_close(ntm_shm_context_t shm_ctx);
 int ntm_shm_nts_close(ntm_shm_context_t shm_ctx);
 
 void ntm_shm_destroy(ntm_shm_context_t shm_ctx);
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif // NTM_SHM_H

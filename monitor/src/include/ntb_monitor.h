@@ -12,6 +12,12 @@
 #include "ntm_shm.h"
 #include "nts_shm.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
+
 struct ntm_nts_context {
 	
 	/**
@@ -46,5 +52,15 @@ struct ntm_manager {
 } ntm_manager;
 
 typedef struct ntm_manager* ntm_manager_t;
+
+
+
+
+int print_monitor();
+
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif // end NTM_MONITOR_H 

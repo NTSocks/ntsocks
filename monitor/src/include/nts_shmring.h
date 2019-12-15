@@ -14,6 +14,9 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define NTS_MAX_BUFS 1024 // define NTS_MAX_BUFS as [(a power of 2) -1] (65535 in our case)
 #define NTS_BUF_SIZE 256
@@ -36,5 +39,9 @@ bool nts_shmring_push(nts_shmring_handle_t self, char *element, size_t len);
 int nts_shmring_pop(nts_shmring_handle_t self, char *element, size_t len);
 
 void nts_shmring_free(nts_shmring_handle_t self, int unlink);
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif /* NTS_SHMRING_H_ */

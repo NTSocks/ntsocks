@@ -15,6 +15,14 @@
 #include "constant.h"
 #include "log.h"
 
-extern int ntb_malloc();
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+int ntb_malloc();
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif /* SHARED_MEMORY_H_ */

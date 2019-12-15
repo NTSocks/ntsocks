@@ -16,7 +16,7 @@
 
 #define MSG "Hello NT-Monitor! I am libnts app. Nice to meet you!"
 
-void test_ntm_ring() {
+static inline void test_ntm_ring() {
 	ntm_shmring_handle_t ns_handle;
 
 	ns_handle = ntm_shmring_init();
@@ -43,7 +43,7 @@ void test_ntm_ring() {
 	ntm_shmring_free(ns_handle, 1);
 }
 
-void test_ntm_shm() {
+static inline void test_ntm_shm() {
 	ntm_shm_context_t ns_ctx;
 	char *ntm_name = "/ntm-shm-ring";
 
@@ -60,7 +60,7 @@ void test_ntm_shm() {
 	ntm_shm_destroy(ns_ctx);
 }
 
-void test_nts_shm() {
+static inline void test_nts_shm() {
 	ntm_shm_context_t ns_ctx;
 	char *ntm_name = "/ntm-shm-ring";
 

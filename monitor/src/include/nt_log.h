@@ -11,6 +11,9 @@
 #ifndef NT_LOG_H_
 #define NT_LOG_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*
  * debug control, you can switch on (delete 'x' suffix)
@@ -92,5 +95,9 @@ do {                                                    \
 #define DEBUG(fmt, ...)
 
 #endif  /* CONFIG_ENABLE_DEBUG  */
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif //NT_LOG_H_

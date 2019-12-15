@@ -11,6 +11,10 @@
 #ifndef NTS_MEMPOOL_H_
 #define NTS_MEMPOOL_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 typedef struct nts_mempool {
 
@@ -43,5 +47,8 @@ void nts_mp_destroy(nts_mempool_t mp);
  */
 int nts_mp_get_free_chunks(nts_mempool_t mp);
 
+#ifdef __cplusplus
+};
+#endif
 
 #endif /* NTS_MEMPOOL_H_ */

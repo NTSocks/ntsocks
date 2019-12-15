@@ -11,6 +11,10 @@
 #ifndef NT_ATOMIC_H_
 #define NT_ATOMIC_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Check GCC version, just to be safe */
 #if !defined(__GNUC__) || (__GNUC__ < 4) || (__GNUC_MINOR__ < 1)
 # error atomic.h works only with GCC newer than version 4.1
@@ -201,5 +205,8 @@ static inline int atomic_add_negative( int i, atomic_t *v )
     return (__sync_add_and_fetch(&v->counter, i) < 0);
 }
 
+#ifdef __cplusplus
+};
+#endif
 
 #endif /* NT_ATOMIC_H_ */
