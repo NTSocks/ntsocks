@@ -18,6 +18,19 @@ extern "C" {
 
 
 
+/*----------------------------------------------------------------------------*/
+struct ntm_config {
+
+	/* config for the connection between local and remote nt-monitor  */
+	int remote_ntm_tcp_timewait;
+	int remtoe_ntm_tcp_timeout;
+
+
+
+} ntm_config;
+
+
+
 struct ntm_nts_context {
 	
 	/**
@@ -52,6 +65,34 @@ struct ntm_manager {
 } ntm_manager;
 
 typedef struct ntm_manager* ntm_manager_t;
+
+
+/*----------------------------------------------------------------------------*/
+extern struct ntm_config NTM_CONFIG;
+extern ntm_manager_t ntm_mgr;
+
+
+
+/*----------------------------------------------------------------------------*/
+/* Related methods definitions for NTB Monitor */
+
+ntm_manager get_ntm_manager();
+
+int ntm_init(const char *config_file);
+
+void ntm_destroy();
+
+int ntm_getconf(struct ntm_config *conf);
+
+int ntm_setconf(const struct ntm_config *conf);
+
+ntm_manager init_ntm_manager();
+
+
+
+
+
+
 
 
 
