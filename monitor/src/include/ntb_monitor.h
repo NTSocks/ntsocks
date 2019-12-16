@@ -17,6 +17,8 @@ extern "C" {
 #endif
 
 
+#define NTM_SHMRING_NAME "/ntm-shm-ring"
+
 
 /*----------------------------------------------------------------------------*/
 struct ntm_config {
@@ -78,6 +80,14 @@ extern ntm_manager_t ntm_mgr;
 
 ntm_manager get_ntm_manager();
 
+/**
+ * 0. read the related conf file;
+ * 1. init ntm related resources, such as available socket list;
+ * 2. init the ntm shm ringbuffer to receive the messages from libnts apps;
+ * 3. init the listen socket for the connection requests from remote nt-monitor;
+ * 4. init the connection status hashmap store for remote nt-monitor;
+ *
+ */
 int ntm_init(const char *config_file);
 
 void ntm_destroy();

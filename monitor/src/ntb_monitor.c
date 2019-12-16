@@ -13,8 +13,20 @@
 #include "ntb_monitor.h"
 #include "ntm_shmring.h"
 #include "ntm_shm.h"
+#include "nt_log.h"
+
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 #define MSG "Hello NT-Monitor! I am libnts app. Nice to meet you!"
+
+static void * nts_recv_thread(void *arg);
+
+static void * nts_send_thread(void *arg);
+
+static void * ntp_recv_thread(void *arg);
+
+static void * ntp_send_thread(void *arg);
+
 
 static inline void test_ntm_ring() {
 	ntm_shmring_handle_t ns_handle;
@@ -83,6 +95,154 @@ static inline void test_nts_shm() {
 	ntm_shm_destroy(ns_ctx);
 
 }
+
+
+void * nts_recv_thread(void *arg) {
+
+	return 0;
+}
+
+void * nts_send_thread(void *arg) {
+
+	return 0;
+}
+
+void * ntp_recv_thread(void *arg) {
+
+	return 0;
+}
+
+void * ntp_send_thread(void *arg) {
+
+	return 0;
+}
+
+
+
+ntm_manager get_ntm_manager() {
+
+	return NULL;
+}
+
+
+int ntm_init(const char *config_file) {
+
+	ntm_nts_context_t nts_ctx;
+	ntm_ntp_context_t ntp_ctx;
+	int ret;
+
+
+	ntm_mgr = (ntm_manager_t) calloc(1, sizeof(struct ntm_manager));
+	if(!ntm_mgr) {
+		perror("malloc");
+		ERR("Failed to allocate ntm_manager.");
+		return -1;
+	}
+	ntm_mgr->nts_ctx = (ntm_nts_context_t) calloc(1, sizeof(struct ntm_nts_context));
+	if (!ntm_mgr->nts_ctx) {
+		perror("malloc");
+		ERR("Failed to allocate ntm_nts_context.");
+		return -1;
+	}
+	nts_ctx = ntm_mgr->nts_ctx;
+
+	ntm_mgr->ntp_ctx = (ntm_ntp_context_t) calloc(1, sizeof(struct ntm_ntp_context));
+	if(!ntm_mgr->ntp_ctx) {
+		perror("malloc");
+		ERR("Failed to allocate ntm_ntp_context.");
+		return -1;
+	}
+	ntp_ctx = ntm_mgr->ntp_ctx;
+
+	/**
+	 * read conf file and init ntm params
+	 */
+
+
+
+	/**
+	 *	init socket resources
+	 */
+
+
+
+
+	/**
+	 * init the ntm shm ringbuffer to receive the messages from libnts apps
+	 */
+	ntm_mgr->nts_ctx->shm_recv_ctx = ntm_shm();
+	if(!ntm_mgr->nts_ctx->shm_recv_ctx) {
+		perror("malloc");
+		ERR("Failed to allocate ntm_shm_context.");
+		return -1;
+	}
+
+	ret = ntm_shm_accept(ntm_mgr->nts_ctx->shm_recv_ctx,
+			NTM_SHMRING_NAME, sizeof(NTM_SHMRING_NAME));
+	if(ret) {
+		ERR("ntm_shm_accept failed.");
+		return -1;
+	}
+
+	pthread_create(&nts_ctx->shm_recv_thr, NULL, nts_recv_thread, NULL);
+
+
+
+
+
+	/**
+	 * init the listen socket for the connection requests from remote nt-monitor
+	 */
+
+
+
+	/**
+	 * init the connection status hashmap store for remote nt-monitor
+	 */
+
+
+	return 0;
+}
+
+void ntm_destroy() {
+
+
+	/**
+	 * Destroy the ntm shmring resources
+	 */
+	ntm_shm_context_t shm_recv_ctx;
+	shm_recv_ctx = ntm_mgr->nts_ctx->shm_recv_ctx;
+	if(shm_recv_ctx && shm_recv_ctx->shm_stat == NTM_SHM_READY) {
+		ntm_shm_close(shm_recv_ctx);
+		ntm_shm_destroy(shm_recv_ctx);
+	}
+
+	nts_shm_context_t shm_send_ctx;
+	shm_send_ctx = ntm_mgr->nts_ctx->shm_send_ctx;
+	if (shm_send_ctx && shm_send_ctx->shm_stat == NTM_SHM_READY) {
+		nts_shm_ntm_close(shm_send_ctx);
+		nts_shm_destroy(shm_send_ctx);
+	}
+
+
+
+}
+
+int ntm_getconf(struct ntm_config *conf) {
+
+	return 0;
+}
+
+int ntm_setconf(const struct ntm_config *conf) {
+
+	return 0;
+}
+
+ntm_manager init_ntm_manager() {
+
+	return NULL;
+}
+
 
 int print_monitor() {
 	printf("Hello Ntb Monitor.\n");

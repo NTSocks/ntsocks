@@ -99,6 +99,7 @@ void ntm_shm_destroy(ntm_shm_context_t shm_ctx) {
 	assert(shm_ctx);
 
 	free(shm_ctx);
+	shm_ctx = NULL;
 	DEBUG("ntm_shm_destroy pass ");
 	return;
 }
