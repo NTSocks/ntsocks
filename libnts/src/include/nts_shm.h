@@ -15,6 +15,9 @@
 
 #include "nts_shmring.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef enum nts_shm_stat {
 	NTS_SHM_UNREADY = 0,
@@ -73,5 +76,8 @@ int nts_shm_ntm_close(nts_shm_context_t shm_ctx);
 void nts_shm_destroy(nts_shm_context_t shm_ctx);
 
 
+#ifdef __cplusplus
+};
+#endif
 
 #endif /* NTS_SHM_H_ */

@@ -18,6 +18,16 @@
 #include "nts_shm.h"
 #include "ntm_shm.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+struct nts_config {
+	int tcp_timewait;
+	int tcp_timeout;
+
+};
+
 struct nts_ntm_context {
 
 	/**
@@ -33,17 +43,22 @@ struct nts_ntm_context {
 	 * send messages to libnts app
 	 */
 	ntm_shm_context_t shm_send_ctx;
-	pthread_t shm_sned_thr;
+	pthread_t shm_send_thr;
 	int shm_send_signal;
 
 
-} nts_ntm_context;
+};
 
 typedef struct nts_ntm_context* nts_ntm_context_t;
 
 struct nts_ntp_context {
+	pthread_t shm_recv_thr;
+	int shm_recv_signal;
 
-} nts_ntp_context;
+	pthread_t shm_send_thr;
+	int shm_send_signal;
+
+};
 
 typedef struct nts_ntp_context* nts_ntp_context_t;
 
@@ -54,5 +69,16 @@ struct nts_context {
 
 typedef struct nts_context* nts_context_t;
 
+/*----------------------------------------------------------------------------*/
+extern nts_context_t nts_ctx;
+extern struct nts_config NTS_CONFIG;
+
+
+
+
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif /* NTS_H_ */

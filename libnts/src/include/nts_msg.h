@@ -11,6 +11,15 @@
 #ifndef NTS_MSG_H_
 #define NTS_MSG_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
+
+
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif /* NTS_MSG_H_ */

@@ -9,8 +9,10 @@
  */
 
 #include <stdio.h>
+#include <assert.h>
 
 #include "ntb_monitor.h"
+#include "config.h"
 #include "ntm_shmring.h"
 #include "ntm_shm.h"
 #include "nt_log.h"
@@ -98,6 +100,19 @@ static inline void test_nts_shm() {
 
 
 void * nts_recv_thread(void *arg) {
+	assert(ntm_mgr->nts_ctx->shm_recv_ctx);
+
+	DEBUG("nts_recv_thread ready...");
+
+	char data[50];
+	size_t len = 50;
+	int recv_msg_len;
+	for (int i = 0; i < 10; i++) {
+		recv_msg_len = ntm_shm_recv(ntm_mgr->nts_ctx->shm_recv_ctx, data, len);
+		printf("recv msg %d with length %d : %s \n", i+1, recv_msg_len, data);
+	}
+
+	DEBUG("nts_recv_thread end!");
 
 	return 0;
 }
@@ -119,7 +134,7 @@ void * ntp_send_thread(void *arg) {
 
 
 
-ntm_manager get_ntm_manager() {
+ntm_manager_t get_ntm_manager() {
 
 	return NULL;
 }
@@ -172,7 +187,6 @@ int ntm_init(const char *config_file) {
 	 */
 	ntm_mgr->nts_ctx->shm_recv_ctx = ntm_shm();
 	if(!ntm_mgr->nts_ctx->shm_recv_ctx) {
-		perror("malloc");
 		ERR("Failed to allocate ntm_shm_context.");
 		return -1;
 	}
@@ -205,7 +219,7 @@ int ntm_init(const char *config_file) {
 }
 
 void ntm_destroy() {
-
+	assert(ntm_mgr);
 
 	/**
 	 * Destroy the ntm shmring resources
@@ -219,12 +233,15 @@ void ntm_destroy() {
 
 	nts_shm_context_t shm_send_ctx;
 	shm_send_ctx = ntm_mgr->nts_ctx->shm_send_ctx;
-	if (shm_send_ctx && shm_send_ctx->shm_stat == NTM_SHM_READY) {
+	if (shm_send_ctx && shm_send_ctx->shm_stat == NTS_SHM_READY) {
 		nts_shm_ntm_close(shm_send_ctx);
 		nts_shm_destroy(shm_send_ctx);
 	}
 
+	free(ntm_mgr->ntp_ctx);
+	free(ntm_mgr->nts_ctx);
 
+	free(ntm_mgr);
 
 }
 
@@ -238,7 +255,7 @@ int ntm_setconf(const struct ntm_config *conf) {
 	return 0;
 }
 
-ntm_manager init_ntm_manager() {
+ntm_manager_t init_ntm_manager() {
 
 	return NULL;
 }

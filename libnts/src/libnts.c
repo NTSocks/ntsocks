@@ -25,6 +25,10 @@
 
 #include "libnts.h"
 #include "nts_api.h"
+#include "nts_config.h"
+#include "nt_log.h"
+
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 #define __GNU_SOURCE
 
@@ -40,7 +44,7 @@
 	real_##func = dlsym(RTLD_NEXT, #func); \
 	assert(real_##func)
 
-static int inited = 0;
+static int inited = 1;
 
 static int (*real_close)(int);
 static int (*real_socket)(int, int, int);
@@ -85,6 +89,7 @@ void ntsocket_init(void) {
 	INIT_FUNCTION(select);
 
 	inited = 1;
+	DEBUG("ntsocket init pass!!! \n");
 
 	return;
 }
@@ -97,6 +102,7 @@ void ntsocket_uninit(void) {
 
 int socket(int domain, int type, int protocol) {
 	int ret;
+	DEBUG("socket() with inited -- %d \n", inited);
 
 	if (unlikely(inited == 0)) {
 		INIT_FUNCTION(socket);
@@ -110,7 +116,8 @@ int socket(int domain, int type, int protocol) {
 
 	ret = nts_socket(domain, type, protocol);
 
-	return ret;
+
+	return 0;
 }
 
 int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {

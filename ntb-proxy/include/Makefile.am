@@ -1,3 +1,3 @@
 # These files will end up in the install include directory
 # For example, /usr/include
-include_HEADERS = func.h ntb-proxy.h
+include_HEADERS = func.h

@@ -13,6 +13,7 @@
 
 #include <linux/ioctl.h>
 
+
 typedef unsigned int u32;
 
 
@@ -56,6 +57,10 @@ struct ntsocket_ioctl_arg {
 	} op;
 
 };
+
+
+
+
 
 
 #endif /* LIBNTS_H_ */

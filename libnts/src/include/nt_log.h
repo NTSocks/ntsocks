@@ -46,15 +46,15 @@ enum debug_level {
 
 #define ASSERT()                                        \
 do {                                                    \
-    PRINT(stdout, "ASSERT: %s %s %d",                           \
+    PRINT(stdout, "ASSERT: %s %s %d",                   \
            __FILE__, __FUNCTION__, __LINE__);           \
     while (1);                                          \
 } while (0)
 
 #define ERR(fmt, ...)                                      \
 	do{ 							                       \
-        if (debug >= DEBUG_LEVEL_DEBUG) {                  \
-            PRINT(stdout,                                \
+        if (debug >= DEBUG_LEVEL_ERR) {                    \
+            PRINT(stdout,                                  \
                 "%s %s[ERROR] [%s:%s:%d]: " fmt "\n",      \
                 __DATE__, __TIME__, __FILE__,              \
                 __FUNCTION__, __LINE__, ##__VA_ARGS__);    \
@@ -63,8 +63,8 @@ do {                                                    \
 
 #define INFO(fmt, ...)                                     \
 	do{ 							                       \
-        if (debug >= DEBUG_LEVEL_DEBUG) {                  \
-            PRINT(stdout,                                \
+        if (debug >= DEBUG_LEVEL_INFO) {                   \
+            PRINT(stdout,                                  \
                 "%s %s[INFO] [%s:%s:%d]: " fmt "\n",       \
                 __DATE__, __TIME__, __FILE__,              \
                 __FUNCTION__, __LINE__, ##__VA_ARGS__);    \
@@ -75,7 +75,7 @@ do {                                                    \
 #define DEBUG(fmt, ...)                                    \
 	do{ 							                       \
         if (debug >= DEBUG_LEVEL_DEBUG) {                  \
-            PRINT(stdout,                                \
+            PRINT(stdout,                                  \
                 "%s %s[DEBUG] [%s:%s:%d]: " fmt "\n",      \
                 __DATE__, __TIME__, __FILE__,              \
                 __FUNCTION__, __LINE__, ##__VA_ARGS__);    \

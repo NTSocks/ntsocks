@@ -11,10 +11,6 @@
 #ifndef NTS_API_H_
 #define NTS_API_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <sys/poll.h>
@@ -24,11 +20,31 @@ extern "C" {
 
 #include "nts_event.h"
 #include "nts_errno.h"
+#include "nts.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 
 typedef int (*loop_func_t)(void *arg);
 
-int nts_init(int argc, char * const argv[]);
+//int nts_init(int argc, char * const argv[]);
+
+int nts_init(const char *config_file);
+
+void nts_destroy();
+
+int nts_setconf(struct nts_config *conf);
+
+int nts_get_conf(struct nts_config *conf);
+
+//int nts_core_affinitize(int cpu);
+
+//nts_context_t nts_create_context();
+
+//void nts_destroy_context(nts_context_t nts_ctx);
 
 
 /* POSIX-LIKE api begin */

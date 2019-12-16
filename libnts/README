@@ -1,0 +1,24 @@
+
+## Quick Build Start
+
+1. ./autogen.sh
+
+2. cd build/ && make distclean
+
+3. ../configure 
+
+4. make -j4
+
+5. make dist
+
+6. tar -xzvf libnts-1.0.0.tar.gz
+
+7. cd libnts-1.0.0
+
+8. ./configure --prefix=/home/spark2/app/libs/libnts
+
+9. make -j4
+
+10. make install
+
+11. cd .. && LD_PRELOAD=/home/spark2/app/libs/libnts/lib/libnts.so examples/hello-ntsock

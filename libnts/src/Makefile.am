@@ -12,20 +12,30 @@ include_HADERS =
 INC_DIR = include
 
 # Sources for libTest
-lib_libnts_la_SOURCES = socket.c libnts.c nts_api.c     \
+lib_libnts_la_SOURCES = socket.c libnts.c 		        \
+		nts_config.c 									\
+		nts_api.c $(INC_DIR)/nts_api.h					\
+		nts.c $(INC_DIR)/nts.h 							\
 		debug.c $(INC_DIR)/debug.h						\
 		clock.c $(INC_DIR)/clock.h						\
 		eventpoll.c $(INC_DIR)/eventpoll.h				\
 		logger.c $(INC_DIR)/logger.h					\
+		nts_errno.c $(INC_DIR)/nts_errno.h				\
+		nts_event.c $(INC_DIR)/nts_event.h				\
+		$(INC_DIR)/nt_atomic.h 							\
+		$(INC_DIR)/gcc_builtins.h						\
+		$(INC_DIR)/nt_log.h 							\
+		nts_epoll.c $(INC_DIR)/nts_epoll.h				\
 		nts_ini_parser.c $(INC_DIR)/nts_ini_parser.h	\
 		nts_memory.c $(INC_DIR)/nts_memory.h			\
 		nts_msg.c $(INC_DIR)/nts_msg.h					\
-		nts_shm.c $(INC_DIR)/nts_shm.h					\
-		nts.c $(INC_DIR)/nts.h							\
 		stat.c $(INC_DIR)/stat.h						\
 		timer.c $(INC_DIR)/timer.h						\
-		ntm_shmring.c ntm_shm.c							\
-		nts_shmring.c $(INC_DIR)/nts_shmring.h			
+		nts_shmring.c $(INC_DIR)/nts_shmring.h			\
+		nts_shm.c $(INC_DIR)/nts_shm.h					\
+		ntm_shmring.c $(INC_DIR)/ntm_shmring.h			\
+		ntm_shm.c $(INC_DIR)/ntm_shm.h
+						
 
 # Linker options libTestProgram
 lib_libnts_la_LDFLAGS =

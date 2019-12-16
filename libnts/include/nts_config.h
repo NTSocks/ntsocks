@@ -11,6 +11,24 @@
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
+#define NTM_SHMRING_NAME "/ntm-shm-ring"
+
+#define NTS_CONFIG_FILE "nts.cfg"
+
+/* load configuration from specified configuration file name */
+int load_conf(const char *fname);
+
+/* print setted configuration */
+void print_conf();
+
+
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif /* CONFIG_H_ */
