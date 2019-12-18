@@ -14,8 +14,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-#include "nts_msg.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -36,11 +34,9 @@ nts_shmring_handle_t nts_shmring_init();
 
 nts_shmring_handle_t nts_get_shmring();
 
-//bool nts_shmring_push(nts_shmring_handle_t self, char *element, size_t len);
-bool nts_shmring_push(nts_shmring_handle_t self, nts_msg *element);
+bool nts_shmring_push(nts_shmring_handle_t self, char *element, size_t len);
 
-//int nts_shmring_pop(nts_shmring_handle_t self, char *element, size_t len);
-bool nts_shmring_pop(nts_shmring_handle_t self, nts_msg *element);
+int nts_shmring_pop(nts_shmring_handle_t self, char *element, size_t len);
 
 void nts_shmring_free(nts_shmring_handle_t self, int unlink);
 

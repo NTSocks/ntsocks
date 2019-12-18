@@ -29,8 +29,7 @@
 DEBUG_SET_LEVEL(DEBUG_LEVEL_INFO);
 
 typedef struct nts_shmring_buf {
-//    char buf[NTS_MAX_BUFS + 1][NTS_BUF_SIZE];
-	nts_msg buf[NTS_MAX_BUFS + 1];
+    char buf[NTS_MAX_BUFS + 1][NTS_BUF_SIZE];
     uint64_t write_index;
     uint64_t read_index;
 } nts_shmring_buf;
@@ -186,10 +185,19 @@ nts_shmring_handle_t nts_get_shmring() {
  * @param len
  * @return
  */
-bool nts_shmring_push(nts_shmring_handle_t self, nts_msg *element) {
+bool nts_shmring_push(nts_shmring_handle_t self, char *element, size_t len) {
     assert(self);
-    assert(element);
 
+    // check len
+    len = (len < NTS_BUF_SIZE) ? len : NTS_BUF_SIZE;
+
+    /* Critical Section */
+    /*const uint64_t r_idx = nt_atomic_load64_explicit(
+            &self->shmring->read_index, ATOMIC_MEMORY_ORDER_CONSUME);*/
+//    const uint64_t w_idx = nt_atomic_load64_explicit(
+//            &self->shmring->write_index, ATOMIC_MEMORY_ORDER_CONSUME);
+//    DEBUG("\t[nts_shmring] w_idx : %d; r_idx : %d", (int) self->shmring->write_index,
+//           (int) self->shmring->read_index);
     const uint64_t w_idx = nt_atomic_load64_explicit(
             &self->shmring->write_index, ATOMIC_MEMORY_ORDER_RELAXED);
 
@@ -203,33 +211,40 @@ bool nts_shmring_push(nts_shmring_handle_t self, nts_msg *element) {
             &self->shmring->read_index, ATOMIC_MEMORY_ORDER_ACQUIRE))
         return false;
 
-    nts_msgcopy(element, &(self->shmring->buf[w_idx]));
+    memcpy(self->shmring->buf[w_idx], element, len);
     nt_atomic_store64_explicit(&self->shmring->write_index,
                                w_next_idx, ATOMIC_MEMORY_ORDER_RELEASE);
 
     DEBUG("push nts shmring successfully!");
 
     return true;
+
 }
 
-bool nts_shmring_pop(nts_shmring_handle_t self, nts_msg *element) {
+int nts_shmring_pop(nts_shmring_handle_t self, char *element, size_t len) {
     assert(self);
-    assert(element);
 
-    uint64_t w_idx = nt_atomic_load64_explicit(&self->shmring->write_index, ATOMIC_MEMORY_ORDER_ACQUIRE);
-    uint64_t r_idx = nt_atomic_load64_explicit(&self->shmring->read_index, ATOMIC_MEMORY_ORDER_RELAXED);
+    len = len < NTS_BUF_SIZE ? len : NTS_BUF_SIZE;
 
-    /// Queue is empty (or was empty when we checked)
-    if (empty(w_idx, r_idx))
-        return -1;
+//   uint64_t r_idx = nt_atomic_load64_explicit(
+//           &self->shmring->read_index, ATOMIC_MEMORY_ORDER_CONSUME);
+//   uint64_t w_idx = nt_atomic_load64_explicit(
+//           &self->shmring->write_index, ATOMIC_MEMORY_ORDER_CONSUME);
 
-    nts_msgcopy(&(self->shmring->buf[self->shmring->read_index]), element);
+   uint64_t w_idx = nt_atomic_load64_explicit(&self->shmring->write_index, ATOMIC_MEMORY_ORDER_ACQUIRE);
+   uint64_t r_idx = nt_atomic_load64_explicit(&self->shmring->read_index, ATOMIC_MEMORY_ORDER_RELAXED);
+
+   /// Queue is empty (or was empty when we checked)
+   if (empty(w_idx, r_idx))
+       return -1;
+
+    memcpy(element, self->shmring->buf[self->shmring->read_index], len);
     nt_atomic_store64_explicit(&self->shmring->read_index,
                                mask_increment(r_idx, self->MASK), ATOMIC_MEMORY_ORDER_RELEASE);
 
     DEBUG("pop nts shmring successfully!");
 
-    return true;
+    return (int) len;
 
 }
 

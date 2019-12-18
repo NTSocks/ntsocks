@@ -62,20 +62,22 @@ int nts_shm_connect(nts_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
 }
 
 
-int nts_shm_send(nts_shm_context_t shm_ctx, nts_msg *element) {
+int nts_shm_send(nts_shm_context_t shm_ctx, char *buf, size_t len) {
 	assert(shm_ctx);
+	assert(len > 0);
 
-	nts_shmring_push(shm_ctx->ntsring_handle, element);
+	nts_shmring_push(shm_ctx->ntsring_handle, buf, len);
 
 	DEBUG("nts_shm_send pass");
 	return 0;
 }
 
 
-int nts_shm_recv(nts_shm_context_t shm_ctx, nts_msg *element) {
+int nts_shm_recv(nts_shm_context_t shm_ctx, char *buf, size_t len) {
 	assert(shm_ctx);
+	assert(len > 0);
 
-	int recv_size = nts_shmring_pop(shm_ctx->ntsring_handle, element);
+	int recv_size = nts_shmring_pop(shm_ctx->ntsring_handle, buf, len);
 
 	DEBUG("nts_shm_recv pass");
 	return recv_size;
