@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "func.h": "c",
+        "ntb.h": "c",
+        "rte_ring.h": "c"
+    }
+}

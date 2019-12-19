@@ -31,13 +31,11 @@
 #include <rte_bus_vdev.h>
 #include <rte_memzone.h>
 #include <rte_mempool.h>
-#include <rte_rwlock.h>
+// #include <rte_rwlock.h>
 #include <rte_ring.h>
+#include <librte_pmd_ntb.h>
 
-#include "ntb.h"
-#include "ntb_hw_intel.h"
-
-#include "ntb_trans_protocols.h"
+#include "ntlink-parser.h"
 
 int ntb_buff_creat(struct ntb_custom_sublink *sublink, int process_id)
 {
