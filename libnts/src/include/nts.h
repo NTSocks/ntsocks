@@ -25,7 +25,8 @@ extern "C" {
 struct nts_config {
 	int tcp_timewait;
 	int tcp_timeout;
-
+	int key1;
+	int key2;
 };
 
 struct nts_ntm_context {
