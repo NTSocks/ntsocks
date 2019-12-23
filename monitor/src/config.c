@@ -114,10 +114,3 @@ int load_conf(const char *fname)
 void print_conf() {
 	printf("ntm configuration: remote_ntm_tcp_timewait=%d, remote_ntm_tcp_timeout=%d, key1=%d, key2=%d\n",NTM_CONFIG.remote_ntm_tcp_timewait, NTM_CONFIG.remote_ntm_tcp_timeout, NTM_CONFIG.key1, NTM_CONFIG.key2);
 }
-
-char *get_conf_dir(const char* fname){
-	char buffer[256];
-	getcwd(buffer, 256);
-	strcat(buffer, fname);
-	return buffer;
-}
