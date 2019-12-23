@@ -55,10 +55,8 @@
 # files created by ./configure
 #
 
-/config.h
 /config.status
 /config.log
-/Makefile
 /stamp-h1
 /libtool
 /librdmacm.spec
@@ -76,11 +74,9 @@ aclocal.m4
 stamp-h.in
 config.h.in
 config.log
-config.h
 .libs
 .deps
 libmlx4.spec
-Makefile
 config.status
 stamp-h1
 libtool

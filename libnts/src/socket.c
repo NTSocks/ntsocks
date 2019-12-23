@@ -35,7 +35,8 @@ int test_ntm_shm() {
 	getchar();
 	printf("Start to send message to Nt-Monitor. \n");
 
-	for (int i = 0; i < 10; i++) {
+	int i;
+	for (i = 0; i < 10; i++) {
 		ntm_shm_send(ntm_shm_ctx, MSG_FROM_NTS, sizeof(MSG_FROM_NTS));
 	}
 

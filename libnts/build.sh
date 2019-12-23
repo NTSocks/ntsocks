@@ -9,3 +9,4 @@ make distclean
 ../configure 
 make -j4
 
+cd ..
