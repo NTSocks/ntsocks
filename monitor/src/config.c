@@ -99,7 +99,7 @@ int load_conf(const char *fname)
 		}
 		if (strcmp(_paramk, "") == 0 || strcmp(_paramv, "") == 0)
 			continue;
-		DEBUG("ntb monitor configuration %s=%s\n", _paramk, _paramv);
+		// DEBUG("ntb monitor configuration %s=%s", _paramk, _paramv);
 		if (strcmp(_paramk, "key1") == 0) {
 			NTM_CONFIG.key1 = atoi(_paramv);
 		} else if (strcmp(_paramk, "key2") == 0) {
