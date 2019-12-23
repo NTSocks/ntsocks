@@ -3,7 +3,7 @@ AM_CPPFLAGS = -I$(srcdir)/include
 libntslibdir = $(libdir)
 
 ACLOCAL_AMFLAGS = -I config -I m4
-AM_CFLAGS = -g -Wall
+AM_CFLAGS = -g -Wall -std=c99
 
 SUBDIRS = lib src include tests examples
 EXTRA_DIST = autogen.sh

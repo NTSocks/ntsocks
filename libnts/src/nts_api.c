@@ -44,7 +44,8 @@ void * ntm_send_thread(void *arg) {
 
 	DEBUG("start to send requests to ntb monitor ...");
 
-	for (int i = 0; i < 10; i++) {
+	int i;
+	for (i = 0; i < 10; i++) {
 		ntm_shm_send(nts_ctx->ntm_ctx->shm_send_ctx, MSG_FROM_NTS, sizeof(MSG_FROM_NTS));
 	}
 
