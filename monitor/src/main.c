@@ -12,7 +12,10 @@
 #include "nt_log.h"
 #include "config.h"
 
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
+
 #define CONFIG_FILE "../config/ntm.cfg"
+
 
 int main(int argc, char **argv) {
 	printf("Test llllll\n");
@@ -22,7 +25,7 @@ int main(int argc, char **argv) {
 	load_conf(CONFIG_FILE);
 	DEBUG("after load conf");
 	print_conf();
-	
+
 	ntm_init(CONFIG_FILE);
 
 	getchar();
