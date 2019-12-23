@@ -14,14 +14,14 @@
 
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
-#define CONFIG_FILE "ntm.cfg"
+#define CONFIG_FILE "/config/ntm.cfg"
 
 
 int main(int argc, char **argv) {
 	// print_monitor();
 	DEBUG("before load conf");
 	print_conf();
-	
+
 	char *conf_file = get_conf_dir(CONFIG_FILE);
 	load_conf(conf_file);
 	DEBUG("after load conf");

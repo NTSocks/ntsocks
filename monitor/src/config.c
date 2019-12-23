@@ -116,9 +116,8 @@ void print_conf() {
 }
 
 char *get_conf_dir(const char* fname){
-	char buffer[256], *rpath = "/../config/";
+	char buffer[256];
 	getcwd(buffer, 256);
-	strcat(buffer, rpath);
 	strcat(buffer, fname);
 	return buffer;
 }
