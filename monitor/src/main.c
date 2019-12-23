@@ -21,7 +21,9 @@ int main(int argc, char **argv) {
 	// print_monitor();
 	DEBUG("before load conf");
 	print_conf();
-	load_conf(CONFIG_FILE);
+	
+	char *conf_file = get_conf_dir(CONFIG_FILE);
+	load_conf(conf_file);
 	DEBUG("after load conf");
 	print_conf();
 
