@@ -101,7 +101,7 @@ int load_conf(const char *fname)
 			continue;
 		// DEBUG("ntb monitor configuration %s=%s", _paramk, _paramv);
 		if (strcmp(_paramk, "addr") == 0) {
-			NTM_CONFIG.addr = atoi(_paramv);
+			NTM_CONFIG.addr = _paramv;
 		} else if (strcmp(_paramk, "port") == 0) {
 			NTM_CONFIG.port = atoi(_paramv);
 		} else if (strcmp(_paramk, "remote_ntm_tcp_timeout")){
