@@ -17,7 +17,7 @@ OBJS = $(patsubst %.c, %.o, $(SRCS))
 TEST_SRCS = $(wildcard $(TEST_DIR)/**/*.cpp $(TEST_DIR)/*.cpp)
 TEST_OBJS = $(patsubst %.cpp, %.o, $(TEST_SRCS))
 
-INCLUDE_PATH = -I./include/ -I./src/include/
+INCLUDE_PATH = -I./include/ -I./src/include/ -I./src/utils/include
 LIB_PATH = -L./lib/
 
 LIBS = -lpthread -lrt
