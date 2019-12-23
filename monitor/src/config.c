@@ -116,6 +116,6 @@ int load_conf(const char *fname)
 }
 
 void print_conf() {
-	printf("ntm configuration: remote_ntm_tcp_timewait=%d, remote_ntm_tcp_timeout=%d, addr=%d, port=%d\n",
+	printf("ntm configuration: remote_ntm_tcp_timewait=%d, remote_ntm_tcp_timeout=%d, addr=%s, port=%d\n",
 		NTM_CONFIG.remote_ntm_tcp_timewait, NTM_CONFIG.remote_ntm_tcp_timeout, NTM_CONFIG.addr, NTM_CONFIG.port);
 }
