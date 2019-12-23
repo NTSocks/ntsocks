@@ -11,6 +11,8 @@
 #include "ntb_monitor.h"
 #include "config.h"
 #include "nt_log.h"
+#include <unistd.h>
+#include <string.h>
 
 #define MAX_BUF_LEN 1024
 #define MAX_KEY_LEN 64
@@ -26,7 +28,7 @@ struct ntm_config NTM_CONFIG = {
 
 ntm_manager_t ntm_mgr = NULL;
 
-static int Trim(char s[])
+static int trim(char s[])
 {
 	int n;
 	for (n = strlen(s) - 1; n >= 0; n--) {
@@ -50,7 +52,7 @@ int load_conf(const char *fname)
 	char buf[MAX_BUF_LEN];
 	int text_comment = 0;
 	while (fgets(buf, MAX_BUF_LEN, file) != NULL) {
-		Trim(buf);
+		trim(buf);
 		// to skip text comment with flags /* ... */
 		if (buf[0] != '#' && (buf[0] != '/' || buf[1] != '/')) {
 			if (strstr(buf, "/*") != NULL) {
@@ -111,4 +113,12 @@ int load_conf(const char *fname)
 
 void print_conf() {
 	printf("ntm configuration: remote_ntm_tcp_timewait=%d, remote_ntm_tcp_timeout=%d, key1=%d, key2=%d\n",NTM_CONFIG.remote_ntm_tcp_timewait, NTM_CONFIG.remote_ntm_tcp_timeout, NTM_CONFIG.key1, NTM_CONFIG.key2);
+}
+
+char *get_conf_dir(const char* fname){
+	char buffer[256], *rpath = "/../config/";
+	getcwd(buffer, 256);
+	strcat(buffer, rpath);
+	strcat(buffer, fname);
+	return buffer;
 }

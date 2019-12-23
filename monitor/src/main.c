@@ -14,11 +14,10 @@
 
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
-#define CONFIG_FILE "../config/ntm.cfg"
+#define CONFIG_FILE "ntm.cfg"
 
 
 int main(int argc, char **argv) {
-	printf("Test llllll\n");
 	// print_monitor();
 	DEBUG("before load conf");
 	print_conf();
