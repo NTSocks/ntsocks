@@ -26,8 +26,8 @@ struct ntm_config {
 	/* config for the connection between local and remote nt-monitor  */
 	int remote_ntm_tcp_timewait;
 	int remote_ntm_tcp_timeout;
-	int key1;
-	int key2;
+	int addr;
+	int port;
 };
 
 

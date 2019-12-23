@@ -100,11 +100,15 @@ int load_conf(const char *fname)
 		if (strcmp(_paramk, "") == 0 || strcmp(_paramv, "") == 0)
 			continue;
 		// DEBUG("ntb monitor configuration %s=%s", _paramk, _paramv);
-		if (strcmp(_paramk, "key1") == 0) {
-			NTM_CONFIG.key1 = atoi(_paramv);
-		} else if (strcmp(_paramk, "key2") == 0) {
-			NTM_CONFIG.key2 = atoi(_paramv);
-		} else {
+		if (strcmp(_paramk, "addr") == 0) {
+			NTM_CONFIG.addr = atoi(_paramv);
+		} else if (strcmp(_paramk, "port") == 0) {
+			NTM_CONFIG.port = atoi(_paramv);
+		} else if (strcmp(_paramk, "remote_ntm_tcp_timeout")){
+			NTM_CONFIG.remote_ntm_tcp_timeout = atoi(_paramv);
+		}else if(strcmp(_paramk, "remote_ntm_tcp_timewait")){
+			NTM_CONFIG.remote_ntm_tcp_timewait = atoi(_paramv);
+		}else {
 			return 1;
 		}
 	}
@@ -112,5 +116,6 @@ int load_conf(const char *fname)
 }
 
 void print_conf() {
-	printf("ntm configuration: remote_ntm_tcp_timewait=%d, remote_ntm_tcp_timeout=%d, key1=%d, key2=%d\n",NTM_CONFIG.remote_ntm_tcp_timewait, NTM_CONFIG.remote_ntm_tcp_timeout, NTM_CONFIG.key1, NTM_CONFIG.key2);
+	printf("ntm configuration: remote_ntm_tcp_timewait=%d, remote_ntm_tcp_timeout=%d, addr=%d, port=%d\n",
+		NTM_CONFIG.remote_ntm_tcp_timewait, NTM_CONFIG.remote_ntm_tcp_timeout, NTM_CONFIG.addr, NTM_CONFIG.port);
 }

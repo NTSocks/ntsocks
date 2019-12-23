@@ -28,7 +28,7 @@ struct nts_config NTS_CONFIG = {
 nts_context_t nts_ctx = NULL;
 
 
-static int Trim(char s[])
+static int trim(char s[])
 {
     int n;
     for (n = strlen(s) - 1; n >= 0; n--) {
@@ -52,7 +52,7 @@ int load_conf(const char *fname)
     char buf[MAX_BUF_LEN];
     int text_comment = 0;
     while (fgets(buf, MAX_BUF_LEN, file) != NULL) {
-        Trim(buf);
+        trim(buf);
         // to skip text comment with flags /* ... */
         if (buf[0] != '#' && (buf[0] != '/' || buf[1] != '/')) {
             if (strstr(buf, "/*") != NULL) {
@@ -104,7 +104,11 @@ int load_conf(const char *fname)
             NTS_CONFIG.key1 = atoi(_paramv);
         } else if (strcmp(_paramk, "key2") == 0) {
             NTS_CONFIG.key2 = atoi(_paramv);
-        } else {
+        } else if(strcmp(_paramk, "tcp_timewait")){
+            NTS_CONFIG.tcp_timewait = atoi(_paramv);
+        } else if(strcmp(_paramk, "tcp_timeout")){
+            NTS_CONFIG.tcp_timeout = atoi(_paramv);
+        }else {
             return 1;
         }
     }
