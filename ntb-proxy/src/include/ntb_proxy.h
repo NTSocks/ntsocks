@@ -132,7 +132,7 @@ rte_ring_create_custom(uint8_t *ptr, uint64_t ring_size);
 int ntb_creat_all_sublink(struct ntb_custom_link *ntb_link, uint8_t *local_ptr, uint8_t *remote_ptr);
 
 struct ntb_custom_link *
-ntb_custom_start(uint16_t dev_id);
+ntb_start(uint16_t dev_id);
 
 
 #endif /* NTB_PROXY_H_ */

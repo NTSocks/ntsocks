@@ -1,5 +1,5 @@
 /*
- * <p>Title: ntp-config.h</p>
+ * <p>Title: ntp_config.h</p>
  * <p>Description: </p>
  * <p>Copyright: Copyright (c) 2019 </p>
  *

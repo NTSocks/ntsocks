@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <errno.h>
 
-#include <rte_io.h>
 #include <rte_eal.h>
 #include <rte_pci.h>
 #include <rte_bus_pci.h>
@@ -17,9 +16,6 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <string.h>
-
-#include <rte_byteorder.h>
-#include <rte_common.h>
 #include <rte_debug.h>
 #include <rte_dev.h>
 #include <rte_kvargs.h>
@@ -34,8 +30,9 @@
 #include <rte_rwlock.h>
 #include <rte_ring.h>
 
+#include "ntp_config.h"
 #include "ntlink_parser.h"
-#include "ntb_proxy.h"
+#include "ntb_mem.h"
 
 int ntb_app_mempool_get(struct rte_mempool *mp, void **obj_p, struct ntb_uuid *app_uuid)
 {
@@ -246,8 +243,8 @@ rte_ring_create_custom(uint8_t *ptr, uint64_t ring_size)
 
 int ntb_creat_all_sublink(struct ntb_custom_link *ntb_link, uint8_t *local_ptr, uint8_t *remote_ptr)
 {
-
-	for (int i = 0; i < PRIORITY; i++)
+    struct ntp_config *cf = get_ntp_config();
+	for (int i = 0; i < cf->nt_proxy.sublink_number; i++)
 	{
 		ntb_link->sublink[i].local_cum_ptr = (uint64_t *)local_ptr;
 		ntb_link->sublink[i].remote_cum_ptr = (uint64_t *)remote_ptr;
@@ -259,7 +256,7 @@ int ntb_creat_all_sublink(struct ntb_custom_link *ntb_link, uint8_t *local_ptr, 
 		ntb_link->sublink[i].ctrl_mss->remote_rev_flag = (uint8_t *)ntb_link->sublink[i].ctrl_mss->remote_ctrl_mss + 15;
 		ntb_link->sublink[i].local_ring = rte_ring_create_custom(((uint8_t *)local_ptr + 24), RING_SIZE);
 		ntb_link->sublink[i].remote_ring = rte_ring_create_custom(((uint8_t *)remote_ptr + 24), RING_SIZE);
-		ntb_link->sublink[i].process_map = malloc(sizeof(struct ntb_socket) * 0x4000000);
+		//ntb_link->sublink[i].process_map = malloc(sizeof(struct ntb_socket) * 0x4000000);
 		local_ptr = (uint8_t *)local_ptr + RING_SIZE + 24;
 		remote_ptr = (uint8_t *)remote_ptr + RING_SIZE + 24;
 	}

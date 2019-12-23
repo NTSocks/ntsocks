@@ -1,4 +1,4 @@
-#include <ntp_config.h>
+#include "ntp_config.h"
 #include "nt_log.h"
 
 DEBUG_SET_LEVEL(DEBUG_LEVEL_INFO);

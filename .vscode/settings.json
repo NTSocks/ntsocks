@@ -2,6 +2,8 @@
     "files.associations": {
         "func.h": "c",
         "ntb.h": "c",
-        "rte_ring.h": "c"
+        "rte_ring.h": "c",
+        "rte_memzone.h": "c",
+        "ntp_config.h": "c"
     }
 }
