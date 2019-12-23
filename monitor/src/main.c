@@ -14,7 +14,7 @@
 
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
-#define CONFIG_FILE "/config/ntm.cfg"
+#define CONFIG_FILE "/etc/ntm.cfg"
 
 
 int main(int argc, char **argv) {
