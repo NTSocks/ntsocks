@@ -116,12 +116,3 @@ void print_conf()
 {
     printf("nts configuration: tcp_timewait=%d, tcp_timeout=%d, key1=%d, key2=%d\n",NTS_CONFIG.tcp_timewait,NTS_CONFIG.tcp_timeout, NTS_CONFIG.key1, NTS_CONFIG.key2);
 }
-/*
-int main(){
-    printf("before load\n");
-    printf("key1=%d, key2=%d\n", NTS_CONFIG.key1, NTS_CONFIG.key2);
-    load_conf(NTS_CONFIG_FILE);
-    printf("after load\n");
-    printf("key1=%d, key2=%d\n", NTS_CONFIG.key1, NTS_CONFIG.key2);
-    return 0;
-}*/

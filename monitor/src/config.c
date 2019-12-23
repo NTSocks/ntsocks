@@ -112,13 +112,3 @@ int load_conf(const char *fname)
 void print_conf() {
 	printf("ntm configuration: remote_ntm_tcp_timewait=%d, remote_ntm_tcp_timeout=%d, key1=%d, key2=%d\n",NTM_CONFIG.remote_ntm_tcp_timewait, NTM_CONFIG.remote_ntm_tcp_timeout, NTM_CONFIG.key1, NTM_CONFIG.key2);
 }
-
-/*
-int main(){
-	printf("before load\n");
-	printf("key1=%d, key2=%d\n", NTM_CONFIG.key1, NTM_CONFIG.key2);
-	load_conf(NTM_CONFIG_FILE);
-	printf("after load\n");
-	printf("key1=%d, key2=%d\n", NTM_CONFIG.key1, NTM_CONFIG.key2);
-	return 0;
-}*/
