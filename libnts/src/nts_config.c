@@ -114,7 +114,7 @@ int load_conf(const char *fname)
 
 void print_conf()
 {
-
+    printf("nts configuration: tcp_timewait=%d, tcp_timeout=%d, key1=%d, key2=%d\n",NTS_CONFIG.tcp_timewait,NTS_CONFIG.tcp_timeout, NTS_CONFIG.key1, NTS_CONFIG.key2);
 }
 /*
 int main(){

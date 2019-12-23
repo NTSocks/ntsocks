@@ -13,8 +13,8 @@
 #define CONFIG_FILE "ntm.cfg"
 
 int main(int argc, char **argv) {
-
-//	print_monitor();
+	printf("Test llllll\n");
+	// print_monitor();
 	ntm_init(CONFIG_FILE);
 
 	getchar();
