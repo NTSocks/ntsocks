@@ -35,8 +35,8 @@
 #include <rte_ring.h>
 #include <librte_pmd_ntb.h>
 
-#include "ntlink-parser.h"
-#include "ntb-proxy.h"
+#include "ntlink_parser.h"
+#include "ntb_proxy.h"
 
 int ntb_app_mempool_get(struct rte_mempool *mp, void **obj_p, struct ntb_uuid *app_uuid)
 {

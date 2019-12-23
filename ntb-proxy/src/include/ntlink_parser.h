@@ -1,5 +1,5 @@
 /*
- * <p>Title: ntlink-parser.h</p>
+ * <p>Title: ntlink_parser.h</p>
  * <p>Description: </p>
  * <p>Copyright: Copyright (c) 2019 </p>
  *
@@ -11,7 +11,7 @@
 #ifndef _NTLINK_PARSER_H_
 #define _NTLINK_PARSER_H_
 
-#include "ntb-proxy.h"
+#include "ntb_proxy.h"
 
 #define DATA_TYPE 1
 #define OPEN_LINK 10

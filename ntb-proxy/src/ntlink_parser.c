@@ -35,7 +35,7 @@
 #include <rte_ring.h>
 #include <librte_pmd_ntb.h>
 
-#include "ntlink-parser.h"
+#include "ntlink_parser.h"
 
 int ntb_buff_creat(struct ntb_custom_sublink *sublink, int process_id)
 {
