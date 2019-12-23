@@ -31,7 +31,7 @@ struct nts_shm_context {
 	nts_shmring_handle_t ntsring_handle;
 	char *shm_addr;
 	size_t addrlen;
-} nts_shm_context;
+} ;
 
 typedef struct nts_shm_context* nts_shm_context_t;
 
