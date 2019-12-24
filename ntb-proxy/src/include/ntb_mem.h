@@ -13,27 +13,12 @@
 
 #define PRIORITY 8
 #define RING_SIZE 0x800000
+#define CTRL_RING_SIZE 0x40000
 
 #define NTB_DATA_MSS_TL 128
+#define NTB_CTRL_MSS_TL 32
 #define NTB_HEADER_LEN 6
-#define UPDATE_CUM_LINE 500
-#define REV_MSS_COUNTER 1000
-#define MEM_NODE_HEADER_LEB 6
-
-struct ntb_buff
-{
-	//struct rte_ring *ring;
-	uint8_t *buff;
-	uint64_t buff_size;
-	uint64_t data_len;
-};
-
-struct ntb_socket
-{
-	uint8_t occupied;
-	struct ntb_buff *rev_buff;
-	struct ntb_buff *send_buff;
-};
+#define MEM_NODE_HEADER_LEN 6
 
 struct ntb_ring
 {
@@ -43,11 +28,6 @@ struct ntb_ring
 	uint64_t capacity;
 };
 
-// struct ntb_custom_ops {
-// 	int (*mw_set_trans)(struct rte_rawdev *dev, int mw_idx,
-// 			    uint64_t addr, uint64_t size);
-// 	int (*set_link)(struct rte_rawdev *dev, bool up);
-// };
 struct ntb_ctrl_link
 {
     //remote cum ptr,write to local
@@ -56,19 +36,7 @@ struct ntb_ctrl_link
 	uint64_t *remote_cum_ptr;
 	struct ntb_ring *local_ring;
 	struct ntb_ring *remote_ring;
-	// char *local_ctrl_mss;
-	// char *remote_ctrl_mss;
-	// uint8_t *local_send_flag;
-	// uint8_t *remote_rev_flag;
 };
-
-typedef struct rte_ring* ntp_send_ring;
-
-typedef struct ntp_ring_list_node
-{
-    ntp_send_ring ring;
-    ntp_ring_list_node* next_node;
-}ntp_ring_list_node;
 
 struct ntb_sublink
 {
@@ -89,12 +57,18 @@ struct ntb_link
 
     struct ntb_ctrl_link *ctrllink;
 	struct ntb_sublink *sublink;
-
-
 };
 
 //header length is 6B
 struct ntb_message_header
+{
+	uint16_t src_port;
+    uint16_t dst_port;
+	uint8_t mss_type;
+	uint8_t mss_len;
+};
+
+struct ntb_data_node_header
 {
 	uint16_t src_port;
     uint16_t dst_port;

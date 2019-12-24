@@ -186,7 +186,7 @@ int ntb_fin_link_ack_handler(struct ntb_custom_sublink *sublink, struct ntb_cust
     return 0;
 }
 
-int ntb_prot_header_parser(struct ntb_custom_sublink *sublink, struct ntb_custom_message *mss)
+int ntb_prot_header_parser(struct ntb_sublink *sublink, struct ntb_custom_message *mss)
 {
     int mss_type = mss->header.mss_type;
     if (mss_type & 1 << 7)

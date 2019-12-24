@@ -37,14 +37,8 @@
 #include "ntlink_parser.h"
 #include "ntb_proxy.h"
 
-int ntb_app_mempool_get(struct rte_mempool *mp, void **obj_p, struct ntb_uuid *app_uuid)
+struct ntp_rs_ring ntp_ring_lookup(uint16_t src_port,uint16_t dst_port)
 {
-	if (rte_mempool_get(mp, obj_p) < 0)
-	{
-		return -1;
-	}
-	struct ntb_mempool_node_header header = {app_uuid->ntb_port, 0, mp->elt_size};
-	rte_memcpy(*obj_p, &header, 6);
 	return 0;
 }
 
