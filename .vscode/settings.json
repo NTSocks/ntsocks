@@ -4,6 +4,7 @@
         "ntb.h": "c",
         "rte_ring.h": "c",
         "rte_memzone.h": "c",
-        "ntp_config.h": "c"
+        "ntp_config.h": "c",
+        "rte_memory.h": "c"
     }
 }

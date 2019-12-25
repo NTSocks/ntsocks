@@ -31,72 +31,63 @@
 #include <rte_bus_vdev.h>
 #include <rte_memzone.h>
 #include <rte_mempool.h>
-// #include <rte_rwlock.h>
 #include <rte_ring.h>
-#include <librte_pmd_ntb.h>
 
 #include "ntlink_parser.h"
+#include "ntb_proxy.h"
 
-int ntb_buff_creat(struct ntb_custom_sublink *sublink, int process_id)
-{
-    struct ntb_buff *buff_1 = malloc(sizeof(*buff_1));
-    // buff_1->buff = (uint8_t *)malloc(NTB_BUFF_SIZE * sizeof(uint8_t));
-    // buff_1->buff_size = NTB_BUFF_SIZE;
-    // buff_1->data_len = 0;
-    sublink->process_map[process_id].send_buff = buff_1;
-
-    struct ntb_buff *buff_2 = malloc(sizeof(*buff_2));
-    // buff_2->buff = (uint8_t *)malloc(NTB_BUFF_SIZE * sizeof(uint8_t));
-    // buff_2->buff_size = NTB_BUFF_SIZE;
-    // buff_2->data_len = 0;
-    sublink->process_map[process_id].rev_buff = buff_2;
-
+struct ntp_rs_ring ntp_rsring_lookup(uint16_t src_port,uint16_t dst_port){
     return 0;
 }
 
-int ntb_trans_cum_ptr(struct ntb_custom_sublink *sublink)
-{
-    *sublink->remote_cum_ptr = sublink->local_ring->cur_serial;
+struct ntp_rs_ring ntp_shmring_lookup(){
     return 0;
 }
 
-// int ntb_date_ptr_handler(struct ntb_custom_sublink *sublink)
-// {
-//     *sublink->remote_cum_ptr = sublink->local_ring->cur_serial;
-//     return 0;
-// }
 
-int ntb_send_open_link(struct ntb_custom_sublink *sublink, uint16_t process_id)
+static int ntb_trans_cum_ptr(struct ntb_link *ntlink)
 {
-    if (sublink->process_map[process_id].occupied)
-    {
-        return -1;
-    }
-    sublink->process_map[process_id].occupied = true;
-    struct ntb_custom_message *reply_mss = malloc(sizeof(*reply_mss));
-    reply_mss->header.mss_type = OPEN_LINK;
+    *ntlink->ctrllink->remote_cum_ptr = ntlink->ctrllink->local_ring->cur_serial;
+    return 0;
+}
+
+static int ntb_ctrl_enqueue(struct ntb_link *ntlink, struct ntb_ctrl_mss *mss)
+{
+	struct ntb_ring *r = ntlink->ctrllink->remote_ring;
+	int mss_len = mss->header.mss_len;
+	uint64_t next_serial = (r->cur_serial + 1) % (r->capacity);
+	//looping send
+	while (next_serial == *ntlink->ctrllink->local_cum_ptr)
+	{
+	}
+	if ((next_serial - *ntlink->ctrllink->local_cum_ptr) & 0x3ff == 0)
+	{
+		//PSH
+		mss->header.mss_type |= 1 << 7;
+	}
+	uint8_t *ptr = r->start_addr + r->cur_serial * NTB_CTRL_MSS_TL;
+	rte_memcpy(ptr, mss, mss_len);
+	r->cur_serial = next_serial;
+	return 0;
+}
+
+int ntb_send_conn_req(struct ntb_link *ntlink, uint16_t src_port,uint16_t dst_port)
+{
+    struct ntb_ctrl_mss *reply_mss = malloc(sizeof(*reply_mss));
+    reply_mss->header.mss_type = CONN_REQ;
     reply_mss->header.mss_len = NTB_HEADER_LEN;
-    reply_mss->header.process_id = process_id;
-    ntb_mss_enqueue(sublink, reply_mss);
+    reply_mss->header.src_port = src_port;
+    reply_mss->header.dst_port = dst_port;
+    ntb_ctrl_enqueue(ntlink, reply_mss);
     return 0;
 }
 
-int ntb_send_fin_link(struct ntb_custom_sublink *sublink, uint16_t process_id)
+int ntb_conn_req_handler(struct ntb_link *ntlink, struct ntb_ctrl_mss *mss)
 {
-    //close send_buff
-    free(sublink->process_map[process_id].send_buff);
-    sublink->process_map[process_id].send_buff = NULL;
-    struct ntb_custom_message *reply_mss = malloc(sizeof(*reply_mss));
-    reply_mss->header.mss_type = FIN_LINK;
-    reply_mss->header.mss_len = NTB_HEADER_LEN;
-    reply_mss->header.process_id = process_id;
-    ntb_mss_enqueue(sublink, reply_mss);
-    return 0;
-}
-
-int ntb_open_link_handler(struct ntb_custom_sublink *sublink, struct ntb_custom_message *mss)
-{
-    int process_id = mss->header.process_id;
+    ntp_rs_ring *ntp_ring = ntp_shmring_lookup();
+    //解析时，源端口目的端口交换
+    uint16_t src_port = mss->header.dst_port;
+    uint16_t dst_port = mss->header.src_port;
     struct ntb_custom_message *reply_mss = malloc(sizeof(*reply_mss));
 
     if (sublink->process_map[process_id].occupied)
@@ -119,6 +110,19 @@ int ntb_open_link_handler(struct ntb_custom_sublink *sublink, struct ntb_custom_
     ntb_mss_enqueue(sublink, reply_mss);
     return 0;
 }
+
+int ntb_send_conn_req_ack(struct ntb_link *ntlink, uint16_t src_port,uint16_t dst_port)
+{
+    struct ntb_ctrl_mss *reply_mss = malloc(sizeof(*reply_mss));
+    reply_mss->header.mss_type = CONN_REQ_ACK;
+    reply_mss->header.mss_len = NTB_HEADER_LEN;
+    reply_mss->header.src_port = src_port;
+    reply_mss->header.dst_port = dst_port;
+    ntb_ctrl_enqueue(ntlink, reply_mss);
+    return 0;
+}
+
+
 
 int ntb_open_link_ack_handler(struct ntb_custom_sublink *sublink, struct ntb_custom_message *mss)
 {

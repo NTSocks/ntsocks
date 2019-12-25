@@ -33,6 +33,7 @@
 #include "ntp_config.h"
 #include "ntlink_parser.h"
 #include "ntb_mem.h"
+#include "ntb_proxy.h"
 
 int ntb_app_mempool_get(struct rte_mempool *mp, void **obj_p, struct ntb_uuid *app_uuid)
 {
@@ -45,39 +46,31 @@ int ntb_app_mempool_get(struct rte_mempool *mp, void **obj_p, struct ntb_uuid *a
 	return 0;
 }
 
-int ntb_set_mw_trans(struct rte_rawdev *dev, const char *mw_name, int mw_idx, uint64_t mw_size)
+static int ntb_trans_cum_ptr(struct ntb_sublink *sublink)
 {
-	struct ntb_hw *hw = dev->dev_private;
-	const struct rte_memzone *mz;
-	int ret = 0;
-	if (hw->ntb_ops->mw_set_trans == NULL)
-	{
-		NTB_LOG(ERR, "Not supported to set mw.");
-		return -ENOTSUP;
-	}
-
-	mz = rte_memzone_lookup(mw_name);
-	if (!mz)
-	{
-		mz = rte_memzone_reserve_aligned(mw_name, mw_size, dev->socket_id,
-										 RTE_MEMZONE_IOVA_CONTIG, hw->mw_size[mw_idx]);
-	}
-	if (!mz)
-	{
-		NTB_LOG(ERR, "Cannot allocate aligned memzone.");
-		return -EIO;
-	}
-	hw->mz[mw_idx] = mz;
-	ret = (*hw->ntb_ops->mw_set_trans)(dev, mw_idx, mz->iova, mw_size);
-	if (ret)
-	{
-		NTB_LOG(ERR, "Cannot set mw translation.");
-		return ret;
-	}
-	return ret;
+    *sublink->remote_cum_ptr = sublink->local_ring->cur_serial;
+    return 0;
 }
 
-int ntb_mss_add_header(struct ntb_custom_message *mss, uint16_t src_port, uint16_t dst_port, int payload_len, bool eon)
+int ntb_mem_header_parser(struct ntb_sublink *sublink, struct ntb_data_mss *mss)
+{
+    int mss_type = mss->header.mss_type;
+    if (mss_type & 1 << 7)
+    {
+        ntb_trans_cum_ptr(sublink);
+    }
+    mss_type &= 0x3f;
+    switch (mss_type)
+    {
+    case DATA_TYPE:
+        break;
+    default:
+        break;
+    }
+    return mss_type;
+}
+
+static int ntb_mss_add_header(struct ntb_data_mss *mss, uint16_t src_port, uint16_t dst_port, int payload_len, bool eon)
 {
 	mss->header.src_port = src_port;
 	mss->header.dst_port = dst_port;
@@ -91,7 +84,7 @@ int ntb_mss_add_header(struct ntb_custom_message *mss, uint16_t src_port, uint16
 	return 0;
 }
 
-int ntb_mss_enqueue(struct ntb_custom_sublink *sublink, struct ntb_custom_message *mss)
+static int ntb_mss_enqueue(struct ntb_sublink *sublink, struct ntb_data_mss *mss)
 {
 	struct ntb_ring *r = sublink->remote_ring;
 	int mss_len = mss->header.mss_len;
@@ -99,7 +92,6 @@ int ntb_mss_enqueue(struct ntb_custom_sublink *sublink, struct ntb_custom_messag
 	//looping send
 	while (next_serial == *sublink->local_cum_ptr)
 	{
-
 	}
 	if ((next_serial - *sublink->local_cum_ptr) & 0x3ff == 0)
 	{
@@ -112,7 +104,7 @@ int ntb_mss_enqueue(struct ntb_custom_sublink *sublink, struct ntb_custom_messag
 	return 0;
 }
 
-int ntb_mss_dequeue(struct ntb_sublink *sublink, uint64_t *ret_mss_len, char *data)
+static int ntb_mss_dequeue(struct ntb_sublink *sublink, uint64_t *ret_mss_len, char *data)
 {
 	struct ntb_ring *r = sublink->local_ring;
 	uint8_t *ptr = r->start_addr + (r->cur_serial * NTB_DATA_MSS_TL);
@@ -123,7 +115,7 @@ int ntb_mss_dequeue(struct ntb_sublink *sublink, uint64_t *ret_mss_len, char *da
 	{
 		return -1;
 	}
-	int mss_type = ntb_prot_header_parser(sublink, mss);
+	int mss_type = ntb_mem_header_parser(sublink, mss);
 	//ctrl mss,no need copy to rev_buff
 	if (mss_type != DATA_TYPE)
 	{
@@ -146,7 +138,7 @@ int ntb_send_data(struct ntb_sublink *sublink, void *mp_node, uint16_t src_port,
 	uint16_t data_len = *((uint16_t *)mp_change + 1) + MEM_NODE_HEADER_LEN;
 	uint64_t sent = MEM_NODE_HEADER_LEN;
 
-	struct ntb_data_message *mss = malloc(sizeof(*mss));
+	struct ntb_data_mss *mss = malloc(sizeof(*mss));
 	while (data_len - sent > (NTB_DATA_MSS_TL - NTB_HEADER_LEN))
 	{
 		rte_memcpy(mss->mss, (uint8_t *)mp_node + sent, NTB_DATA_MSS_TL - NTB_HEADER_LEN);
@@ -174,7 +166,7 @@ int ntb_receive(struct ntb_sublink *sublink, struct rte_mempool *recevie_message
 	while (1)
 	{
 		__asm__("mfence");
-		struct ntb_data_message *mss = (struct ntb_data_message *)(r->start_addr + (r->cur_serial * NTB_DATA_MSS_TL));
+		struct ntb_data_mss *mss = (struct ntb_data_mss *)(r->start_addr + (r->cur_serial * NTB_DATA_MSS_TL));
 		int mss_len = mss->header.mss_len;
 		//if no mss,continue
 		if (mss_len == 0)
@@ -183,7 +175,7 @@ int ntb_receive(struct ntb_sublink *sublink, struct rte_mempool *recevie_message
 		}
 		rte_memcpy((uint8_t *)receive_buff + received, mss->mss, mss_len - NTB_HEADER_LEN);
 		r->cur_serial = (r->cur_serial + 1) % (r->capacity);
-		ntb_prot_header_parser(sublink, mss);
+		ntb_mem_header_parser(sublink, mss);
 		received += mss_len - NTB_HEADER_LEN;
 		mss->header.mss_len = 0;
 		//if detected end of node sign,put into recv_ing
@@ -207,7 +199,7 @@ int ntb_receive(struct ntb_sublink *sublink, struct rte_mempool *recevie_message
 	return 0;
 }
 
-struct ntb_ring *
+static struct ntb_ring *
 ntb_ring_create(uint8_t *ptr, uint64_t ring_size, uint64_t mss_len)
 {
 	struct ntb_ring *r = malloc(sizeof(*r));
@@ -223,8 +215,8 @@ static int ntb_mem_formatting(struct ntb_link *ntb_link, uint8_t *local_ptr, uin
 {
 	ntb_link->ctrllink->local_cum_ptr = (uint64_t *)local_ptr;
 	ntb_link->ctrllink->remote_cum_ptr = (uint64_t *)remote_ptr;
-	ntb_link->ctrllink->local_ring = ntb_ring_create(((uint8_t *)local_ptr + 8), RING_SIZE, NTB_CTRL_MSS_TL);
-	ntb_link->ctrllink->remote_ring = ntb_ring_create(((uint8_t *)local_ptr + 8), RING_SIZE, NTB_CTRL_MSS_TL);
+	ntb_link->ctrllink->local_ring = ntb_ring_create(((uint8_t *)local_ptr + 8), CTRL_RING_SIZE, NTB_CTRL_MSS_TL);
+	ntb_link->ctrllink->remote_ring = ntb_ring_create(((uint8_t *)local_ptr + 8), CTRL_RING_SIZE, NTB_CTRL_MSS_TL);
 	local_ptr = (uint8_t *)local_ptr + RING_SIZE + 8;
 	remote_ptr = (uint8_t *)remote_ptr + RING_SIZE + 8;
 	struct ntp_config *cf = get_ntp_config();

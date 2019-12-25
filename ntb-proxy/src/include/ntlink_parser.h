@@ -11,44 +11,45 @@
 #ifndef _NTLINK_PARSER_H_
 #define _NTLINK_PARSER_H_
 
-#include "ntb_proxy.h"
+#include "ntb_mem.h"
 
-#define DATA_TYPE 1
-#define OPEN_LINK 10
-#define OPEN_LINK_ACK 11
-#define OPEN_LINK_FAIL 19
-#define FIN_LINK 20
-#define FIN_LINK_ACK 21
-#define NTB_BUFF_SIZE 0x400000
+#define CONN_REQ = 10,
+#define CONN_REQ_ACK = 11,
+#define CONN_FAIL = 19,
+#define CONN_CLOSE = 20,
+#define CONN_CLOSE_ACK = 21
 
-typedef enum ntlink_header_type {
-	DATA_TYPE = 1,
-	OPEN_LINK=10,
-	OPEN_LINK_ACK=11,
-	OPEN_LINK_FAIL=19,
-    FIN_LINK=20,
-    FIN_LINK_ACK=21
+typedef enum ntlink_header_type
+{
+	CONN_REQ = 10,
+	CONN_REQ_ACK = 11,
+	CONN_FAIL = 19,
+	CONN_CLOSE = 20,
+	CONN_CLOSE_ACK = 21
 } ntlink_header_type;
 
+struct ntb_ctrl_header
+{
+	uint16_t src_port;
+	uint16_t dst_port;
+	uint8_t mss_type;
+	uint8_t mss_len;
+};
 
-int ntb_buff_creat(struct ntb_custom_sublink *sublink, int process_id);
+struct ntp_ntm_mss
+{
+	struct ntb_ctrl_header header;
+	char mss[NTB_CTRL_MSS_TL - NTB_HEADER_LEN];
+};
 
-int ntb_trans_cum_ptr(struct ntb_custom_sublink *sublink);
+struct ntb_ctrl_mss
+{
+	struct ntb_ctrl_header header;
+	char mss[NTB_CTRL_MSS_TL - NTB_HEADER_LEN];
+};
 
-int ntb_send_open_link(struct ntb_custom_sublink *sublink, uint16_t process_id);
+struct ntp_rs_ring ntp_rsring_lookup(uint16_t src_port,uint16_t dst_port);
 
-int ntb_send_fin_link(struct ntb_custom_sublink *sublink, uint16_t process_id);
-
-int ntb_open_link_handler(struct ntb_custom_sublink *sublink, struct ntb_custom_message *mss);
-
-int ntb_open_link_ack_handler(struct ntb_custom_sublink *sublink, struct ntb_custom_message *mss);
-
-int ntb_open_link_fail_handler(struct ntb_custom_sublink *sublink, struct ntb_custom_message *mss);
-
-// int ntb_fin_link_handler(struct ntb_custom_sublink *sublink, struct ntb_custom_message *mss);
-
-int ntb_fin_link_ack_handler(struct ntb_custom_sublink *sublink, struct ntb_custom_message *mss);
-
-int ntb_prot_header_parser(struct ntb_custom_sublink *sublink, struct ntb_custom_message *mss);
+struct ntp_rs_ring ntp_shmring_lookup();
 
 #endif /* _NTLINK_PARSER_H_ */
