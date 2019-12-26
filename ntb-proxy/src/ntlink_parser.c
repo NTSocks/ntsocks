@@ -88,30 +88,28 @@ int ntb_conn_req_handler(struct ntb_link *ntlink, struct ntb_ctrl_mss *mss)
     //解析时，源端口目的端口交换
     uint16_t src_port = mss->header.dst_port;
     uint16_t dst_port = mss->header.src_port;
-    struct ntb_custom_message *reply_mss = malloc(sizeof(*reply_mss));
+    struct ntp_ntm_mss *reply_mss = malloc(sizeof(*reply_mss));
 
-    if (sublink->process_map[process_id].occupied)
-    {
-        reply_mss->header.mss_type = OPEN_LINK_FAIL;
-        reply_mss->header.mss_len = NTB_HEADER_LEN;
-        reply_mss->header.process_id = process_id;
-        ntb_mss_enqueue(sublink, reply_mss);
-        return -1;
+    ntb_mss_enqueue(ntp_ring, reply_mss);
+    return 0;
+}
+
+int ntm_ntp_conn_req_handler(struct ntb_link *ntlink,  struct ntp_ntm_mss *ntm_mss)
+{
+    ntp_rs_ring *ntp_ring = ntp_shmring_lookup();
+    uint16_t src_port = ntm_mss->header.src_port;
+    uint16_t dst_port = ntm_mss->header.dst_port;
+    if(ntm_mss->header.mss_type == ALLOW){
+        
     }
-    else
-    {
-        sublink->process_map[process_id].occupied = true;
-        //creat ntb_socket send/rev buffer;
-        ntb_buff_creat(sublink, process_id);
-        reply_mss->header.mss_type = OPEN_LINK_ACK;
-        reply_mss->header.mss_len = NTB_HEADER_LEN;
-        reply_mss->header.process_id = process_id;
-    }
+
+    struct ntp_ntm_mss *reply_mss = malloc(sizeof(*reply_mss));
+
     ntb_mss_enqueue(sublink, reply_mss);
     return 0;
 }
 
-int ntb_send_conn_req_ack(struct ntb_link *ntlink, uint16_t src_port,uint16_t dst_port)
+int ntb_conn_req_ack_handler(struct ntb_link *ntlink, uint16_t src_port,uint16_t dst_port)
 {
     struct ntb_ctrl_mss *reply_mss = malloc(sizeof(*reply_mss));
     reply_mss->header.mss_type = CONN_REQ_ACK;
@@ -124,7 +122,7 @@ int ntb_send_conn_req_ack(struct ntb_link *ntlink, uint16_t src_port,uint16_t ds
 
 
 
-int ntb_open_link_ack_handler(struct ntb_custom_sublink *sublink, struct ntb_custom_message *mss)
+int ntb_send_conn_req_ack(struct ntb_custom_sublink *sublink, struct ntb_custom_message *mss)
 {
     int process_id = mss->header.process_id;
     // if (sublink->process_map[process_id].occupied)
