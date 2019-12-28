@@ -95,20 +95,20 @@ static int
 daemon_receive_thread(__attribute__((unused)) void *arg)
 {
 	struct ntb_ring *r = sublink->local_ring;
-	struct ntb_custom_message *mss;
-	int mss_len;
-	int mss_type;
+	struct ntb_custom_message *msg;
+	int msg_len;
+	int msg_type;
 	while (1)
 	{
 		__asm__("mfence");
-		mss = (struct ntb_custom_message *)(r->start_addr + (r->cur_serial * MAX_NTB_MSS_LEN));
-		mss_len = mss->header.mss_len;
-		if (mss_len == 0)
+		msg = (struct ntb_custom_message *)(r->start_addr + (r->cur_serial * MAX_NTB_msg_LEN));
+		msg_len = msg->header.msg_len;
+		if (msg_len == 0)
 		{
 			continue;
 		}
-		mss_type = ntb_prot_header_parser(sublink, mss);
-		if (mss_type == DATA_TYPE)
+		msg_type = ntb_prot_header_parser(sublink, msg);
+		if (msg_type == DATA_TYPE)
 		{
 			ntb_receive(sublink, recv_message_pool);
 		}
@@ -116,7 +116,7 @@ daemon_receive_thread(__attribute__((unused)) void *arg)
 	return 0;
 }
 
-static int
+int
 lcore_ntb_daemon(__attribute__((unused)) void *arg)
 {
 	int ret, i;

@@ -36,14 +36,15 @@
 #include "ntlink_parser.h"
 #include "ntb_proxy.h"
 
-struct ntp_rs_ring ntp_rsring_lookup(uint16_t src_port,uint16_t dst_port){
+struct ntp_rs_ring ntp_rsring_lookup(uint16_t src_port, uint16_t dst_port)
+{
     return 0;
 }
 
-struct ntp_rs_ring ntp_shmring_lookup(){
+struct ntp_rs_ring ntp_shmring_lookup()
+{
     return 0;
 }
-
 
 static int ntb_trans_cum_ptr(struct ntb_link *ntlink)
 {
@@ -51,80 +52,85 @@ static int ntb_trans_cum_ptr(struct ntb_link *ntlink)
     return 0;
 }
 
-static int ntb_ctrl_enqueue(struct ntb_link *ntlink, struct ntb_ctrl_mss *mss)
+static int ntb_ctrl_enqueue(struct ntb_link *ntlink, struct ntb_ctrl_msg *msg)
 {
-	struct ntb_ring *r = ntlink->ctrllink->remote_ring;
-	int mss_len = mss->header.mss_len;
-	uint64_t next_serial = (r->cur_serial + 1) % (r->capacity);
-	//looping send
-	while (next_serial == *ntlink->ctrllink->local_cum_ptr)
-	{
-	}
-	if ((next_serial - *ntlink->ctrllink->local_cum_ptr) & 0x3ff == 0)
-	{
-		//PSH
-		mss->header.mss_type |= 1 << 7;
-	}
-	uint8_t *ptr = r->start_addr + r->cur_serial * NTB_CTRL_MSS_TL;
-	rte_memcpy(ptr, mss, mss_len);
-	r->cur_serial = next_serial;
-	return 0;
-}
-
-int ntb_send_conn_req(struct ntb_link *ntlink, uint16_t src_port,uint16_t dst_port)
-{
-    struct ntb_ctrl_mss *reply_mss = malloc(sizeof(*reply_mss));
-    reply_mss->header.mss_type = CONN_REQ;
-    reply_mss->header.mss_len = NTB_HEADER_LEN;
-    reply_mss->header.src_port = src_port;
-    reply_mss->header.dst_port = dst_port;
-    ntb_ctrl_enqueue(ntlink, reply_mss);
+    struct ntb_ring *r = ntlink->ctrllink->remote_ring;
+    int msg_len = msg->header.msg_len;
+    uint64_t next_serial = (r->cur_serial + 1) % (r->capacity);
+    //looping send
+    while (next_serial == *ntlink->ctrllink->local_cum_ptr)
+    {
+    }
+    if ((next_serial - *ntlink->ctrllink->local_cum_ptr) & 0x3ff == 0)
+    {
+        //PSH
+        msg->header.msg_type |= 1 << 7;
+    }
+    uint8_t *ptr = r->start_addr + r->cur_serial * NTB_CTRL_msg_TL;
+    rte_memcpy(ptr, msg, msg_len);
+    r->cur_serial = next_serial;
     return 0;
 }
 
-int ntb_conn_req_handler(struct ntb_link *ntlink, struct ntb_ctrl_mss *mss)
+static struct ntb_ctrl_msg *creat_ctrl_msg(uint8_t msg_type, uint8_t msg_len, uint16_t src_port, uint16_t dst_port)
+{
+    struct ntb_ctrl_msg *reply_msg = malloc(sizeof(*reply_msg));
+    reply_msg->header.msg_type = msg_type;
+    reply_msg->header.msg_len = msg_len;
+    reply_msg->header.src_port = src_port;
+    reply_msg->header.dst_port = dst_port;
+    return *reply_msg;
+}
+
+int ntb_send_conn_req(struct ntb_link *ntlink, uint16_t src_port, uint16_t dst_port)
+{
+    struct ntb_ctrl_msg *reply_msg = creat_ctrl_msg(CONN_REQ, NTB_HEADER_LEN, src_port, dst_port);
+    ntb_ctrl_enqueue(ntlink, reply_msg);
+    return 0;
+}
+
+//send msg to nt_monitor's ring
+int ntb_conn_req_handler(struct ntb_link *ntlink, struct ntb_ctrl_msg *msg)
 {
     ntp_rs_ring *ntp_ring = ntp_shmring_lookup();
     //解析时，源端口目的端口交换
-    uint16_t src_port = mss->header.dst_port;
-    uint16_t dst_port = mss->header.src_port;
-    struct ntp_ntm_mss *reply_mss = malloc(sizeof(*reply_mss));
+    uint16_t src_port = msg->header.dst_port;
+    uint16_t dst_port = msg->header.src_port;
+    struct ntp_ntm_msg *reply_msg = malloc(sizeof(*reply_msg));
 
-    ntb_mss_enqueue(ntp_ring, reply_mss);
+    ntb_msg_enqueue(ntp_ring, reply_msg);
     return 0;
 }
 
-int ntm_ntp_conn_req_handler(struct ntb_link *ntlink,  struct ntp_ntm_mss *ntm_mss)
+int ntm_ntp_conn_req_handler(struct ntb_link *ntlink, struct ntp_ntm_msg *ntm_msg)
 {
     ntp_rs_ring *ntp_ring = ntp_shmring_lookup();
-    uint16_t src_port = ntm_mss->header.src_port;
-    uint16_t dst_port = ntm_mss->header.dst_port;
-    if(ntm_mss->header.mss_type == ALLOW){
-        
+    uint16_t src_port = ntm_msg->header.src_port;
+    uint16_t dst_port = ntm_msg->header.dst_port;
+    if (ntm_msg->header.msg_type == ALLOW)
+    {
+        char *send_ring_name = NULL;
+        char *recv_ring_name = NULL;
+        rte_ring_create(send_ring_name, ring_size, rte_socket_id(), flags);
+        rte_ring_create(recv_ring_name, ring_size, rte_socket_id(), flags);
     }
 
-    struct ntp_ntm_mss *reply_mss = malloc(sizeof(*reply_mss));
+    struct ntp_ntm_msg *reply_msg = malloc(sizeof(*reply_msg));
 
-    ntb_mss_enqueue(sublink, reply_mss);
+    ntb_msg_enqueue(sublink, reply_msg);
     return 0;
 }
 
-int ntb_conn_req_ack_handler(struct ntb_link *ntlink, uint16_t src_port,uint16_t dst_port)
+int ntb_conn_req_ack_handler(struct ntb_link *ntlink, uint16_t src_port, uint16_t dst_port)
 {
-    struct ntb_ctrl_mss *reply_mss = malloc(sizeof(*reply_mss));
-    reply_mss->header.mss_type = CONN_REQ_ACK;
-    reply_mss->header.mss_len = NTB_HEADER_LEN;
-    reply_mss->header.src_port = src_port;
-    reply_mss->header.dst_port = dst_port;
-    ntb_ctrl_enqueue(ntlink, reply_mss);
+    struct ntb_ctrl_msg *reply_msg = creat_ctrl_msg(CONN_REQ_ACK, NTB_HEADER_LEN, src_port, dst_port);
+    ntb_ctrl_enqueue(ntlink, reply_msg);
     return 0;
 }
 
-
-
-int ntb_send_conn_req_ack(struct ntb_custom_sublink *sublink, struct ntb_custom_message *mss)
+int ntb_send_conn_req_ack(struct ntb_sublink *sublink, uint16_t src_port, uint16_t dst_port)
 {
-    int process_id = mss->header.process_id;
+    int process_id = msg->header.process_id;
     // if (sublink->process_map[process_id].occupied)
     // {
     //     return -1;
@@ -133,9 +139,9 @@ int ntb_send_conn_req_ack(struct ntb_custom_sublink *sublink, struct ntb_custom_
     return 0;
 }
 
-int ntb_open_link_fail_handler(struct ntb_custom_sublink *sublink, struct ntb_custom_message *mss)
+int ntb_open_link_fail_handler(struct ntb_custom_sublink *sublink, struct ntb_custom_message *msg)
 {
-    int process_id = mss->header.process_id;
+    int process_id = msg->header.process_id;
     sublink->process_map[process_id].occupied = false;
     return 0;
 }
@@ -144,30 +150,30 @@ int ntb_open_link_fail_handler(struct ntb_custom_sublink *sublink, struct ntb_cu
 // {
 //     uint64_t data_len = sublink->process_map[process_id]->send_buff->data_len;
 //     uint64_t sent = 0;
-//     struct ntb_custom_message *mss = malloc(sizeof(*mss));
+//     struct ntb_custom_message *msg = malloc(sizeof(*msg));
 //     int not_sent = data_len - sent;
 //     while (not_sent > 0)
 //     {
-//         if (not_sent > (MAX_NTB_MSS_LEN - NTB_HEADER_LEN))
+//         if (not_sent > (MAX_NTB_msg_LEN - NTB_HEADER_LEN))
 //         {
-//             rte_memcpy(mss->mss, sublink->process_map[process_id]->send_buff->buff + sent, MAX_NTB_MSS_LEN - NTB_HEADER_LEN);
-//             ntb_mss_add_header(mss, process_id, MAX_NTB_MSS_LEN - NTB_HEADER_LEN);
-//             not_sent -= MAX_NTB_MSS_LEN - NTB_HEADER_LEN;
+//             rte_memcpy(msg->msg, sublink->process_map[process_id]->send_buff->buff + sent, MAX_NTB_msg_LEN - NTB_HEADER_LEN);
+//             ntb_msg_add_header(msg, process_id, MAX_NTB_msg_LEN - NTB_HEADER_LEN);
+//             not_sent -= MAX_NTB_msg_LEN - NTB_HEADER_LEN;
 //         }
 //         else
 //         {
-//             rte_memcpy(mss->mss, sublink->process_map[process_id]->send_buff->buff + sent, not_sent);
-//             ntb_mss_add_header(mss, process_id, not_sent);
+//             rte_memcpy(msg->msg, sublink->process_map[process_id]->send_buff->buff + sent, not_sent);
+//             ntb_msg_add_header(msg, process_id, not_sent);
 //             not_sent = 0;
 //         }
-//         ntb_mss_enqueue(sublink, mss);
+//         ntb_msg_enqueue(sublink, msg);
 //     }
 //     return 0;
 // }
 
-// int ntb_fin_link_handler(struct ntb_custom_sublink *sublink, struct ntb_custom_message *mss)
+// int ntb_fin_link_handler(struct ntb_custom_sublink *sublink, struct ntb_custom_message *msg)
 // {
-//     int process_id = mss->header.process_id;
+//     int process_id = msg->header.process_id;
 //     //how to handler rev_buff?
 //     free(sublink->process_map[process_id].rev_buff);
 //     sublink->process_map[process_id].rev_buff = NULL;
@@ -179,44 +185,44 @@ int ntb_open_link_fail_handler(struct ntb_custom_sublink *sublink, struct ntb_cu
 //     return 0;
 // }
 
-int ntb_fin_link_ack_handler(struct ntb_custom_sublink *sublink, struct ntb_custom_message *mss)
+int ntb_fin_link_ack_handler(struct ntb_custom_sublink *sublink, struct ntb_custom_message *msg)
 {
-    int process_id = mss->header.process_id;
+    int process_id = msg->header.process_id;
     sublink->process_map[process_id].occupied = false;
     free(sublink->process_map[process_id].rev_buff);
     sublink->process_map[process_id].rev_buff = NULL;
     return 0;
 }
 
-int ntb_prot_header_parser(struct ntb_sublink *sublink, struct ntb_custom_message *mss)
+int ntb_prot_header_parser(struct ntb_sublink *sublink, struct ntb_custom_message *msg)
 {
-    int mss_type = mss->header.mss_type;
-    if (mss_type & 1 << 7)
+    int msg_type = msg->header.msg_type;
+    if (msg_type & 1 << 7)
     {
         ntb_trans_cum_ptr(sublink);
     }
-    mss_type &= 0x3f;
-    switch (mss_type)
+    msg_type &= 0x3f;
+    switch (msg_type)
     {
     case DATA_TYPE:
         break;
     case OPEN_LINK:
-        ntb_open_link_handler(sublink, mss);
+        ntb_open_link_handler(sublink, msg);
         break;
     case OPEN_LINK_ACK:
-        ntb_open_link_ack_handler(sublink, mss);
+        ntb_open_link_ack_handler(sublink, msg);
         break;
     case OPEN_LINK_FAIL:
-        ntb_open_link_fail_handler(sublink, mss);
+        ntb_open_link_fail_handler(sublink, msg);
         break;
     case FIN_LINK:
-        //ntb_fin_link_handler(sublink, mss);
+        //ntb_fin_link_handler(sublink, msg);
         break;
     case FIN_LINK_ACK:
-        ntb_fin_link_ack_handler(sublink, mss);
+        ntb_fin_link_ack_handler(sublink, msg);
         break;
     default:
         break;
     }
-    return mss_type;
+    return msg_type;
 }
