@@ -21,8 +21,6 @@ int load_conf(const char *fname);
 /* print setted configuration */
 void print_conf();
 
-
-
 #ifdef __cplusplus
 };
 #endif

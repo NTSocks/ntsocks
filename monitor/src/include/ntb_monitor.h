@@ -27,6 +27,8 @@ struct ntm_config {
 	int remote_ntm_tcp_timewait;
 	int remote_ntm_tcp_timeout;
 
+	char *addr;
+	int port;
 };
 
 
