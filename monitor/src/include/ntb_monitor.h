@@ -49,7 +49,7 @@ struct ntm_nts_context {
 	int shm_send_signal;
 
 
-} ntm_nts_context;
+};
 
 typedef struct ntm_nts_context* ntm_nts_context_t;
 
