@@ -3,12 +3,12 @@
  * <p>Description: </p>
  * <p>Copyright: Copyright (c) 2019 FDU NiSL</p>
  *
- * @author Bob Huang
+ * @author Wenxiong Zou
  * @date Dec 16, 2019 
  * @version 1.0
  */
 
-#include "ntb_monitor.h"
+#include "ntb-proxy.h"
 #include "config.h"
 #include "nt_log.h"
 #include <unistd.h>
@@ -20,13 +20,11 @@
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 
-struct ntm_config NTM_CONFIG = {
+struct ntp_config NTP_CONFIG = {
 		/* set default configuration */
-		.remote_ntm_tcp_timewait = 0,
-		.remote_ntm_tcp_timeout = 1000
+		.remote_ntp_tcp_timewait = 0,
+		.remote_ntp_tcp_timeout = 1000
 };
-
-ntm_manager_t ntm_mgr = NULL;
 
 static int trim(char s[])
 {
@@ -41,7 +39,7 @@ static int trim(char s[])
 
 int load_conf(const char *fname)
 {
-	DEBUG("load ntb monitor configuration from conf file (%s)", fname);
+	DEBUG("load ntb proxy configuration from conf file (%s)", fname);
 	FILE *file = fopen(fname, "r");
 	if (file == NULL) {
 		printf("[Error]open %s failed.\n", fname);
@@ -99,16 +97,11 @@ int load_conf(const char *fname)
 		}
 		if (strcmp(_paramk, "") == 0 || strcmp(_paramv, "") == 0)
 			continue;
-		// DEBUG("ntb monitor configuration %s=%s", _paramk, _paramv);
-		if (strcmp(_paramk, "addr") == 0) {
-			NTM_CONFIG.addr = calloc(_vlen, sizeof(char));
-			memcpy(NTM_CONFIG.addr, _paramv, _vlen);
-		} else if (strcmp(_paramk, "port") == 0) {
-			NTM_CONFIG.port = atoi(_paramv);
-		} else if (strcmp(_paramk, "remote_ntm_tcp_timeout") == 0){
-			NTM_CONFIG.remote_ntm_tcp_timeout = atoi(_paramv);
-		}else if(strcmp(_paramk, "remote_ntm_tcp_timewait") == 0){
-			NTM_CONFIG.remote_ntm_tcp_timewait = atoi(_paramv);
+		// DEBUG("ntb proxy configuration %s=%s", _paramk, _paramv);
+		if (strcmp(_paramk, "remote_ntp_tcp_timeout") == 0){
+			NTP_CONFIG.remote_ntp_tcp_timeout = atoi(_paramv);
+		}else if(strcmp(_paramk, "remote_ntp_tcp_timewait") == 0){
+			NTP_CONFIG.remote_ntp_tcp_timewait = atoi(_paramv);
 		}else {
 			return 1;
 		}
@@ -117,6 +110,20 @@ int load_conf(const char *fname)
 }
 
 void print_conf() {
-	printf("ntm configuration: remote_ntm_tcp_timewait=%d, remote_ntm_tcp_timeout=%d, addr=%s, port=%d\n",
-		NTM_CONFIG.remote_ntm_tcp_timewait, NTM_CONFIG.remote_ntm_tcp_timeout, NTM_CONFIG.addr, NTM_CONFIG.port);
+	printf("ntp configuration: remote_ntp_tcp_timewait=%d, remote_ntp_tcp_timeout=%d\n",
+		NTP_CONFIG.remote_ntp_tcp_timewait, NTP_CONFIG.remote_ntp_tcp_timeout);
+}
+
+#define CONFIG_FILE "/etc/ntp.cfg"
+
+int main(int argc, char **argv) {
+	// print_monitor();
+	DEBUG("before load conf");
+	print_conf();
+
+	load_conf(CONFIG_FILE);
+	DEBUG("after load conf");
+	print_conf();
+
+	return 0;
 }

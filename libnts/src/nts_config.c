@@ -104,9 +104,9 @@ int load_conf(const char *fname)
             NTS_CONFIG.key1 = atoi(_paramv);
         } else if (strcmp(_paramk, "key2") == 0) {
             NTS_CONFIG.key2 = atoi(_paramv);
-        } else if(strcmp(_paramk, "tcp_timewait")){
+        } else if(strcmp(_paramk, "tcp_timewait") == 0){
             NTS_CONFIG.tcp_timewait = atoi(_paramv);
-        } else if(strcmp(_paramk, "tcp_timeout")){
+        } else if(strcmp(_paramk, "tcp_timeout") == 0){
             NTS_CONFIG.tcp_timeout = atoi(_paramv);
         }else {
             return 1;

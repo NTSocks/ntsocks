@@ -11,6 +11,14 @@
 #ifndef NTB_PROXY_H_
 #define NTB_PROXY_H_
 
+/*----------------------------------------------------------------------------*/
+struct ntp_config {
+
+	/* config for the connection between local and remote nt-monitor  */
+	int remote_ntp_tcp_timewait;
+	int remote_ntp_tcp_timeout;
+
+};
 
 extern int print_hello();
 
