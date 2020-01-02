@@ -36,7 +36,7 @@ typedef struct _ntm_shmring {
 } _ntm_shmring;
 
 
-static void error(char *msg);
+static void error(const char *msg);
 
 /**
  * invoked by monitor process.
@@ -364,6 +364,6 @@ void ntm_shmring_free(ntm_shmring_handle_t self, int unlink) {
  * Print system error and exit
  * @param msg
  */
-void error(char *msg) {
+void error(const char *msg) {
     perror(msg);
 }

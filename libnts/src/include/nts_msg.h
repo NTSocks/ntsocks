@@ -44,6 +44,25 @@ typedef struct {
     ntsock_id sockid;
 } nts_msg;
 
+typedef struct {
+    nts_msg_id msg_id;
+    nts_msg_type msg_type;
+
+    // for init request msg
+    char address[16];
+    uint32_t addrlen;
+    uint64_t port;
+
+    // for STOP msg
+    uint32_t
+
+
+} nts_req_msg;
+
+typedef struct {
+
+} nts_res_msg;
+
 void nts_msgcopy(nts_msg *src_msg, nts_msg *target_msg);
 
 

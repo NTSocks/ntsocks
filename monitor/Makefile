@@ -4,6 +4,7 @@ CXX = $(CROSS)g++
 DEBUG = -g -O2
 CFLAGS = $(DEBUG) -std=c11 -Wall -c -D_XOPEN_SOURCE=500 -DHAVE_GCC_C11_ATOMICS
 TARGET_CFLAGS = $(DEBUG) -std=c11 -Wall -D_XOPEN_SOURCE=500 -DHAVE_GCC_C11_ATOMICS
+TEST_TARGET_CPPFLAGS = $(DEBUG) -std=c++11 -Wall -D_XOPEN_SOURCE=500 -DHAVE_GCC_C11_ATOMICS
 CPPFLAGS = -std=c++11 -Wall
 RM = rm -rf
 
@@ -16,7 +17,7 @@ OBJS = $(patsubst %.c, %.o, $(SRCS))
 TEST_SRCS = $(wildcard $(TEST_DIR)/**/*.cpp $(TEST_DIR)/*.cpp)
 TEST_OBJS = $(patsubst %.cpp, %.o, $(TEST_SRCS))
 
-INCLUDE_PATH = -I./include/ -I./src/include/
+INCLUDE_PATH = -I./include/ -I./src/include/ -I./src/utils/include
 LIB_PATH = -L./lib/
 
 LIBS = -lpthread -lrt
@@ -40,7 +41,7 @@ SRC_LIST = src/shared_memory.c 	\
 $(TARGET): ${OBJS}
 			$(CC) $^ -o $@ $(LIB_PATH) $(LIBS) $(TARGET_CFLAGS)
 $(TEST_TARGET): $(TEST_SRCS) $(SRC_LIST)
-			@$(CXX) $(CPPFLAGS) $(INCLUDE_PATH) -o $(TEST_TARGET) $^
+			@$(CXX) $(CPPFLAGS) $(INCLUDE_PATH) -o $(TEST_TARGET) $^ $(LIBS) $(TEST_TARGET_CPPFLAGS)
 			@./$(TEST_TARGET)
 
 $(OBJS):%.o : %.c
@@ -50,7 +51,7 @@ $(OBJS):%.o : %.c
 
 		
 all: $(TARGET) $(TEST_TARGET)
-
+test: $(TEST_TARGET)
 
 install:
 		cp ntb-monitor /usr/local/bin/ntb-monitor

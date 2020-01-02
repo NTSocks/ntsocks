@@ -14,9 +14,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 extern int print_socket();
 
 extern int test_ntm_shm();
 
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif /* SOCKET_H_ */

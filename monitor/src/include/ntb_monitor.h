@@ -27,8 +27,8 @@ struct ntm_config {
 	int remote_ntm_tcp_timewait;
 	int remote_ntm_tcp_timeout;
 
-
-
+	char *addr;
+	int port;
 };
 
 
@@ -50,7 +50,7 @@ struct ntm_nts_context {
 	int shm_send_signal;
 
 
-} ntm_nts_context;
+};
 
 typedef struct ntm_nts_context* ntm_nts_context_t;
 

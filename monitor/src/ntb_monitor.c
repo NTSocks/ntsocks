@@ -148,14 +148,15 @@ int ntm_init(const char *config_file) {
 
 
 	ntm_mgr = (ntm_manager_t) calloc(1, sizeof(struct ntm_manager));
+	const char *err_msg = "malloc";
 	if(!ntm_mgr) {
-		perror("malloc");
+		perror(err_msg);
 		ERR("Failed to allocate ntm_manager.");
 		return -1;
 	}
 	ntm_mgr->nts_ctx = (ntm_nts_context_t) calloc(1, sizeof(struct ntm_nts_context));
 	if (!ntm_mgr->nts_ctx) {
-		perror("malloc");
+		perror(err_msg);
 		ERR("Failed to allocate ntm_nts_context.");
 		return -1;
 	}
@@ -163,7 +164,7 @@ int ntm_init(const char *config_file) {
 
 	ntm_mgr->ntp_ctx = (ntm_ntp_context_t) calloc(1, sizeof(struct ntm_ntp_context));
 	if(!ntm_mgr->ntp_ctx) {
-		perror("malloc");
+		perror(err_msg);
 		ERR("Failed to allocate ntm_ntp_context.");
 		return -1;
 	}
@@ -266,7 +267,7 @@ int print_monitor() {
 
 //	test_ntm_ring();
 //	test_ntm_shm();
-	test_nts_shm();
+//	test_nts_shm();
 	printf("Bye, Ntb Monitor.\n");
 
 	return 0;

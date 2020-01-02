@@ -42,7 +42,7 @@ typedef struct _nts_shmring {
 } _nts_shmring;
 
 
-static void error(char *msg);
+static void error(const char *msg);
 
 
 static inline uint64_t increment(uint64_t current_idx, uint64_t max_size) {
@@ -273,6 +273,6 @@ void nts_shmring_free(nts_shmring_handle_t self, int unlink) {
  * Print system error and exit
  * @param msg
  */
-void error(char *msg) {
+void error(const char* msg) {
     perror(msg);
 }
