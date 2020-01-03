@@ -10,6 +10,34 @@
 
 #include "hash_map.h"
 
+// 默认哈希函数
+static int defaultHashCode(HashMap hashMap, let key);
+
+// 默认判断键值是否相等
+static bool defaultEqual(let key1, let key2);
+
+// 默认添加键值对
+static void defaultPut(HashMap hashMap, let key, let value);
+
+// 默认获取键对应值
+static let defaultGet(HashMap hashMap, let key);
+
+// 默认删除键
+static let defaultRemove(HashMap hashMap, let key);
+
+// 默认判断键是否存在
+static bool defaultExists(HashMap hashMap, let key);
+
+// 默认清空Map
+static void defaultClear(HashMap hashMap);
+
+// 重新构建
+static void resetHashMap(HashMap hashMap, int listSize);
+
+
+
+
+
 int defaultHashCode(HashMap hashMap, let key) {
     char * k = (char *)key;
     unsigned long h = 0;
@@ -78,7 +106,7 @@ void resetHashMap(HashMap hashMap, int listSize) {
 
     // 将所有键值对重新写入内存
     for (int i = 0; i < length; i++) {
-        Array x = tempList[i].value;
+//        Array x = tempList[i].value;
         hashMap->put(hashMap, tempList[i].key, tempList[i].value);
     }
     free(tempList);

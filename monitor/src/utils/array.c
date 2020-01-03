@@ -10,6 +10,29 @@
 
 #include "array.h"
 
+static Array concat(Array a, Array b);
+
+static let pop(Array a);
+
+static int push(Array array, let item);
+
+static void reverse(Array array);
+
+static let shift(Array array);
+
+static int unshift(Array array, let item);
+
+static Array slice(Array array, int start, int end);
+
+static void sort(Array array, SortBy sort);
+
+static Array filter(Array array, FilterBy filter);
+
+static let indexOf(Array array, int index);
+
+
+
+
 Array concat(Array a, Array b) {
     Array array = createArray(0);
     ListNode node = a->head;
