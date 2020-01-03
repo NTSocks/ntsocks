@@ -103,9 +103,11 @@ int load_conf(const char *fname)
 		}else if(strcmp(_paramk, "remote_ntp_tcp_timewait") == 0){
 			NTP_CONFIG.remote_ntp_tcp_timewait = atoi(_paramv);
 		}else {
+			fclose(file);
 			return 1;
 		}
 	}
+	fclose(file);
 	return 0;
 }
 

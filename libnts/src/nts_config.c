@@ -109,9 +109,11 @@ int load_conf(const char *fname)
         } else if(strcmp(_paramk, "tcp_timeout") == 0){
             NTS_CONFIG.tcp_timeout = atoi(_paramv);
         }else {
+            fclose(file);
             return 1;
         }
     }
+    fclose(file);
     return 0;
 }
 
