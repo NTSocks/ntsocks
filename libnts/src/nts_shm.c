@@ -75,10 +75,11 @@ int nts_shm_send(nts_shm_context_t shm_ctx, nts_msg *element) {
 int nts_shm_recv(nts_shm_context_t shm_ctx, nts_msg *element) {
 	assert(shm_ctx);
 
-	int recv_size = nts_shmring_pop(shm_ctx->ntsring_handle, element);
+	bool ret;
+	ret = nts_shmring_pop(shm_ctx->ntsring_handle, element);
 
 	DEBUG("nts_shm_recv pass");
-	return recv_size;
+	return ret ? 0:-1;
 }
 
 
@@ -109,6 +110,7 @@ int nts_shm_ntm_close(nts_shm_context_t shm_ctx) {
 void nts_shm_destroy(nts_shm_context_t shm_ctx) {
 	assert(shm_ctx);
 
+	free(shm_ctx->shm_addr);
 	free(shm_ctx);
 	DEBUG("nts_shm_destroy pass");
 }

@@ -94,6 +94,7 @@ int ntm_shm_nts_close(ntm_shm_context_t shm_ctx) {
 void ntm_shm_destroy(ntm_shm_context_t shm_ctx) {
 	assert(shm_ctx);
 
+	free(shm_ctx->shm_addr);
 	free(shm_ctx);
 	DEBUG("ntm_shm_destroy pass \n");
 	return;

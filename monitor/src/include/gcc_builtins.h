@@ -19,7 +19,7 @@
 #define ATOMIC_MEMORY_ORDER_SEQ_CST __ATOMIC_SEQ_CST
 
 #define nt_atomic_store32_explicit(P, D, O) __atomic_store_n((P), (D), (O))
-#define nt_atomic_store64_explicit(P, D, O) __atomic_store_n((P), (D), (O))
+#define nt_atomic_store64_explicit(P, D, O) (__atomic_store_n((P), (D), (O)))
 #define nt_atomic_storeptr_explicit(P, D, O) __atomic_store_n((P), (D), (O))
 
 #define nt_atomic_load32_explicit(P, O) __atomic_load_n((P), (O))
