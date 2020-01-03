@@ -171,7 +171,7 @@ struct nt_accepted_conn {
 typedef struct nt_accepted_conn * nt_accepted_conn_t;
 
 
-struct nt_listener_warpper {
+struct nt_listener_wrapper {
 
 	nt_listener_t listener;
 	int port;
@@ -188,7 +188,7 @@ struct nt_listener_warpper {
 	nts_shm_conn_t nts_shm_conn;  // point the related nts shm context pointer
 
 };
-typedef struct nt_listener_warpper * nt_listener_warpper_t;
+typedef struct nt_listener_wrapper * nt_listener_wrapper_t;
 
 
 struct nt_listener_context {
@@ -196,7 +196,7 @@ struct nt_listener_context {
 	 * hold all nt_listener indexed by service `port`
 	 *
 	 * key: port
-	 * value: nt_listener_warpper_t
+	 * value: nt_listener_wrapper_t
 	 */
 	HashMap listener_map;
 

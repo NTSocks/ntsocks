@@ -300,14 +300,14 @@ void ntm_destroy() {
 	 * listen socket
 	 */
 	HashMapIterator nt_conn_iter;
-	nt_listener_warpper_t nt_listener_warpper;
+	nt_listener_wrapper_t nt_listener_wrapper;
 	nt_accepted_conn_t nt_accepted_conn;
 	iter = createHashMapIterator(ntm_mgr->nt_listener_ctx->listener_map);
 	while (hasNextHashMapIterator(iter)) {
 		iter = nextHashMapIterator(iter);
-		nt_listener_warpper = iter->entry->value;
+		nt_listener_wrapper = iter->entry->value;
 
-		nt_conn_iter = createHashMapIterator(nt_listener_warpper->accepted_conn_map);
+		nt_conn_iter = createHashMapIterator(nt_listener_wrapper->accepted_conn_map);
 
 		while (hasNextHashMapIterator(nt_conn_iter)) {
 			nt_conn_iter = nextHashMapIterator(iter);
@@ -315,16 +315,16 @@ void ntm_destroy() {
 
 			// free or unbound socket id
 			free_socket(nt_accepted_conn->sockid, 1);
-			Remove(nt_listener_warpper->accepted_conn_map, nt_accepted_conn->sockid);
+			Remove(nt_listener_wrapper->accepted_conn_map, nt_accepted_conn->sockid);
 
 		}
 		freeHashMapIterator(&nt_conn_iter);
-		Clear(nt_listener_warpper->accepted_conn_map);
+		Clear(nt_listener_wrapper->accepted_conn_map);
 		DEBUG("free hash map for client socket connection accepted by the specified nt_listener socket pass");
 
 		// free or unbound nt_listener socket id
-		free_socket(nt_listener_warpper->listener->sockid, 1);
-		Remove(ntm_mgr->nt_listener_ctx->listener_map, nt_listener_warpper->port);
+		free_socket(nt_listener_wrapper->listener->sockid, 1);
+		Remove(ntm_mgr->nt_listener_ctx->listener_map, nt_listener_wrapper->port);
 
 	}
 	freeHashMapIterator(&iter);
