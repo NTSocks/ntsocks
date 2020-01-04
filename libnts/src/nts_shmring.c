@@ -230,7 +230,6 @@ bool nts_shmring_pop(nts_shmring_handle_t self, nts_msg *element) {
     DEBUG("pop nts shmring successfully!");
 
     return true;
-
 }
 
 /**

@@ -30,6 +30,7 @@
 #include <rte_rwlock.h>
 #include <rte_ring.h>
 
+#include "ntm_shm.h"
 #include "ntp_config.h"
 #include "ntlink_parser.h"
 #include "ntb_mem.h"
@@ -92,6 +93,7 @@ static int ntb_msg_enqueue(struct ntb_sublink *sublink, struct ntb_data_msg *msg
 	//looping send
 	while (next_serial == *sublink->local_cum_ptr)
 	{
+		
 	}
 	if ((next_serial - *sublink->local_cum_ptr) & 0x3ff == 0)
 	{

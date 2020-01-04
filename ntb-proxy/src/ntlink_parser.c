@@ -36,6 +36,26 @@
 #include "ntlink_parser.h"
 #include "ntb_proxy.h"
 
+int ntm_create_ring_handler(struct ntb_link *ntlink, struct ntb_ctrl_msg *msg)
+{
+    struct ntb_ring *r = ntlink->ctrllink->remote_ring;
+    int msg_len = msg->header.msg_len;
+    uint64_t next_serial = (r->cur_serial + 1) % (r->capacity);
+    //looping send
+    while (next_serial == *ntlink->ctrllink->local_cum_ptr)
+    {
+    }
+    if ((next_serial - *ntlink->ctrllink->local_cum_ptr) & 0x3ff == 0)
+    {
+        //PSH
+        msg->header.msg_type |= 1 << 7;
+    }
+    uint8_t *ptr = r->start_addr + r->cur_serial * NTB_CTRL_msg_TL;
+    rte_memcpy(ptr, msg, msg_len);
+    r->cur_serial = next_serial;
+    return 0;
+}
+
 struct ntp_rs_ring ntp_rsring_lookup(uint16_t src_port, uint16_t dst_port)
 {
     return 0;
@@ -81,6 +101,27 @@ static struct ntb_ctrl_msg *creat_ctrl_msg(uint8_t msg_type, uint8_t msg_len, ui
     reply_msg->header.dst_port = dst_port;
     return *reply_msg;
 }
+
+struct ntb_ctrl_msg *ntb_ctrl_dequeue(struct ntb_link *ntlink)
+{
+    struct ntb_ring *r = ntlink->ctrllink->remote_ring;
+    uint64_t next_serial = (r->cur_serial + 1) % (r->capacity);
+    //looping send
+    while (next_serial == *ntlink->ctrllink->local_cum_ptr)
+    {
+        
+    }
+    if ((next_serial - *ntlink->ctrllink->local_cum_ptr) & 0x3ff == 0)
+    {
+        //PSH
+        msg->header.msg_type |= 1 << 7;
+    }
+    uint8_t *ptr = r->start_addr + r->cur_serial * NTB_CTRL_msg_TL;
+    rte_memcpy(ptr, msg, msg_len);
+    r->cur_serial = next_serial;
+    return 0;
+}
+
 
 int ntb_send_conn_req(struct ntb_link *ntlink, uint16_t src_port, uint16_t dst_port)
 {
