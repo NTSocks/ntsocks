@@ -33,27 +33,57 @@
 #include <rte_mempool.h>
 #include <rte_ring.h>
 
+#include <arpa/inet.h>
+
+#include "ntm_msg.h"
 #include "ntlink_parser.h"
 #include "ntb_proxy.h"
+#include "nts_shm.h"
 
-int ntm_create_ring_handler(struct ntb_link *ntlink, struct ntb_ctrl_msg *msg)
+static char *int_to_char(uint16_t x)
 {
-    struct ntb_ring *r = ntlink->ctrllink->remote_ring;
-    int msg_len = msg->header.msg_len;
-    uint64_t next_serial = (r->cur_serial + 1) % (r->capacity);
-    //looping send
-    while (next_serial == *ntlink->ctrllink->local_cum_ptr)
+    char str[6];
+    sprintf(str, "%d", x);
+    return str;
+}
+
+static char *create_ring_name(uint16_t src_port, uint16_t dst_port, bool is_send)
+{
+    char ring_name[14];
+    char *bar = "-";
+    char *send_buff = "s" char *recv_buff = "r" 
+    char *src_port_str = int_to_char(src_port);
+    char *dst_port_str = int_to_char(dst_port);
+    strcpy(ring_name, src_port);
+    strcat(ring_name, bar);
+    strcat(ring_name, dst_port_str);
+    strcat(ring_name, bar);
+    if (is_send)
     {
+        strcat(ring_name, send_buff);
     }
-    if ((next_serial - *ntlink->ctrllink->local_cum_ptr) & 0x3ff == 0)
+    else
     {
-        //PSH
-        msg->header.msg_type |= 1 << 7;
+        strcat(ring_name, recv_buff);
     }
-    uint8_t *ptr = r->start_addr + r->cur_serial * NTB_CTRL_msg_TL;
-    rte_memcpy(ptr, msg, msg_len);
-    r->cur_serial = next_serial;
-    return 0;
+    return ring_name;
+}
+int ntm_create_ring_handler(struct ntb_link *ntlink, ntm_msg *msg)
+{
+    // uint32_t src_ip = msg->src_ip;
+    // uint32_t dst_ip = msg->dst_ip;
+    nts_shm_context_t send_ring = nts_shm();
+    char *send_ring_name = create_ring_name(msg->src_port,msg->dst_port,true);
+    if (nts_shm_accept(send_ring, send_ring_name, sizeof(send_ring_name)) != 0)
+    {
+        DEBUG("create ntm_ntp_ring failed\n");
+    }
+    nts_shm_context_t recv_ring = nts_shm();
+    char *recv_ring_name = create_ring_name(msg->src_port,msg->dst_port,false);
+    if (nts_shm_accept(recv_ring, recv_ring_name, sizeof(recv_ring_name)) != 0)
+    {
+        DEBUG("create ntm_ntp_ring failed\n");
+    }
 }
 
 struct ntp_rs_ring ntp_rsring_lookup(uint16_t src_port, uint16_t dst_port)
@@ -109,7 +139,6 @@ struct ntb_ctrl_msg *ntb_ctrl_dequeue(struct ntb_link *ntlink)
     //looping send
     while (next_serial == *ntlink->ctrllink->local_cum_ptr)
     {
-        
     }
     if ((next_serial - *ntlink->ctrllink->local_cum_ptr) & 0x3ff == 0)
     {
@@ -121,7 +150,6 @@ struct ntb_ctrl_msg *ntb_ctrl_dequeue(struct ntb_link *ntlink)
     r->cur_serial = next_serial;
     return 0;
 }
-
 
 int ntb_send_conn_req(struct ntb_link *ntlink, uint16_t src_port, uint16_t dst_port)
 {

@@ -48,13 +48,14 @@ struct ntb_sublink
 	struct ntb_ring *remote_ring;
 };
 
-// typedef struct rte_ring *ntp_rs_ring;
 
-// typedef struct ntp_send_ring_node
-// {
-// 	ntp_rs_ring *send_ring;
-// 	ntp_send_ring_node *next_node;
-// }ntp_send_ring_node;
+typedef struct rte_ring* ntp_rs_ring;
+
+typedef struct ntp_ring_list_node
+{
+    ntp_rs_ring ring;
+    ntp_ring_list_node* next_node;
+}ntp_ring_list_node;
 
 struct ntb_link
 {
@@ -72,30 +73,21 @@ struct ntb_message_header
 {
 	uint16_t src_port;
 	uint16_t dst_port;
-	uint8_t msg_type;
-	uint8_t msg_len;
-};
-
-struct ntb_data_node_header
-{
-	uint16_t src_port;
-	uint16_t dst_port;
-	uint8_t msg_type;
-	uint8_t msg_len;
+	uint16_t msg_len;
 };
 
 //one message length is 128B
 struct ntb_data_msg
 {
 	struct ntb_message_header header;
-	char msg[NTB_DATA_msg_TL - NTB_HEADER_LEN];
+	char msg[NTB_DATA_MSG_TL - NTB_HEADER_LEN];
 };
 
 //one message length is 16B
 struct ntb_ctrl_message
 {
 	struct ntb_message_header header;
-	char msg[NTB_DATA_msg_TL - NTB_HEADER_LEN];
+	char msg[NTB_CTRL_MSG_TL - NTB_HEADER_LEN];
 };
 
 int ntb_app_mempool_get(struct rte_mempool *mp, void **obj_p, struct ntb_uuid *app_uuid);

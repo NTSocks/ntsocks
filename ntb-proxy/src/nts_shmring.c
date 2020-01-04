@@ -22,14 +22,17 @@
 #include <semaphore.h>
 #include <sys/time.h>
 
+#include "ntm_msg.h"
 #include "nts_shmring.h"
 #include "nt_atomic.h"
 #include "nt_log.h"
 
+
 DEBUG_SET_LEVEL(DEBUG_LEVEL_INFO);
 
 typedef struct nts_shmring_buf {
-    char buf[NTS_MAX_BUFS + 1][NTS_BUF_SIZE];
+//    char buf[NTS_MAX_BUFS + 1][NTS_BUF_SIZE];
+	nts_msg buf[NTS_MAX_BUFS + 1];
     uint64_t write_index;
     uint64_t read_index;
 } nts_shmring_buf;
@@ -37,12 +40,15 @@ typedef struct nts_shmring_buf {
 typedef struct _nts_shmring {
     int shm_fd;
     unsigned long MASK;
+    int addrlen;
+    char *shm_addr;
+
     struct nts_shmring_buf *shmring;
     uint64_t max_size;
 } _nts_shmring;
 
 
-static void error(char *msg);
+static void error(const char *msg);
 
 
 static inline uint64_t increment(uint64_t current_idx, uint64_t max_size) {
@@ -77,17 +83,22 @@ static inline bool empty(uint64_t write_index, uint64_t read_index) {
  *  3. init the read and write index for shm-based data buffer.
  * @return
  */
-nts_shmring_handle_t nts_shmring_init() {
+nts_shmring_handle_t nts_shmring_init(char *shm_addr, size_t addrlen) {
+	assert(shm_addr);
+	assert(addrlen > 0);
+
     nts_shmring_handle_t shmring_handle;
 
     shmring_handle = (nts_shmring_handle_t) malloc(sizeof(nts_shmring_t));
     DEBUG("init nts_shmring");
+    shmring_handle->addrlen = addrlen;
+    shmring_handle->shm_addr = shm_addr;
 
     // get shared memory for nts_shmring
-    shmring_handle->shm_fd = shm_open(NTS_SHM_NAME, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
     if (shmring_handle->shm_fd == -1) {
         if (errno == ENOENT) {
-            shmring_handle->shm_fd = shm_open(NTS_SHM_NAME, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+            shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
             if (shmring_handle->shm_fd == -1) {
                 error("shm_open");
                 goto FAIL;
@@ -130,7 +141,7 @@ nts_shmring_handle_t nts_shmring_init() {
     FAIL:
     if (shmring_handle->shm_fd != -1) {
         close(shmring_handle->shm_fd);
-        shm_unlink(NTS_SHM_NAME);
+        shm_unlink(shmring_handle->shm_addr);
     }
 
     free(shmring_handle);
@@ -138,14 +149,20 @@ nts_shmring_handle_t nts_shmring_init() {
 }
 
 
-nts_shmring_handle_t nts_get_shmring() {
+nts_shmring_handle_t nts_get_shmring(char *shm_addr, size_t addrlen) {
+	assert(shm_addr);
+	assert(addrlen > 0);
+
     nts_shmring_handle_t shmring_handle;
     DEBUG("nts get shmring start");
 
     shmring_handle = (nts_shmring_handle_t) malloc(sizeof(nts_shmring_t));
+    memset(shmring_handle, 0, sizeof(nts_shmring_t));
+    shmring_handle->addrlen = addrlen;
+    shmring_handle->shm_addr = shm_addr;
 
     // get shared memory with specified SHM NAME
-    shmring_handle->shm_fd = shm_open(NTS_SHM_NAME, O_RDWR, 0);
+    shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR, 0);
     if (shmring_handle->shm_fd == -1) {
         error("shm_open");
         goto FAIL;
@@ -185,25 +202,20 @@ nts_shmring_handle_t nts_get_shmring() {
  * @param len
  * @return
  */
-bool nts_shmring_push(nts_shmring_handle_t self, char *element, size_t len) {
+bool nts_shmring_push(nts_shmring_handle_t self, nts_msg *element) {
     assert(self);
-
-    // check len
-    len = (len < NTS_BUF_SIZE) ? len : NTS_BUF_SIZE;
 
     /* Critical Section */
     /*const uint64_t r_idx = nt_atomic_load64_explicit(
             &self->shmring->read_index, ATOMIC_MEMORY_ORDER_CONSUME);*/
 //    const uint64_t w_idx = nt_atomic_load64_explicit(
 //            &self->shmring->write_index, ATOMIC_MEMORY_ORDER_CONSUME);
-//    DEBUG("\t[nts_shmring] w_idx : %d; r_idx : %d", (int) self->shmring->write_index,
-//           (int) self->shmring->read_index);
+
     const uint64_t w_idx = nt_atomic_load64_explicit(
             &self->shmring->write_index, ATOMIC_MEMORY_ORDER_RELAXED);
 
     /// Assuming we write, where will move next ?
     const uint64_t w_next_idx = mask_increment(w_idx, self->MASK);
-    DEBUG("\t[nts_shmring] w_next_idx : %d", w_next_idx);
 
     /// The two pointers colliding means we would have exceeded the
     /// ring buffer size and create an ambiguous state with being empty.
@@ -211,7 +223,7 @@ bool nts_shmring_push(nts_shmring_handle_t self, char *element, size_t len) {
             &self->shmring->read_index, ATOMIC_MEMORY_ORDER_ACQUIRE))
         return false;
 
-    memcpy(self->shmring->buf[w_idx], element, len);
+    nts_msgcopy(element, &(self->shmring->buf[w_idx]));
     nt_atomic_store64_explicit(&self->shmring->write_index,
                                w_next_idx, ATOMIC_MEMORY_ORDER_RELEASE);
 
@@ -221,10 +233,9 @@ bool nts_shmring_push(nts_shmring_handle_t self, char *element, size_t len) {
 
 }
 
-int nts_shmring_pop(nts_shmring_handle_t self, char *element, size_t len) {
+bool nts_shmring_pop(nts_shmring_handle_t self, nts_msg *element) {
     assert(self);
 
-    len = len < NTS_BUF_SIZE ? len : NTS_BUF_SIZE;
 
 //   uint64_t r_idx = nt_atomic_load64_explicit(
 //           &self->shmring->read_index, ATOMIC_MEMORY_ORDER_CONSUME);
@@ -238,13 +249,14 @@ int nts_shmring_pop(nts_shmring_handle_t self, char *element, size_t len) {
    if (empty(w_idx, r_idx))
        return -1;
 
-    memcpy(element, self->shmring->buf[self->shmring->read_index], len);
+    nts_msgcopy(&(self->shmring->buf[self->shmring->read_index]), element);
+
     nt_atomic_store64_explicit(&self->shmring->read_index,
                                mask_increment(r_idx, self->MASK), ATOMIC_MEMORY_ORDER_RELEASE);
 
     DEBUG("pop nts shmring successfully!");
 
-    return (int) len;
+    return true;
 
 }
 
@@ -262,7 +274,7 @@ void nts_shmring_free(nts_shmring_handle_t self, int unlink) {
     DEBUG("munmap close pass");
 
     if (unlink) {
-        shm_unlink(NTS_SHM_NAME);
+        shm_unlink(self->shm_addr);
     }
 
     free(self);
@@ -273,6 +285,6 @@ void nts_shmring_free(nts_shmring_handle_t self, int unlink) {
  * Print system error and exit
  * @param msg
  */
-void error(char *msg) {
+void error(const char* msg) {
     perror(msg);
 }

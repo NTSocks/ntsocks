@@ -13,15 +13,15 @@
 #include <fcntl.h>
 #include <semaphore.h>
 
-
 #include "ntm_shmring.h"
 #include "nt_log.h"
+#include "ntm_msg.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_INFO);
-
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 typedef struct ntm_shmring_buf {
-    char buf[NTM_MAX_BUFS][NTM_BUF_SIZE];
+//    char buf[NTM_MAX_BUFS][NTM_BUF_SIZE];
+	ntm_msg buf[NTM_MAX_BUFS + 1];
     unsigned long write_index;
     unsigned long read_index;
 } ntm_shmring_buf;
@@ -33,11 +33,13 @@ typedef struct _ntm_shmring {
 
     int shm_fd;
     unsigned long MASK;
+    int addrlen;
+    char *shm_addr;
     struct ntm_shmring_buf *shmring;
 } _ntm_shmring;
 
 
-static void error(char *msg);
+static void error(const char *msg);
 
 /**
  * invoked by monitor process.
@@ -48,11 +50,16 @@ static void error(char *msg);
  *  3. init the read and write index for shm-based data buffer.
  * @return
  */
-ntm_shmring_handle_t ntm_shmring_init() {
-    ntm_shmring_handle_t shmring_handle;
+ntm_shmring_handle_t ntm_shmring_init(char *shm_addr, size_t addrlen) {
+    assert(shm_addr);
+    assert(addrlen > 0);
+
+	ntm_shmring_handle_t shmring_handle;
 
     shmring_handle = (ntm_shmring_handle_t) malloc(sizeof(ntm_shmring_t));
 	DEBUG("init ntm_shmring ");
+	shmring_handle->addrlen = addrlen;
+	shmring_handle->shm_addr = shm_addr;
 
     // mutual exclusion semaphore, mutex_sem with an initial value 0.
     shmring_handle->mutex_sem = sem_open(NTM_SEM_MUTEX_NAME, O_CREAT, 0660, 0);
@@ -63,10 +70,10 @@ ntm_shmring_handle_t ntm_shmring_init() {
 	DEBUG("sem_open mutex_sem pass");
 
     // get shared memory for ntm_shmring
-    shmring_handle->shm_fd = shm_open(NTM_SHM_NAME, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
     if (shmring_handle->shm_fd == -1) {
         if (errno == ENOENT) {
-            shmring_handle->shm_fd = shm_open(NTM_SHM_NAME, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+            shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
             if (shmring_handle->shm_fd == -1) {
                 error("shm_open");
                 goto FAIL;
@@ -142,7 +149,7 @@ ntm_shmring_handle_t ntm_shmring_init() {
 
     if (shmring_handle->shm_fd != -1) {
         close(shmring_handle->shm_fd);
-        shm_unlink(NTM_SHM_NAME);
+        shm_unlink(shmring_handle->shm_addr);
     }
     if (shmring_handle->mutex_sem != SEM_FAILED) {
         sem_close(shmring_handle->mutex_sem);
@@ -154,11 +161,17 @@ ntm_shmring_handle_t ntm_shmring_init() {
 }
 
 
-ntm_shmring_handle_t ntm_get_shmring() {
+ntm_shmring_handle_t ntm_get_shmring(char *shm_addr, size_t addrlen) {
+	assert(shm_addr);
+	assert(addrlen > 0);
+
     ntm_shmring_handle_t shmring_handle;
 	DEBUG("ntm get shmring start");
 
     shmring_handle = (ntm_shmring_handle_t) malloc(sizeof(ntm_shmring_t));
+    DEBUG("init ntm_shmring ");
+    shmring_handle->addrlen = addrlen;
+    shmring_handle->shm_addr = shm_addr;
 
     // mutual exclusion semaphore, mutex_sem
     shmring_handle->mutex_sem = sem_open(NTM_SEM_MUTEX_NAME, 0, 0, 0);
@@ -169,7 +182,7 @@ ntm_shmring_handle_t ntm_get_shmring() {
 	DEBUG("sem_open mutex_sem pass");
 
     // get shared memory with specified SHM NAME
-    shmring_handle->shm_fd = shm_open(NTM_SHM_NAME, O_RDWR, 0);
+    shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR, 0);
     if (shmring_handle->shm_fd == -1) {
         error("shm_open");
         goto FAIL;
@@ -231,16 +244,11 @@ ntm_shmring_handle_t ntm_get_shmring() {
  * push an element into shm-based ring buffer
  * @param self
  * @param element
- * @param len
  * @return
  */
-bool ntm_shmring_push(ntm_shmring_handle_t self, char *element, size_t len) {
+bool ntm_shmring_push(ntm_shmring_handle_t self, ntm_msg *element) {
     assert(self);
     int rc;
-
-    // check len
-
-    len = (len < NTM_BUF_SIZE) ? len : NTM_BUF_SIZE;
 
     // get a buffer: P (buf_count_sem)
     rc = sem_wait(self->buf_count_sem);
@@ -261,9 +269,7 @@ bool ntm_shmring_push(ntm_shmring_handle_t self, char *element, size_t len) {
 	DEBUG("enter critical section... ");
 
     /* Critical Section */
-	DEBUG("push data with %d: %s ", (int)len, element);
-    memcpy(self->shmring->buf[self->shmring->write_index], element, len);
-	DEBUG("After push data: %s ", self->shmring->buf[self->shmring->write_index]);
+	ntm_msgcopy(element, &(self->shmring->buf[self->shmring->write_index]));
     (self->shmring->write_index)++;
     self->shmring->write_index &= self->MASK;
 
@@ -290,11 +296,9 @@ bool ntm_shmring_push(ntm_shmring_handle_t self, char *element, size_t len) {
 
 }
 
-int ntm_shmring_pop(ntm_shmring_handle_t self, char *element, size_t len) {
+bool ntm_shmring_pop(ntm_shmring_handle_t self, ntm_msg *element) {
     assert(self);
     int rc;
-
-	len = len < NTM_BUF_SIZE ? len : NTM_BUF_SIZE;
 
     // Is there a shm element to read ? P(spool_signal_sem)
     rc = sem_wait(self->spool_signal_sem);
@@ -302,9 +306,8 @@ int ntm_shmring_pop(ntm_shmring_handle_t self, char *element, size_t len) {
         error("sem_wait: spool_signal_sem");
         goto FAIL;
     }
-	DEBUG("pop enter critical section...  pop data is %s ", self->shmring->buf[self->shmring->read_index]);
 
-    memcpy(element, self->shmring->buf[self->shmring->read_index], len);
+	ntm_msgcopy(&(self->shmring->buf[self->shmring->read_index]), element);
 
     /**
      * Since there is only one process (nt-monitor) using the
@@ -326,10 +329,10 @@ int ntm_shmring_pop(ntm_shmring_handle_t self, char *element, size_t len) {
 
 	DEBUG("pop ntm shmring successfully!");
 
-    return (int)len;
+    return true;
 
     FAIL:
-    return -1;
+    return false;
 }
 
 /**
@@ -352,7 +355,7 @@ void ntm_shmring_free(ntm_shmring_handle_t self, int unlink) {
 
     if (unlink) {
         sem_unlink(NTM_SEM_MUTEX_NAME);
-        shm_unlink(NTM_SHM_NAME);
+        shm_unlink(self->shm_addr);
         sem_unlink(NTM_SEM_BUF_COUNT_NAME);
         sem_unlink(NTM_SEM_SPOOL_SIGNAL_NAME);
     }
@@ -365,6 +368,6 @@ void ntm_shmring_free(ntm_shmring_handle_t self, int unlink) {
  * Print system error and exit
  * @param msg
  */
-void error(char *msg) {
+void error(const char *msg) {
     perror(msg);
 }

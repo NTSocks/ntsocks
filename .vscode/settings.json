@@ -7,6 +7,8 @@
         "ntp_config.h": "c",
         "rte_memory.h": "c",
         "ntb_mem.h": "c",
-        "rte_bus_vdev.h": "c"
+        "rte_bus_vdev.h": "c",
+        "nt_log.h": "c",
+        "ntm_msg.h": "c"
     }
 }

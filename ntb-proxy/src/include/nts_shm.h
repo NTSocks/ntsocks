@@ -31,7 +31,7 @@ struct nts_shm_context {
 	nts_shmring_handle_t ntsring_handle;
 	char *shm_addr;
 	size_t addrlen;
-} nts_shm_context;
+} ;
 
 typedef struct nts_shm_context* nts_shm_context_t;
 
@@ -53,12 +53,12 @@ int nts_shm_connect(nts_shm_context_t shm_ctx, char *shm_addr, size_t addrlen);
 /**
  * used by nt-monitor to send message to libnts app
  */
-int nts_shm_send(nts_shm_context_t shm_ctx, char *buf, size_t len);
+int nts_shm_send(nts_shm_context_t shm_ctx, nts_msg *buf);
 
 /**
  * used by libnts app to receive message from nt-monitor
  */
-int nts_shm_recv(nts_shm_context_t shm_ctx, char *buf, size_t len);
+int nts_shm_recv(nts_shm_context_t shm_ctx, nts_msg *buf);
 
 /**
  * used by libnts app to close and unlink the shm ring buffer.
@@ -74,7 +74,6 @@ int nts_shm_ntm_close(nts_shm_context_t shm_ctx);
  * used by libnts app or nt-monitor to free the memory of nts_shm_context
  */
 void nts_shm_destroy(nts_shm_context_t shm_ctx);
-
 
 #ifdef __cplusplus
 };

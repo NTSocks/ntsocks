@@ -38,10 +38,10 @@
 #include <rte_mbuf.h>
 #include <rte_cycles.h>
 
-#include "ntb_mem.h"
-#include "ntlink_parser.h"
-#include "ntb_proxy.h"
-#include "func.h"
+// #include "ntb_mem.h"
+// #include "ntlink_parser.h"
+// #include "ntb_proxy.h"
+// #include "func.h"
 
 static uint16_t dev_id;
 unsigned lcore_id;
@@ -50,6 +50,10 @@ int main(int argc, char **argv)
 {
 	int ret;
 	ret = rte_eal_init(argc, argv);
+	int i = 247593;
+	char str[10];
+
+	sprintf(str, "%d", i);
 	if (ret < 0)
 		rte_exit(EXIT_FAILURE, "Error with EAL initialization.\n");
 
