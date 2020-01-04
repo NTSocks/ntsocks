@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include "nts_shm.h"
 #include "nt_log.h"
@@ -38,7 +39,7 @@ int nts_shm_accept(nts_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
 	memset(shm_ctx->shm_addr, 0, addrlen);
 	shm_ctx->addrlen = addrlen;
 	memcpy(shm_ctx->shm_addr, shm_addr, addrlen);
-	shm_ctx->ntsring_handle = nts_shmring_init();
+	shm_ctx->ntsring_handle = nts_shmring_init(shm_ctx->shm_addr, shm_ctx->addrlen);
 	shm_ctx->shm_stat = NTS_SHM_READY;
 
 	DEBUG("nts_shm_accept pass");
@@ -54,7 +55,7 @@ int nts_shm_connect(nts_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
 	memset(shm_ctx->shm_addr, 0, addrlen);
 	shm_ctx->addrlen = addrlen;
 	memcpy(shm_ctx->shm_addr, shm_addr, addrlen);
-	shm_ctx->ntsring_handle = nts_get_shmring(); /// note: need to improve
+	shm_ctx->ntsring_handle = nts_get_shmring(shm_ctx->shm_addr, shm_ctx->addrlen); /// note: need to improve
 	shm_ctx->shm_stat = NTS_SHM_READY;
 
 	DEBUG("nts_shm_connect pass");
@@ -62,25 +63,25 @@ int nts_shm_connect(nts_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
 }
 
 
-int nts_shm_send(nts_shm_context_t shm_ctx, char *buf, size_t len) {
+int nts_shm_send(nts_shm_context_t shm_ctx, nts_msg *buf) {
 	assert(shm_ctx);
-	assert(len > 0);
 
-	nts_shmring_push(shm_ctx->ntsring_handle, buf, len);
+	bool ret;
+	ret = nts_shmring_push(shm_ctx->ntsring_handle, buf);
 
 	DEBUG("nts_shm_send pass");
-	return 0;
+	return ret ? 0 : -1;
 }
 
 
-int nts_shm_recv(nts_shm_context_t shm_ctx, char *buf, size_t len) {
+int nts_shm_recv(nts_shm_context_t shm_ctx, nts_msg *buf) {
 	assert(shm_ctx);
-	assert(len > 0);
 
-	int recv_size = nts_shmring_pop(shm_ctx->ntsring_handle, buf, len);
+	bool ret;
+	ret = nts_shmring_pop(shm_ctx->ntsring_handle, buf);
 
 	DEBUG("nts_shm_recv pass");
-	return recv_size;
+	return ret ? 0 : -1;
 }
 
 
@@ -111,6 +112,7 @@ int nts_shm_ntm_close(nts_shm_context_t shm_ctx) {
 void nts_shm_destroy(nts_shm_context_t shm_ctx) {
 	assert(shm_ctx);
 
+	free(shm_ctx->shm_addr);
 	free(shm_ctx);
 	shm_ctx = NULL;
 	DEBUG("nts_shm_destroy pass");

@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "ntm_shm.h"
 #include "nt_log.h"
@@ -31,7 +32,7 @@ int ntm_shm_accept(ntm_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
 	memset(shm_ctx->shm_addr, 0, addrlen);
 	shm_ctx->addrlen = addrlen;
 	memcpy(shm_ctx->shm_addr, shm_addr, addrlen);
-	shm_ctx->ns_handle = ntm_shmring_init();  
+	shm_ctx->ns_handle = ntm_shmring_init(shm_ctx->shm_addr, shm_ctx->addrlen);
 	shm_ctx->shm_stat = NTM_SHM_READY;
 
 	DEBUG("ntm_shm_accept pass");
@@ -46,31 +47,31 @@ int ntm_shm_connect(ntm_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
 	memset(shm_ctx->shm_addr, 0, addrlen);
 	shm_ctx->addrlen = addrlen;
 	memcpy(shm_ctx->shm_addr, shm_addr, addrlen);
-	shm_ctx->ns_handle = ntm_get_shmring();  
+	shm_ctx->ns_handle = ntm_get_shmring(shm_ctx->shm_addr, shm_ctx->addrlen);
 	shm_ctx->shm_stat = NTM_SHM_READY;
 
 	DEBUG("ntm_shm_connect pass");
 	return 0;
 }
 
-int ntm_shm_send(ntm_shm_context_t shm_ctx, char *buf, size_t len) {
+int ntm_shm_send(ntm_shm_context_t shm_ctx, ntm_msg *buf) {
 	assert(shm_ctx);
-	assert(len > 0);
 
-	ntm_shmring_push(shm_ctx->ns_handle, buf, len);
+	bool ret;
+	ret = ntm_shmring_push(shm_ctx->ns_handle, buf);
 
 	DEBUG("ntm_shm_send pass");
-	return 0;
+	return ret ? 0 : -1;
 }
 
-int ntm_shm_recv(ntm_shm_context_t shm_ctx, char *buf, size_t len) {
+int ntm_shm_recv(ntm_shm_context_t shm_ctx, ntm_msg *buf) {
 	assert(shm_ctx);
-	assert(len > 0);
 
-	int recv_size = ntm_shmring_pop(shm_ctx->ns_handle, buf, len);	
+	bool ret;
+	ret = ntm_shmring_pop(shm_ctx->ns_handle, buf);
 
 	DEBUG("ntm_shm_recv pass");
-	return recv_size;
+	return ret ? 0:-1;
 }
 
 int ntm_shm_close(ntm_shm_context_t shm_ctx) {

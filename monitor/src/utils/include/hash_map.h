@@ -78,30 +78,6 @@ typedef struct hashMapIterator {
 
 #define newHashMapIterator() NEW(struct hashMapIterator)
 
-// 默认哈希函数
-static int defaultHashCode(HashMap hashMap, let key);
-
-// 默认判断键值是否相等
-static bool defaultEqual(let key1, let key2);
-
-// 默认添加键值对
-static void defaultPut(HashMap hashMap, let key, let value);
-
-// 默认获取键对应值
-static let defaultGet(HashMap hashMap, let key);
-
-// 默认删除键
-static let defaultRemove(HashMap hashMap, let key);
-
-// 默认判断键是否存在
-static bool defaultExists(HashMap hashMap, let key);
-
-// 默认清空Map
-static void defaultClear(HashMap hashMap);
-
-// 重新构建
-static void resetHashMap(HashMap hashMap, int listSize);
-
 // 创建一个哈希结构
 HashMap createHashMap(HashCode hashCode, Equal equal);
 
@@ -118,7 +94,11 @@ HashMapIterator nextHashMapIterator(HashMapIterator iterator);
 void freeHashMapIterator(HashMapIterator * iterator);
 
 
-
+#define Put(map, key, value) map->put(map, (void *)key, (void *)value);
+#define Get(map, key) (char *)map->get(map, (void *)key)
+#define Remove(map, key) (char *)map->remove(map, (void *)key)
+#define Exists(map, key) (bool)map->exists(map, (void *)key)
+#define Clear(map) map->clear(map)
 
 
 #ifdef __cplusplus

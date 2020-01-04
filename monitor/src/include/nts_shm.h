@@ -53,12 +53,12 @@ int nts_shm_connect(nts_shm_context_t shm_ctx, char *shm_addr, size_t addrlen);
 /**
  * used by nt-monitor to send message to libnts app
  */
-int nts_shm_send(nts_shm_context_t shm_ctx, char *buf, size_t len);
+int nts_shm_send(nts_shm_context_t shm_ctx, nts_msg *buf);
 
 /**
  * used by libnts app to receive message from nt-monitor
  */
-int nts_shm_recv(nts_shm_context_t shm_ctx, char *buf, size_t len);
+int nts_shm_recv(nts_shm_context_t shm_ctx, nts_msg *buf);
 
 /**
  * used by libnts app to close and unlink the shm ring buffer.

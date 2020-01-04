@@ -16,8 +16,8 @@
 
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
-#define CONFIG_FILE "/etc/ntm.cfg"
-
+//#define CONFIG_FILE "/etc/ntm.cfg"
+#define CONFIG_FILE "./ntm.cfg"
 
 static void usage(const char *argv0){
 	fprintf(stdout, "Usage:\n");

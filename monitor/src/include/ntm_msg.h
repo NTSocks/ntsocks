@@ -11,13 +11,117 @@
 #ifndef NTM_MSG_H_
 #define NTM_MSG_H_
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+typedef uint64_t ntm_msg_id;
+typedef uint64_t nts_msg_id;
+typedef uint64_t ntsock_id;
 
 
 
+/*----------------------------------------------------------------------------*/
+/**
+ * the message definition for the communication
+ * between local and remote ntb-monitor.
+ */
+
+#define PAYLOAD_SIZE 1024
+
+typedef enum {
+    CONNECT_OK = 1,
+    TRACK = 10,
+    TRACK_CONFIRM = 15,
+    STOP = 20,
+    STOP_CONFIRM = 25,
+    SUCCESS = 30,
+    FAILURE = 40,
+    QUIT = 50
+} ntm_sock_msg_type;
+
+typedef struct {
+	ntm_sock_msg_type type;
+    char payload[PAYLOAD_SIZE];
+} ntm_sock_msg;
+
+typedef struct {
+    int human_id;
+    int torso_height;
+    int arm_length;
+    int leg_length;
+    int head_diameter;
+} human_data;
+
+
+/*----------------------------------------------------------------------------*/
+/**
+ * the message definition for ntm-ringbuffer:
+ * sender: nts app
+ * receiver: ntb-monitor
+ */
+
+typedef enum {
+    NTM_MSG_INIT = 1 << 0,
+    NTM_MSG_NEW_SOCK = 1 << 1,
+    NTM_MSG_BIND = 1 << 2,
+    NTM_MSG_LISTEN = 1 << 3,
+    NTM_MSG_ACCEPT = 1 << 4,
+    NTM_MSG_CONNECT = 1 << 5,
+    NTM_MSG_ESTABLISH = 1 << 6,
+    NTM_MSG_CLOSE = 1 << 7,
+    NTM_MSG_DISCONNECT = 1 << 8
+} ntm_msg_type;
+
+
+typedef struct {
+    ntm_msg_id msg_id;
+    ntm_msg_type msg_type;
+
+    char address[16];
+    uint32_t addrlen;
+    uint64_t port;
+
+    ntsock_id sockid;
+} ntm_msg;
+
+void ntm_msgcopy(ntm_msg *src_msg, ntm_msg *target_msg);
+
+
+
+/*----------------------------------------------------------------------------*/
+/**
+ * the message definition for ntm-ringbuffer:
+ * sender: nts app
+ * receiver: ntb-monitor
+ */
+typedef enum {
+    NTS_MSG_INIT = 1 << 0,
+    NTS_MSG_NEW_SOCK = 1 << 1,
+    NTS_MSG_BIND = 1 << 2,
+    NTS_MSG_LISTEN = 1 << 3,
+    NTS_MSG_ACCEPT = 1 << 4,
+    NTS_MSG_CONNECT = 1 << 5,
+    NTS_MSG_ESTABLISH = 1 << 6,
+    NTS_MSG_CLOSE = 1 << 7,
+    NTS_MSG_DISCONNECT = 1 << 8
+} nts_msg_type;
+
+
+typedef struct {
+    nts_msg_id msg_id;
+    nts_msg_type msg_type;
+
+    char address[16];
+    uint32_t addrlen;
+    uint64_t port;
+
+    ntsock_id sockid;
+} nts_msg;
+
+void nts_msgcopy(nts_msg *src_msg, nts_msg *target_msg);
 
 
 #ifdef __cplusplus
