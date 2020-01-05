@@ -50,38 +50,34 @@
 #include "ntlink_parser.h"
 #include "ntb_mem.h"
 
-#define XEON_LINK_STATUS_OFFSET		0x01a2
+#define XEON_LINK_STATUS_OFFSET 0x01a2
 
 static uint16_t dev_id;
 
-static const char *_SEND_MSG_POOL = "RPI_MSG_POOL";
-static const char *_RECV_MSG_POOL = "SEC_MSG_POOL";
-static const char *_SEND_QUE_0 = "PRI_2_SEC_0";
-
+struct ntb_link *ntb_link;
 struct rte_ring *send_ring;
 ntm_shm_context_t ntm_ntp_ring, ntp_ntm_ring;
 
 unsigned lcore_id;
 
 static int
-daemon_send_thread(__attribute__((unused)) void *arg)
+ntb_send_thread(__attribute__((unused)) void *arg)
 {
-	void *msg;
+	struct ntp_ring_list_node *move_node = ntb_link->ring_head;
 	while (1)
 	{
+		move_node = move_node->next_node;
 		//读取send_ring中的指针
-		if (rte_ring_dequeue(send_ring, &msg) < 0)
+		if (move_node == ntb_link->ring_head)
 		{
 			continue;
 		}
-		ntb_send(sublink, msg);
-		//put 回send pool
-		rte_mempool_put(send_message_pool, msg);
+		ntb_send_data(ntb_link->sublink[0], move_node->ring);
 	}
 	return 0;
 }
 static int
-daemon_receive_thread(__attribute__((unused)) void *arg)
+ntb_receive_thread(__attribute__((unused)) void *arg)
 {
 	struct ntb_ring *r = sublink->local_ring;
 	struct ntb_custom_message *msg;
@@ -130,11 +126,9 @@ daemon_ctrl_receive_thread(__attribute__((unused)) void *arg)
 	return 0;
 }
 
-int
-lcore_ntb_daemon(__attribute__((unused)) void *arg)
+int lcore_ntb_daemon(__attribute__((unused)) void *arg)
 {
 	int ret, i;
-	struct ntb_link *ntb_link;
 	/* Find 1st ntb rawdev. */
 	for (i = 0; i < RTE_RAWDEV_MAX_DEVS; i++)
 		if (rte_rawdevs[i].driver_name &&
@@ -174,12 +168,14 @@ lcore_ntb_daemon(__attribute__((unused)) void *arg)
 	//创建名为ntm-ntp以及ntp-ntm的消息队列
 	ntm_ntp_ring = ntm_shm();
 	char *ntm_ntp_name = "/ntm-ntp-ring";
-	if( ntm_shm_accept(ntm_ntp_ring, ntm_ntp_name, sizeof(ntm_ntp_name)) != 0){
+	if (ntm_shm_accept(ntm_ntp_ring, ntm_ntp_name, sizeof(ntm_ntp_name)) != 0)
+	{
 		DEBUG("create ntm_ntp_ring failed\n");
 	}
 	ntp_ntm_ring = ntm_shm();
 	char *ntp_ntm_name = "/ntp-ntm-ring";
-	if( ntm_shm_accept(ntp_ntm_ring, ntp_ntm_name, sizeof(ntp_ntm_name)) != 0){
+	if (ntm_shm_accept(ntp_ntm_ring, ntp_ntm_name, sizeof(ntp_ntm_name)) != 0)
+	{
 		DEBUG("create ntm_ntp_ring failed\n");
 	}
 	RTE_LCORE_FOREACH_SLAVE(lcore_id)

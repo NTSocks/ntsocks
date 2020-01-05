@@ -11,6 +11,13 @@
 #ifndef NTB_MEM_H_
 #define NTB_MEM_H_
 
+#include "hash_map.h"
+
+#define DETECT_PKG 0
+#define SINGLE_PKG 1
+#define MULTI_PKG 2
+#define ENF_MULTI 3
+
 // #define PRIORITY 8
 #define RING_SIZE 0x800000
 #define CTRL_RING_SIZE 0x40000
@@ -48,21 +55,27 @@ struct ntb_sublink
 	struct ntb_ring *remote_ring;
 };
 
-
-typedef struct rte_ring* ntp_rs_ring;
+// typedef nts_shm_context_t *ntp_rs_ring;
 
 typedef struct ntp_ring_list_node
 {
-    ntp_rs_ring ring;
-    ntp_ring_list_node* next_node;
-}ntp_ring_list_node;
+	nts_shm_context_t ring;
+	ntp_ring_list_node *next_node;
+} ntp_ring_list_node;
+
+typedef struct ntb_conn_context {
+    char name[14];
+	nts_shm_context_t send_ring;
+	nts_shm_context_t recv_ring;
+} ntb_conn;
 
 struct ntb_link
 {
 	struct rte_rawdev *dev;
 	struct ntb_hw *hw;
-
-	ntp_ring_list_node *send_ring_head;
+	HashMap map;
+	ntp_ring_list_node *ring_head;
+	ntp_ring_list_node *ring_tail;
 
 	struct ntb_ctrl_link *ctrllink;
 	struct ntb_sublink *sublink;
@@ -90,7 +103,7 @@ struct ntb_ctrl_message
 	char msg[NTB_CTRL_MSG_TL - NTB_HEADER_LEN];
 };
 
-int ntb_app_mempool_get(struct rte_mempool *mp, void **obj_p, struct ntb_uuid *app_uuid);
+int add_shmring_to_ntlink(struct ntb_link *link,nts_shm_context_t ring);
 
 int ntb_send_data(struct ntb_sublink *sublink, void *mp_node, uint16_t src_port, uint16_t dst_port);
 

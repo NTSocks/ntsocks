@@ -42,7 +42,8 @@ typedef struct _nts_shmring {
     unsigned long MASK;
     int addrlen;
     char *shm_addr;
-
+    //read_index of opposite recv buffer
+    uint64_t opposite_read_index;
     struct nts_shmring_buf *shmring;
     uint64_t max_size;
 } _nts_shmring;

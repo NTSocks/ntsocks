@@ -56,7 +56,6 @@ int main(int argc, char **argv)
 	sprintf(str, "%d", i);
 	if (ret < 0)
 		rte_exit(EXIT_FAILURE, "Error with EAL initialization.\n");
-
 	RTE_LCORE_FOREACH_SLAVE(lcore_id)
 	{
 		if (lcore_id == 7)

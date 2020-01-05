@@ -84,7 +84,7 @@ int nts_shm_recv(nts_shm_context_t shm_ctx, nts_msg *buf) {
 	return ret ? 0 : -1;
 }
 
-
+//创建者销毁
 int nts_shm_close(nts_shm_context_t shm_ctx) {
 	assert(shm_ctx);
 
@@ -96,7 +96,7 @@ int nts_shm_close(nts_shm_context_t shm_ctx) {
 	return 0;
 }
 
-
+//使用者销毁
 int nts_shm_ntm_close(nts_shm_context_t shm_ctx) {
 	assert(shm_ctx);
 

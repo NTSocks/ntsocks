@@ -12,7 +12,7 @@
 #define NTB_PROXY_H_
 
 
-struct ntp_rs_ring ntp_ring_lookup(uint16_t src_port,uint16_t dst_port);
+// struct ntp_rs_ring ntp_ring_lookup(uint16_t src_port,uint16_t dst_port);
 
 
 

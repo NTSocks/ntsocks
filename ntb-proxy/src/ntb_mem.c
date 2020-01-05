@@ -35,73 +35,175 @@
 #include "ntlink_parser.h"
 #include "ntb_mem.h"
 #include "ntb_proxy.h"
+#include "nts_shm.h"
+#include "nt_log.h"
 
-int ntb_app_mempool_get(struct rte_mempool *mp, void **obj_p, struct ntb_uuid *app_uuid)
+char **str_split(char *a_str, const char a_delim)
 {
-	if (rte_mempool_get(mp, obj_p) < 0)
+	char **result = 0;
+	size_t count = 0;
+	char *tmp = a_str;
+	char *last_comma = 0;
+	char delim[2];
+	delim[0] = a_delim;
+	delim[1] = 0;
+
+	/* Count how many elements will be extracted. */
+	while (*tmp)
 	{
-		return -1;
+		if (a_delim == *tmp)
+		{
+			count++;
+			last_comma = tmp;
+		}
+		tmp++;
 	}
-	struct ntb_mempool_node_header header = {app_uuid->ntb_port, 0, mp->elt_size};
-	rte_memcpy(*obj_p, &header, 6);
+
+	/* Add space for trailing token. */
+	count += last_comma < (a_str + strlen(a_str) - 1);
+	/* Add space for terminating null string so caller
+       knows where the list of returned strings ends. */
+	count++;
+	result = malloc(sizeof(char *) * count);
+	if (result)
+	{
+		size_t idx = 0;
+		char *token = strtok(a_str, delim);
+
+		while (token)
+		{
+			assert(idx < count);
+			*(result + idx++) = strdup(token);
+			token = strtok(0, delim);
+		}
+		assert(idx == count - 1);
+		*(result + idx) = 0;
+	}
+	return result;
+}
+
+static int parser_ring_name(char *ring_name, uint16_t *src_port, uint16_t *dst_port)
+{
+	char name_copy[14];
+	strcpy(name_copy, ring_name);
+	char **results = str_split(name_copy, '-');
+	if (results)
+	{
+		src_port = atoi(*results);
+		dst_port = atoi(*(results + 1));
+		free(results);
+		return 0;
+	}
+	else
+	{
+		DEBUG("parser_ring_name err");
+	}
+	return -1;
+}
+
+int add_shmring_to_ntlink(struct ntb_link *link, nts_shm_context_t ring)
+{
+	struct ntp_ring_list_node *ring_node = malloc(sizeof(*ntp_ring_list_node));
+	ring_node->ring = ring;
+	ring_node->next_node = link->ring_head;
+	link->ring_tail->next_node = ring_node;
 	return 0;
 }
 
 static int ntb_trans_cum_ptr(struct ntb_sublink *sublink)
 {
-    *sublink->remote_cum_ptr = sublink->local_ring->cur_serial;
-    return 0;
+	*sublink->remote_cum_ptr = sublink->local_ring->cur_serial;
+	return 0;
 }
 
 int ntb_mem_header_parser(struct ntb_sublink *sublink, struct ntb_data_msg *msg)
 {
-    int msg_type = msg->header.msg_type;
-    if (msg_type & 1 << 7)
-    {
-        ntb_trans_cum_ptr(sublink);
-    }
-    msg_type &= 0x3f;
-    switch (msg_type)
-    {
-    case DATA_TYPE:
-        break;
-    default:
-        break;
-    }
-    return msg_type;
+	uint16_t msg_type = msg->header.msg_len;
+	if (msg_type & 1 << 15)
+	{
+		ntb_trans_cum_ptr(sublink);
+	}
+	msg_type >> 13;
+	msg_type &= 0x03;
+	return msg_type;
 }
 
-static int ntb_msg_add_header(struct ntb_data_msg *msg, uint16_t src_port, uint16_t dst_port, int payload_len, bool eon)
+static int ntb_msg_add_header(struct ntb_data_msg *msg, uint16_t src_port, uint16_t dst_port, int payload_len, int msg_type)
 {
 	msg->header.src_port = src_port;
 	msg->header.dst_port = dst_port;
-	msg->header.msg_type = DATA_TYPE;
+	// msg->header.msg_type = DATA_TYPE;
 	msg->header.msg_len = NTB_HEADER_LEN + payload_len;
 	//End of Memnode
-	if (eon)
+	if (msg_type == SINGLE_PKG)
 	{
-		msg->header.msg_type |= 1 << 6;
+		msg->header.msg_len |= 1 << 13;
 	}
+	else if (msg_type == MULTI_PKG)
+	{
+		msg->header.msg_len |= 1 << 14;
+	}
+	else if (msg_type == ENF_MULTI)
+	{
+		msg->header.msg_len |= 3 << 13;
+	}
+	else if (msg_type == DETECT_PKG)
+	{
+	}
+	else
+	{
+		ERR("Error msg_type");
+	}
+	return 0;
+}
+
+static int ntb_data_enqueue(struct ntb_sublink *sublink, uint8_t *msg, int data_len)
+{
+	struct ntb_ring *r = sublink->remote_ring;
+	uint64_t next_serial = (r->cur_serial + 1) % (r->capacity);
+	//looping send
+	while (next_serial == *sublink->local_cum_ptr)
+	{
+	}
+	uint8_t *ptr = r->start_addr + r->cur_serial * NTB_DATA_MSG_TL;
+	rte_memcpy(ptr, msg, data_len);
+	r->cur_serial = next_serial;
 	return 0;
 }
 
 static int ntb_msg_enqueue(struct ntb_sublink *sublink, struct ntb_data_msg *msg)
 {
 	struct ntb_ring *r = sublink->remote_ring;
-	int msg_len = msg->header.msg_len;
+	uint16_t msg_len = msg->header.msg_len;
+	msg_len &= 0x1fff;
 	uint64_t next_serial = (r->cur_serial + 1) % (r->capacity);
 	//looping send
 	while (next_serial == *sublink->local_cum_ptr)
 	{
-		
 	}
 	if ((next_serial - *sublink->local_cum_ptr) & 0x3ff == 0)
 	{
 		//PSH
-		msg->header.msg_type |= 1 << 7;
+		msg->header.msg_len |= 1 << 15;
+	}
+	uint16_t msg_type = msg_len & 0x6000;
+	msg_type = msg_type >> 13;
+	if (msg_type == MULTI_PKG)
+	{
+		if ((next_serial + msg_len / NTB_DATA_MSG_TL) & 0xfc00 != next_serial & 0xfc00)
+		{
+			msg->header.msg_len |= 1 << 15;
+		}
 	}
 	uint8_t *ptr = r->start_addr + r->cur_serial * NTB_DATA_MSG_TL;
-	rte_memcpy(ptr, msg, msg_len);
+	if (msg_len > NTB_DATA_MSG_TL)
+	{
+		rte_memcpy(ptr, msg, NTB_DATA_MSG_TL);
+	}
+	else
+	{
+		rte_memcpy(ptr, msg, msg_len);
+	}
 	r->cur_serial = next_serial;
 	return 0;
 }
@@ -133,25 +235,46 @@ static int ntb_msg_dequeue(struct ntb_sublink *sublink, uint64_t *ret_msg_len, c
 	return 0;
 }
 
-int ntb_send_data(struct ntb_sublink *sublink, void *mp_node, uint16_t src_port, uint16_t dst_port)
+int ntb_send_data(struct ntb_sublink *sublink, nts_shm_context_t ring)
 {
-	void *mp_change = mp_node;
-	uint16_t ntb_port = *(uint16_t *)mp_change;
-	uint16_t data_len = *((uint16_t *)mp_change + 1) + MEM_NODE_HEADER_LEN;
-	uint64_t sent = MEM_NODE_HEADER_LEN;
-
+	uint16_t src_port;
+	uint16_t dst_port;
+	char *ring_name = ring->shm_addr;
+	parser_ring_name(ring_name, &src_port, &dst_port);
+	nts_msg *recv_msg;
+	uint16_t data_len;
 	struct ntb_data_msg *msg = malloc(sizeof(*msg));
-	while (data_len - sent > (NTB_DATA_MSG_TL - NTB_HEADER_LEN))
+
+	while ((ring->ntsring_handle->shmring->read_index + 1 % NTS_MAX_BUFS) != ring->ntsring_handle->opposite_read_index)
 	{
-		rte_memcpy(msg->msg, (uint8_t *)mp_node + sent, NTB_DATA_MSG_TL - NTB_HEADER_LEN);
-		ntb_msg_add_header(msg, src_port, dst_port, NTB_DATA_MSG_TL - NTB_HEADER_LEN, false);
-		ntb_msg_enqueue(sublink, msg);
-		sent += NTB_DATA_MSG_TL - NTB_HEADER_LEN;
+		if (nts_shm_recv(ring, recv_msg) < 0)
+		{
+			break;
+		}
+		data_len = recv_msg->msg_len;
+		if (data_len <= NTB_DATA_MSG_TL - NTB_HEADER_LEN)
+		{
+			rte_memcpy(msg->msg, (uint8_t *)recv_msg->msg, data_len);
+			ntb_msg_add_header(msg, src_port, dst_port, data_len, SINGLE_PKG);
+			ntb_msg_enqueue(sublink, msg);
+		}
+		else
+		{
+			uint16_t sent = 0;
+			rte_memcpy(msg->msg, (uint8_t *)recv_msg->msg, NTB_DATA_MSG_TL - NTB_HEADER_LEN);
+			ntb_msg_add_header(msg, src_port, dst_port, data_len, MULTI_PKG);
+			ntb_msg_enqueue(sublink, msg);
+			sent += (NTB_DATA_MSG_TL - NTB_HEADER_LEN);
+			while (data_len - sent > NTB_DATA_MSG_TL)
+			{
+				ntb_data_enqueue(sublink, (recv_msg->msg + sent), NTB_DATA_MSG_TL);
+				sent += NTB_DATA_MSG_TL;
+			}
+			ntb_data_enqueue(sublink, (recv_msg->msg + sent), data_len - sent);
+		}
 	}
-	rte_memcpy(msg->msg, (uint8_t *)mp_node + sent, data_len - sent);
-	ntb_msg_add_header(msg, ntb_port, data_len - sent, true);
+	ntb_msg_add_header(msg, src_port, dst_port, 0, DETECT_PKG);
 	ntb_msg_enqueue(sublink, msg);
-	sent = data_len;
 	return 0;
 }
 
@@ -262,10 +385,16 @@ ntb_start(uint16_t dev_id)
 
 	if (diag == 0)
 		dev->started = 1;
-
 	//mx_idx = 0 or 1
 	uint8_t *local_ptr = (uint8_t *)ntb_link->hw->mz[0]->addr;
 	uint8_t *remote_ptr = (uint8_t *)ntb_link->hw->pci_dev->mem_resource[2].addr;
 	ntb_mem_formatting(ntb_link, local_ptr, remote_ptr);
+	struct ntp_ring_list_node *ring_node = malloc(sizeof(*ntp_ring_list_node));
+	ring_node->ring = NULL;
+	ring_node->next_node = ring_node;
+	ntb_link->ring_head = ring_node;
+	ntb_link->ring_tail = ring_node;
+	ntb_link->map = createHashMap(NULL,NULL);
+	
 	return ntb_link;
 }

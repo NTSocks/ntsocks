@@ -10,7 +10,8 @@ ntb_proxy_SOURCES = main.c func.c nt_log.h ntp_msg.h		\
 				nts_shm.c $(INC_DIR)/nts_shm.h				\
 				ntm_shmring.c $(INC_DIR)/ntm_shmring.h		\
 				ntm_shm.c $(INC_DIR)/ntm_shm.h				\
-				gcc_builtins.h nt_atomic.h					
+				gcc_builtins.h nt_atomic.h					\
+				utils/hashmap.h  			
 			
 
 # Compiler options. Here we are adding the include directory

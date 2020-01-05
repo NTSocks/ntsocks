@@ -48,8 +48,8 @@ struct ntb_ctrl_mss
 	char mss[NTB_CTRL_MSS_TL - NTB_HEADER_LEN];
 };
 
-struct ntp_rs_ring ntp_rsring_lookup(uint16_t src_port,uint16_t dst_port);
+// struct ntp_rs_ring ntp_rsring_lookup(uint16_t src_port,uint16_t dst_port);
 
-struct ntp_rs_ring ntp_shmring_lookup();
+// struct ntp_rs_ring ntp_shmring_lookup();
 
 #endif /* _NTLINK_PARSER_H_ */
