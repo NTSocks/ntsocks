@@ -221,25 +221,6 @@ int ntm_init(const char *config_file) {
 		return -1;
 	}
 	init_socket_context(ntm_mgr->nt_sock_ctx, NTM_CONFIG.max_concurrency);
-	// allocate_socket(ntm_mgr->nt_sock_ctx, 2, 1);
-	// allocate_socket(ntm_mgr->nt_sock_ctx, 2, 1);
-	// allocate_socket(ntm_mgr->nt_sock_ctx, 2, 1);
-	// allocate_socket(ntm_mgr->nt_sock_ctx, 2, 1);
-	// //遍历队列
-    // printf("Forward traversal: ");
-    // nt_socket_t item;
-    // TAILQ_FOREACH(item, &ntm_mgr->nt_sock_ctx->free_ntsock, free_ntsock_link) {
-    //     printf("%d ",item->sockid);
-    // }
-    // printf("\n");
-	// free_socket(ntm_mgr->nt_sock_ctx, 0, 1);
-	// free_socket(ntm_mgr->nt_sock_ctx, 1, 1);
-	// //遍历队列
-    // printf("Forward traversal: ");
-    // TAILQ_FOREACH(item, &ntm_mgr->nt_sock_ctx->free_ntsock, free_ntsock_link) {
-    //     printf("%d ",item->sockid);
-    // }
-    // printf("\n");
 
 	/**
 	 * init the ntm shm ringbuffer to receive the messages from libnts apps
