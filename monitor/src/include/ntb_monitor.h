@@ -36,6 +36,8 @@ struct ntm_config {
 	int listen_port;
 	int ipaddr_len;
 
+	int max_concurrency;
+
 };
 
 typedef struct ntm_conn * ntm_conn_t;
@@ -216,6 +218,7 @@ struct ntm_manager {
 
 	nt_listener_context_t nt_listener_ctx;
 
+	nt_sock_context_t nt_sock_ctx;
 };
 
 typedef struct ntm_manager* ntm_manager_t;

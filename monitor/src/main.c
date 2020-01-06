@@ -25,10 +25,10 @@ static void usage(const char *argv0){
 	fprintf(stdout, "  %s <host>     connect to server at <host>\n", argv0);
 	fprintf(stdout, "\n");
 	fprintf(stdout, "Options:\n");
-	fprintf(stdout, "  -h, --help             print the help information");
-	fprintf(stdout, "  -s, --server 		  listen ip addr\n");
-	fprintf(stdout, "  -p, --port 			  listen on/connect to port\n");
-	fprintf(stdout, "  -c  --conf			  monitor config file path\n");
+	fprintf(stdout, "  -h, --help        	  	print the help information\n");
+	fprintf(stdout, "  -s, --server 			listen ip addr\n");
+	fprintf(stdout, "  -p, --port 			 listen on/connect to port\n");
+	fprintf(stdout, "  -c, --conf			 monitor config file path\n");
 }
 
 int main(int argc, char **argv) {
@@ -40,18 +40,18 @@ int main(int argc, char **argv) {
 			{.name = "help", .has_arg = 0, .val = 'h'},
 			{.name = "server", .has_arg = 1, .val = 's'},
 			{.name = "port", .has_arg = 1, .val = 'p'},
-			{.name = "conf", .has_arg = 0, .val = 'c'},
+			{.name = "conf", .has_arg = 1, .val = 'c'},
 			{.name = NULL,	.has_arg = 0, .val='\0'}
 		};
 		c = getopt_long(argc, argv, "h:s:p:c:", long_options, NULL);
 		if(c == -1)
 			break;
+		
 		switch (c)
 		{
 		case 'h':
 			usage(argv[0]);
 			return 1;
-			break;
 		case 's':
 			NTM_CONFIG.listen_ip = strdup(optarg);
 			break;
@@ -63,16 +63,16 @@ int main(int argc, char **argv) {
 			break;
 		default:
 			usage(argv[0]);
-			break;
+			return 1;
 		}
 	}
 
-	DEBUG("before load conf");
-	print_conf();
+	// DEBUG("before load conf");
+	// print_conf();
 
-	load_conf(CONFIG_FILE);
-	DEBUG("after load conf");
-	print_conf();
+	// load_conf(CONFIG_FILE);
+	// DEBUG("after load conf");
+	// print_conf();
 
 	ntm_init(CONFIG_FILE);
 

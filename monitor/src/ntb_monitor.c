@@ -147,7 +147,7 @@ int ntm_init(const char *config_file) {
 	 * read conf file and init ntm params
 	 */
 	DEBUG("load the ntm config file");
-
+	load_conf(config_file);
 
 	ntm_nts_context_t nts_ctx;
 	ntm_ntp_context_t ntp_ctx;
@@ -214,9 +214,32 @@ int ntm_init(const char *config_file) {
 	 *	init global socket and port resources
 	 */
 	DEBUG("Init global socket and port resources");
-
-
-
+	ntm_mgr->nt_sock_ctx = (nt_sock_context_t) calloc (1, sizeof(struct nt_sock_context));
+	if(!ntm_mgr->nt_sock_ctx) {
+		perror(err_msg);
+		ERR("Failed to allocate sock_context.");
+		return -1;
+	}
+	init_socket_context(ntm_mgr->nt_sock_ctx, NTM_CONFIG.max_concurrency);
+	// allocate_socket(ntm_mgr->nt_sock_ctx, 2, 1);
+	// allocate_socket(ntm_mgr->nt_sock_ctx, 2, 1);
+	// allocate_socket(ntm_mgr->nt_sock_ctx, 2, 1);
+	// allocate_socket(ntm_mgr->nt_sock_ctx, 2, 1);
+	// //遍历队列
+    // printf("Forward traversal: ");
+    // nt_socket_t item;
+    // TAILQ_FOREACH(item, &ntm_mgr->nt_sock_ctx->free_ntsock, free_ntsock_link) {
+    //     printf("%d ",item->sockid);
+    // }
+    // printf("\n");
+	// free_socket(ntm_mgr->nt_sock_ctx, 0, 1);
+	// free_socket(ntm_mgr->nt_sock_ctx, 1, 1);
+	// //遍历队列
+    // printf("Forward traversal: ");
+    // TAILQ_FOREACH(item, &ntm_mgr->nt_sock_ctx->free_ntsock, free_ntsock_link) {
+    //     printf("%d ",item->sockid);
+    // }
+    // printf("\n");
 
 	/**
 	 * init the ntm shm ringbuffer to receive the messages from libnts apps
@@ -314,7 +337,7 @@ void ntm_destroy() {
 			nt_accepted_conn = nt_conn_iter->entry->value;
 
 			// free or unbound socket id
-			free_socket(nt_accepted_conn->sockid, 1);
+			free_socket(ntm_mgr->nt_sock_ctx, nt_accepted_conn->sockid, 1);
 			Remove(nt_listener_wrapper->accepted_conn_map, nt_accepted_conn->sockid);
 
 		}
@@ -323,7 +346,7 @@ void ntm_destroy() {
 		DEBUG("free hash map for client socket connection accepted by the specified nt_listener socket pass");
 
 		// free or unbound nt_listener socket id
-		free_socket(nt_listener_wrapper->listener->sockid, 1);
+		free_socket(ntm_mgr->nt_sock_ctx, nt_listener_wrapper->listener->sockid, 1);
 		Remove(ntm_mgr->nt_listener_ctx->listener_map, nt_listener_wrapper->port);
 
 	}
@@ -342,7 +365,7 @@ void ntm_destroy() {
 		nts_shm_conn = iter->entry->value;
 
 		// free or unbound socket id
-		free_socket(nts_shm_conn->sockid, 1);
+		free_socket(ntm_mgr->nt_sock_ctx, nts_shm_conn->sockid, 1);
 
 		// free nts_shm_context
 		if(nts_shm_conn->nts_shm_ctx
