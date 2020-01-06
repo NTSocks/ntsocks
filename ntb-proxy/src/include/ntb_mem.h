@@ -97,7 +97,7 @@ struct ntb_data_msg
 };
 
 //one message length is 16B
-struct ntb_ctrl_message
+struct ntb_ctrl_msg
 {
 	struct ntb_message_header header;
 	char msg[NTB_CTRL_MSG_TL - NTB_HEADER_LEN];

@@ -23,7 +23,7 @@
 #include <sys/time.h>
 
 #include "ntm_msg.h"
-#include "nts_shmring.h"
+#include "ntp_shmring.h"
 #include "nt_atomic.h"
 #include "nt_log.h"
 
@@ -32,7 +32,7 @@ DEBUG_SET_LEVEL(DEBUG_LEVEL_INFO);
 
 typedef struct nts_shmring_buf {
 //    char buf[NTS_MAX_BUFS + 1][NTS_BUF_SIZE];
-	nts_msg buf[NTS_MAX_BUFS + 1];
+	ntp_msg buf[NTS_MAX_BUFS + 1];
     uint64_t write_index;
     uint64_t read_index;
 } nts_shmring_buf;
@@ -203,7 +203,7 @@ nts_shmring_handle_t nts_get_shmring(char *shm_addr, size_t addrlen) {
  * @param len
  * @return
  */
-bool nts_shmring_push(nts_shmring_handle_t self, nts_msg *element) {
+bool nts_shmring_push(nts_shmring_handle_t self, ntp_msg *element) {
     assert(self);
 
     /* Critical Section */
@@ -234,7 +234,7 @@ bool nts_shmring_push(nts_shmring_handle_t self, nts_msg *element) {
 
 }
 
-bool nts_shmring_pop(nts_shmring_handle_t self, nts_msg *element) {
+bool nts_shmring_pop(nts_shmring_handle_t self, ntp_msg *element) {
     assert(self);
 
 

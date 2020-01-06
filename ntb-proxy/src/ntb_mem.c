@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <errno.h>
 
-#include <rte_eal.h>
 #include <rte_pci.h>
 #include <rte_bus_pci.h>
 #include <rte_rawdev.h>
@@ -35,7 +34,7 @@
 #include "ntlink_parser.h"
 #include "ntb_mem.h"
 #include "ntb_proxy.h"
-#include "nts_shm.h"
+#include "ntp_shm.h"
 #include "nt_log.h"
 
 char **str_split(char *a_str, const char a_delim)
@@ -241,7 +240,7 @@ int ntb_send_data(struct ntb_sublink *sublink, nts_shm_context_t ring)
 	uint16_t dst_port;
 	char *ring_name = ring->shm_addr;
 	parser_ring_name(ring_name, &src_port, &dst_port);
-	nts_msg *recv_msg;
+	ntp_msg *recv_msg;
 	uint16_t data_len;
 	struct ntb_data_msg *msg = malloc(sizeof(*msg));
 

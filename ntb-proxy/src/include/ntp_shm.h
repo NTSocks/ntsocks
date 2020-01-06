@@ -13,7 +13,7 @@
 
 #include <stdio.h>
 
-#include "nts_shmring.h"
+#include "ntp_shmring.h"
 
 #ifdef __cplusplus
 extern "C"

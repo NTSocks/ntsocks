@@ -95,16 +95,16 @@ void ntm_msgcopy(ntm_msg *src_msg, ntm_msg *target_msg);
  * sender: nts app
  * receiver: ntb-monitor
  */
-typedef enum {
-    NTS_MSG_DATA = 1 << 0,
-} nts_msg_type;
+// typedef enum {
+//     NTS_MSG_DATA = 1 << 0,
+// } nts_msg_type;
 
 
 typedef struct {
-    nts_msg_type msg_type;
+    uint8_t msg_type;
     uint16_t msg_len;
-    char msg[250];
-} nts_msg;
+    char msg[253];
+} ntp_msg;
 
 void nts_msgcopy(nts_msg *src_msg, nts_msg *target_msg);
 
