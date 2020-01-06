@@ -16,6 +16,7 @@
 #include "ntm_msg.h"
 #include "socket.h"
 #include "ntm_socket.h"
+#include "nt_port.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,6 +38,7 @@ struct ntm_config {
 	int ipaddr_len;
 
 	int max_concurrency;
+	int max_port;
 
 };
 
@@ -219,6 +221,8 @@ struct ntm_manager {
 	nt_listener_context_t nt_listener_ctx;
 
 	nt_sock_context_t nt_sock_ctx;
+
+	nt_port_context_t nt_port_ctx;
 };
 
 typedef struct ntm_manager* ntm_manager_t;

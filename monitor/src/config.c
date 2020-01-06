@@ -27,7 +27,8 @@ struct ntm_config NTM_CONFIG = {
 		.listen_ip = NTM_LISTEN_IP,
 		.listen_port = NTM_LISTEN_PORT,
 		.ipaddr_len = sizeof(NTM_LISTEN_IP),
-		.max_concurrency = 1024
+		.max_concurrency = 1024,
+		.max_port = 1024
 };
 
 ntm_manager_t ntm_mgr = NULL;
@@ -115,6 +116,8 @@ int load_conf(const char *fname)
 			NTM_CONFIG.remote_ntm_tcp_timewait = atoi(_paramv);
 		}else if(strcmp(_paramk, "max_concurrency") == 0){
 			NTM_CONFIG.max_concurrency = atoi(_paramv);
+		}else if(strcmp(_paramk, "max_port") == 0){
+			NTM_CONFIG.max_port = atoi(_paramv);
 		}else {
 			return 1;
 		}
@@ -123,6 +126,6 @@ int load_conf(const char *fname)
 }
 
 void print_conf() {
-	printf("ntm configuration: remote_ntm_tcp_timewait=%d, remote_ntm_tcp_timeout=%d, listen_ip=%s, listen_port=%d, max_concurrency=%d\n",
-		NTM_CONFIG.remote_ntm_tcp_timewait, NTM_CONFIG.remote_ntm_tcp_timeout, NTM_CONFIG.listen_ip, NTM_CONFIG.listen_port, NTM_CONFIG.max_concurrency);
+	printf("ntm configuration: remote_ntm_tcp_timewait=%d, remote_ntm_tcp_timeout=%d, listen_ip=%s, listen_port=%d, max_concurrency=%d, max_port\n",
+		NTM_CONFIG.remote_ntm_tcp_timewait, NTM_CONFIG.remote_ntm_tcp_timeout, NTM_CONFIG.listen_ip, NTM_CONFIG.listen_port, NTM_CONFIG.max_concurrency, NTM_CONFIG.max_port);
 }

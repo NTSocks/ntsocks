@@ -222,6 +222,14 @@ int ntm_init(const char *config_file) {
 	}
 	init_socket_context(ntm_mgr->nt_sock_ctx, NTM_CONFIG.max_concurrency);
 
+	ntm_mgr->nt_port_ctx = (nt_port_context_t) calloc (1, sizeof(struct nt_port_context));
+	if(!ntm_mgr->nt_port_ctx) {
+		perror(err_msg);
+		ERR("Failed to allocate port_context");
+		return -1;
+	}
+	init_port_context(ntm_mgr->nt_port_ctx, NTM_CONFIG.max_port);
+
 	/**
 	 * init the ntm shm ringbuffer to receive the messages from libnts apps
 	 */

@@ -34,14 +34,6 @@ void init_socket_context(nt_sock_context_t ntsock_ctx, int max_concurrency){
 		memset(&ntsock_ctx->ntsock[i].saddr, 0, sizeof(struct sockaddr_in));
 		TAILQ_INSERT_TAIL(&ntsock_ctx->free_ntsock, &ntsock_ctx->ntsock[i], free_ntsock_link);
 	}
-	
-	//遍历队列
-    // printf("Forward traversal: ");
-    // nt_socket_t item;
-    // TAILQ_FOREACH(item, &ntsock_ctx->free_ntsock, free_ntsock_link) {
-    //     printf("%d ",item->sockid);
-    // }
-    // printf("\n");
 }
 
 nt_socket_t allocate_socket(nt_sock_context_t ntsock_ctx, int socktype, int need_lock) {
