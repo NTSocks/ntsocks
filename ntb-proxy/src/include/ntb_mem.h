@@ -55,18 +55,19 @@ struct ntb_sublink
 	struct ntb_ring *remote_ring;
 };
 
-// typedef nts_shm_context_t *ntp_rs_ring;
+// typedef ntp_shm_context_t *ntp_rs_ring;
 
 typedef struct ntp_ring_list_node
 {
-	nts_shm_context_t ring;
+	ntp_shm_context_t ring;
 	ntp_ring_list_node *next_node;
 } ntp_ring_list_node;
 
 typedef struct ntb_conn_context {
+	uint8_t state;
     char name[14];
-	nts_shm_context_t send_ring;
-	nts_shm_context_t recv_ring;
+	ntp_shm_context_t send_ring;
+	ntp_shm_context_t recv_ring;
 } ntb_conn;
 
 struct ntb_link
@@ -74,6 +75,8 @@ struct ntb_link
 	struct rte_rawdev *dev;
 	struct ntb_hw *hw;
 	HashMap map;
+	ntm_shm_context_t ntm_ntp;
+	ntm_shm_context_t ntp_ntm;
 	ntp_ring_list_node *ring_head;
 	ntp_ring_list_node *ring_tail;
 
@@ -103,7 +106,7 @@ struct ntb_ctrl_msg
 	char msg[NTB_CTRL_MSG_TL - NTB_HEADER_LEN];
 };
 
-int add_shmring_to_ntlink(struct ntb_link *link,nts_shm_context_t ring);
+int add_shmring_to_ntlink(struct ntb_link *link,ntp_shm_context_t ring);
 
 int ntb_send_data(struct ntb_sublink *sublink, void *mp_node, uint16_t src_port, uint16_t dst_port);
 

@@ -1,12 +1,3 @@
-/*
- * <p>Title: ntb_proxy.c</p>
- * <p>Description: </p>
- * <p>Copyright: Copyright (c) 2019 </p>
- *
- * @author Jing7
- * @date Nov 23, 2019 
- * @version 1.0
- */
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
@@ -102,26 +93,12 @@ ntb_receive_thread(__attribute__((unused)) void *arg)
 }
 
 static int
-daemon_ctrl_receive_thread(__attribute__((unused)) void *arg)
+ntb_ctrl_receive_thread(__attribute__((unused)) void *arg)
 {
-	struct ntb_ring *r = sublink->local_ring;
-	struct ntb_custom_message *msg;
-	int msg_len;
-	int msg_type;
 	while (1)
 	{
 		__asm__("mfence");
-		msg = (struct ntb_custom_message *)(r->start_addr + (r->cur_serial * MAX_NTB_msg_LEN));
-		msg_len = msg->header.msg_len;
-		if (msg_len == 0)
-		{
-			continue;
-		}
-		msg_type = ntb_prot_header_parser(sublink, msg);
-		if (msg_type == DATA_TYPE)
-		{
-			ntb_receive(sublink, recv_message_pool);
-		}
+		ntb_ctrl_msg_dequeue(ntb_link);
 	}
 	return 0;
 }

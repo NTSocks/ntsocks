@@ -1,6 +1,3 @@
-/* SPDX-License-Identifier: BSD-3-Clause
- * Copyright(c) 2019 Intel Corporation
- */
 #include <stdint.h>
 #include <errno.h>
 
@@ -30,11 +27,11 @@
 #include <rte_ring.h>
 
 #include "ntm_shm.h"
+#include "ntp_shm.h"
 #include "ntp_config.h"
 #include "ntlink_parser.h"
 #include "ntb_mem.h"
 #include "ntb_proxy.h"
-#include "ntp_shm.h"
 #include "nt_log.h"
 
 char **str_split(char *a_str, const char a_delim)
@@ -100,7 +97,7 @@ static int parser_ring_name(char *ring_name, uint16_t *src_port, uint16_t *dst_p
 	return -1;
 }
 
-int add_shmring_to_ntlink(struct ntb_link *link, nts_shm_context_t ring)
+int add_shmring_to_ntlink(struct ntb_link *link, ntp_shm_context_t ring)
 {
 	struct ntp_ring_list_node *ring_node = malloc(sizeof(*ntp_ring_list_node));
 	ring_node->ring = ring;
@@ -148,6 +145,7 @@ static int ntb_msg_add_header(struct ntb_data_msg *msg, uint16_t src_port, uint1
 	}
 	else if (msg_type == DETECT_PKG)
 	{
+		msg->header.msg_len &= 0x9fff;
 	}
 	else
 	{
@@ -172,6 +170,7 @@ static int ntb_data_enqueue(struct ntb_sublink *sublink, uint8_t *msg, int data_
 
 static int ntb_msg_enqueue(struct ntb_sublink *sublink, struct ntb_data_msg *msg)
 {
+	//msg_len 为包含头部的总长度，add_header时计算
 	struct ntb_ring *r = sublink->remote_ring;
 	uint16_t msg_len = msg->header.msg_len;
 	msg_len &= 0x1fff;
@@ -185,16 +184,18 @@ static int ntb_msg_enqueue(struct ntb_sublink *sublink, struct ntb_data_msg *msg
 		//PSH
 		msg->header.msg_len |= 1 << 15;
 	}
-	uint16_t msg_type = msg_len & 0x6000;
+	uint16_t msg_type = msg->header.msg_len & 0x6000;
 	msg_type = msg_type >> 13;
 	if (msg_type == MULTI_PKG)
 	{
+		//判断加上data包后，有没有超过cum ptr trans line
 		if ((next_serial + msg_len / NTB_DATA_MSG_TL) & 0xfc00 != next_serial & 0xfc00)
 		{
 			msg->header.msg_len |= 1 << 15;
 		}
 	}
 	uint8_t *ptr = r->start_addr + r->cur_serial * NTB_DATA_MSG_TL;
+	//如果msg_len超过128，先copy128B，后面由send进程发送data包
 	if (msg_len > NTB_DATA_MSG_TL)
 	{
 		rte_memcpy(ptr, msg, NTB_DATA_MSG_TL);
@@ -234,50 +235,55 @@ static int ntb_msg_dequeue(struct ntb_sublink *sublink, uint64_t *ret_msg_len, c
 	return 0;
 }
 
-int ntb_send_data(struct ntb_sublink *sublink, nts_shm_context_t ring)
+int ntb_send_data(struct ntb_sublink *sublink, ntp_shm_context_t ring)
 {
 	uint16_t src_port;
 	uint16_t dst_port;
 	char *ring_name = ring->shm_addr;
 	parser_ring_name(ring_name, &src_port, &dst_port);
-	ntp_msg *recv_msg;
+	ntp_msg *send_msg;
 	uint16_t data_len;
 	struct ntb_data_msg *msg = malloc(sizeof(*msg));
 
-	while ((ring->ntsring_handle->shmring->read_index + 1 % NTS_MAX_BUFS) != ring->ntsring_handle->opposite_read_index)
+	while ((ring->ntsring_handle->shmring->read_index + 1 & 0x03ff) != ring->ntsring_handle->opposite_read_index)
 	{
-		if (nts_shm_recv(ring, recv_msg) < 0)
+		if (ntp_shm_recv(ring, send_msg) < 0)
 		{
 			break;
 		}
-		data_len = recv_msg->msg_len;
+		data_len = send_msg->msg_len;
 		if (data_len <= NTB_DATA_MSG_TL - NTB_HEADER_LEN)
 		{
-			rte_memcpy(msg->msg, (uint8_t *)recv_msg->msg, data_len);
+			rte_memcpy(msg->msg, (uint8_t *)send_msg->msg, data_len);
 			ntb_msg_add_header(msg, src_port, dst_port, data_len, SINGLE_PKG);
 			ntb_msg_enqueue(sublink, msg);
 		}
 		else
 		{
 			uint16_t sent = 0;
-			rte_memcpy(msg->msg, (uint8_t *)recv_msg->msg, NTB_DATA_MSG_TL - NTB_HEADER_LEN);
+			rte_memcpy(msg->msg, (uint8_t *)send_msg->msg, NTB_DATA_MSG_TL - NTB_HEADER_LEN);
 			ntb_msg_add_header(msg, src_port, dst_port, data_len, MULTI_PKG);
 			ntb_msg_enqueue(sublink, msg);
 			sent += (NTB_DATA_MSG_TL - NTB_HEADER_LEN);
+			//下面为纯data包，NTB_DATA_MSG_TL不需要减去header长度
 			while (data_len - sent > NTB_DATA_MSG_TL)
 			{
-				ntb_data_enqueue(sublink, (recv_msg->msg + sent), NTB_DATA_MSG_TL);
+				ntb_data_enqueue(sublink, (send_msg->msg + sent), NTB_DATA_MSG_TL);
 				sent += NTB_DATA_MSG_TL;
 			}
-			ntb_data_enqueue(sublink, (recv_msg->msg + sent), data_len - sent);
+			ntb_data_enqueue(sublink, (send_msg->msg + sent), data_len - sent);
+			//发送EON包表示多个包传输完毕
+			ntb_msg_add_header(msg, src_port, dst_port, 0, ENF_MULTI);
+			ntb_msg_enqueue(sublink, msg);
 		}
 	}
+	//发送探测包
 	ntb_msg_add_header(msg, src_port, dst_port, 0, DETECT_PKG);
 	ntb_msg_enqueue(sublink, msg);
 	return 0;
 }
 
-int ntb_receive(struct ntb_sublink *sublink, struct rte_mempool *recevie_message_pool)
+int ntb_receive(struct ntb_sublink *sublink)
 {
 	void *receive_buff;
 	//get receive node
@@ -393,7 +399,16 @@ ntb_start(uint16_t dev_id)
 	ring_node->next_node = ring_node;
 	ntb_link->ring_head = ring_node;
 	ntb_link->ring_tail = ring_node;
-	ntb_link->map = createHashMap(NULL,NULL);
-	
+	ntb_link->map = createHashMap(NULL, NULL);
+	ntm_shm_context_t ntm_ntp = ntm_shm();
+	char *ntm_ntp_name = "ntm-ntp";
+    ntm_shm_accept(ntm_ntp, ntm_ntp_name, sizeof(ntm_ntp_name));
+	ntb_link->ntm_ntp = ntm_ntp;
+
+	ntm_shm_context_t ntp_ntm = ntm_shm();
+	char *ntp_ntm_name = "ntp-ntm";
+    ntm_shm_accept(ntp_ntm, ntp_ntm_name, sizeof(ntp_ntm_name));
+	ntb_link->ntp_ntm = ntp_ntm;
+
 	return ntb_link;
 }

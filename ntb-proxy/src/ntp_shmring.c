@@ -3,7 +3,7 @@
  * <p>Description: </p>
  * <p>Copyright: Copyright (c) 2019 FDU NiSL</p>
  *
- * @author Bob Huang
+ * @author Bob Huang, Jing7
  * @date Dec 12, 2019 
  * @version 1.0
  */
@@ -22,7 +22,7 @@
 #include <semaphore.h>
 #include <sys/time.h>
 
-#include "ntm_msg.h"
+// #include "ntp_msg.h"
 #include "ntp_shmring.h"
 #include "nt_atomic.h"
 #include "nt_log.h"
@@ -224,7 +224,7 @@ bool nts_shmring_push(nts_shmring_handle_t self, ntp_msg *element) {
             &self->shmring->read_index, ATOMIC_MEMORY_ORDER_ACQUIRE))
         return false;
 
-    nts_msgcopy(element, &(self->shmring->buf[w_idx]));
+    ntp_msgcopy(element, &(self->shmring->buf[w_idx]));
     nt_atomic_store64_explicit(&self->shmring->write_index,
                                w_next_idx, ATOMIC_MEMORY_ORDER_RELEASE);
 
@@ -250,7 +250,7 @@ bool nts_shmring_pop(nts_shmring_handle_t self, ntp_msg *element) {
    if (empty(w_idx, r_idx))
        return -1;
 
-    nts_msgcopy(&(self->shmring->buf[self->shmring->read_index]), element);
+    ntp_msgcopy(&(self->shmring->buf[self->shmring->read_index]), element);
 
     nt_atomic_store64_explicit(&self->shmring->read_index,
                                mask_increment(r_idx, self->MASK), ATOMIC_MEMORY_ORDER_RELEASE);

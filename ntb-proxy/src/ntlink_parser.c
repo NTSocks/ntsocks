@@ -83,16 +83,17 @@ static char *create_conn_name(uint16_t src_port, uint16_t dst_port)
 
 int ntp_create_ring_handler(struct ntb_link *ntlink, ntm_msg *msg, ntb_conn *conn)
 {
+    conn->state = 0;
     conn->name = create_conn_name(msg->src_port, msg->dst_port);
-    nts_shm_context_t send_ring = nts_shm();
+    ntp_shm_context_t send_ring = ntp_shm();
     char *send_ring_name = create_ring_name(msg->src_port, msg->dst_port, true);
-    if (nts_shm_accept(send_ring, send_ring_name, sizeof(send_ring_name)) != 0)
+    if (ntp_shm_accept(send_ring, send_ring_name, sizeof(send_ring_name)) != 0)
     {
         DEBUG("create ntm_ntp_ring failed\n");
     }
-    nts_shm_context_t recv_ring = nts_shm();
+    ntp_shm_context_t recv_ring = ntp_shm();
     char *recv_ring_name = create_ring_name(msg->src_port, msg->dst_port, false);
-    if (nts_shm_accept(recv_ring, recv_ring_name, sizeof(recv_ring_name)) != 0)
+    if (ntp_shm_accept(recv_ring, recv_ring_name, sizeof(recv_ring_name)) != 0)
     {
         DEBUG("create ntm_ntp_ring failed\n");
     }
@@ -107,10 +108,11 @@ int ntp_destory_ring_handler(struct ntb_link *ntlink, ntm_msg *msg)
 {
     char *conn_name = create_conn_name(msg->src_port, msg->dst_port);
     ntb_conn *conn = Get(ntlink->map, conn_name);
-    nts_shm_close(conn->send_ring);
-    nts_shm_close(conn->recv_ring);
-    nts_shm_destroy(conn->recv_ring);
+    ntp_shm_close(conn->send_ring);
+    ntp_shm_close(conn->recv_ring);
+    ntp_shm_destroy(conn->send_ring);
     Remove(ntlink->map, conn_name);
+    free(conn);
     return 0;
 }
 
@@ -181,7 +183,7 @@ static int ntb_ctrl_msg_enqueue(struct ntb_link *ntlink, struct ntb_ctrl_msg *ms
     return 0;
 }
 
-static int ntb_ctrl_msg_dequeue(struct ntb_link *ntlink, struct ntb_ctrl_msg *msg)
+int ntb_ctrl_msg_dequeue(struct ntb_link *ntlink)
 {
 	struct ntb_ring *r = ntlink->ctrllink->local_ring;
 	uint8_t *ptr = r->start_addr + (r->cur_serial * NTB_CTRL_MSG_TL);

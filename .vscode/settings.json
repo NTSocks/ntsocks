@@ -10,6 +10,12 @@
         "rte_bus_vdev.h": "c",
         "nt_log.h": "c",
         "ntm_msg.h": "c",
-        "hash_map.h": "c"
+        "hash_map.h": "c",
+        "ntp_shm.h": "c",
+        "ntp_msg.h": "c",
+        "*.tcc": "c",
+        "map": "c",
+        "ntb_proxy.h": "c",
+        "ntm_shm.h": "c"
     }
 }

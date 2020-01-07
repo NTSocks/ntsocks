@@ -1,5 +1,5 @@
 /*
- * <p>Title: nts_shm.h</p>
+ * <p>Title: ntp_shm.h</p>
  * <p>Description: </p>
  * <p>Copyright: Copyright (c) 2019 FDU NiSL </p>
  *
@@ -8,80 +8,81 @@
  * @version 1.0
  */
 
-#ifndef NTS_SHM_H_
-#define NTS_SHM_H_
+#ifndef NTP_SHM_H_
+#define NTP_SHM_H_
 
 #include <stdio.h>
 
 #include "ntp_shmring.h"
+#include "ntp_msg.h"
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
-	typedef enum nts_shm_stat
+	typedef enum ntp_shm_stat
 	{
-		NTS_SHM_UNREADY = 0,
-		NTS_SHM_READY,
+		NTP_SHM_UNREADY = 0,
+		NTP_SHM_READY,
 		//使用者close
-		NTS_SHM_CLOSE,
+		NTP_SHM_CLOSE,
 		//创建者close
-		NTS_SHM_UNLINK
-	} nts_shm_stat;
+		NTP_SHM_UNLINK
+	} ntp_shm_stat;
 
-	struct nts_shm_context
+	struct ntp_shm_context
 	{
-		nts_shm_stat shm_stat;
-		nts_shmring_handle_t ntsring_handle;
+		ntp_shm_stat shm_stat;
+		ntp_shmring_handle_t ntsring_handle;
 		char *shm_addr;
 		size_t addrlen;
 	};
 
-	typedef struct nts_shm_context *nts_shm_context_t;
+	typedef struct ntp_shm_context *ntp_shm_context_t;
 
 	/**
- * used by libnts app or nt-monitor to create nts_shm_context
+ * used by libnts app or nt-monitor to create ntp_shm_context
  */
-	nts_shm_context_t nts_shm();
+	ntp_shm_context_t ntp_shm();
 
 	/**
  * used by nts shm server (consumer)
  */
-	int nts_shm_accept(nts_shm_context_t shm_ctx, char *shm_addr, size_t addrlen);
+	int ntp_shm_accept(ntp_shm_context_t shm_ctx, char *shm_addr, size_t addrlen);
 
 	/**
  * used by nt-monitor client (producer)
  */
-	int nts_shm_connect(nts_shm_context_t shm_ctx, char *shm_addr, size_t addrlen);
+	int ntp_shm_connect(ntp_shm_context_t shm_ctx, char *shm_addr, size_t addrlen);
 
 	/**
  * used by nt-monitor to send message to libnts app
  */
-	int nts_shm_send(nts_shm_context_t shm_ctx, nts_msg *buf);
+	int ntp_shm_send(ntp_shm_context_t shm_ctx, ntp_msg *buf);
 
 	/**
  * used by libnts app to receive message from nt-monitor
  */
-	int nts_shm_recv(nts_shm_context_t shm_ctx, nts_msg *buf);
+	int ntp_shm_recv(ntp_shm_context_t shm_ctx, ntp_msg *buf);
 
 	/**
  * used by libnts app to close and unlink the shm ring buffer.
  */
-	int nts_shm_close(nts_shm_context_t shm_ctx);
+	int ntp_shm_close(ntp_shm_context_t shm_ctx);
 
 	/**
  * used by nt-monitor to disconnect the shm-ring based connection with libnts app
  */
-	int nts_shm_ntm_close(nts_shm_context_t shm_ctx);
+	int ntp_shm_ntm_close(ntp_shm_context_t shm_ctx);
 
 	/**
- * used by libnts app or nt-monitor to free the memory of nts_shm_context
+ * used by libnts app or nt-monitor to free the memory of ntp_shm_context
  */
-	void nts_shm_destroy(nts_shm_context_t shm_ctx);
+	void ntp_shm_destroy(ntp_shm_context_t shm_ctx);
 
 #ifdef __cplusplus
 };
 #endif
 
-#endif /* NTS_SHM_H_ */
+#endif /* NTP_SHM_H_ */
