@@ -26,7 +26,9 @@ struct ntm_config NTM_CONFIG = {
 		.remote_ntm_tcp_timeout = 1000,
 		.listen_ip = NTM_LISTEN_IP,
 		.listen_port = NTM_LISTEN_PORT,
-		.ipaddr_len = sizeof(NTM_LISTEN_IP)
+		.ipaddr_len = sizeof(NTM_LISTEN_IP),
+		.nt_max_conn_num = 1024,
+		.nt_max_port_num = 65536
 
 };
 

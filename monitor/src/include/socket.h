@@ -14,6 +14,7 @@
 #include <stdint.h>
 #include <netinet/in.h>
 #include <pthread.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,7 +27,7 @@ extern "C" {
 typedef uint64_t nt_sock_id;
 
 typedef enum socket_type {
-	NT_SOCK_UNUSED,
+	NT_SOCK_UNUSED = 1,
 	NT_SOCK_STREAM,  // default
 	NT_SOCK_PROXY,
 	NT_SOCK_LISTENER,
@@ -34,11 +35,25 @@ typedef enum socket_type {
 	NT_SOCK_PIPE
 } socket_type;
 
+typedef enum socket_state {
+	CLOSED = 1,
+	BOUND,
+	LISTENING,
+	WAIT_CLIENT,
+
+	WAIT_DISPATCH,
+	WAIT_SERVER,
+
+	ESTABLISHED
+
+} socket_state;
+
 
 struct nt_socket {
 	nt_sock_id sockid;
 	int socktype;
 	uint32_t opts;
+	socket_state state;
 
 	struct sockaddr_in saddr;
 
@@ -74,6 +89,33 @@ struct nt_listener {
 };
 
 typedef struct nt_listener * nt_listener_t;
+
+
+
+// typedef struct nt_port {
+// 	int port;
+// 	int port_status;
+
+// } nt_port;
+
+typedef u_int16_t nt_port;
+
+
+/**
+ * automatically allocate a idle `port`
+ */
+nt_port allocate_port(int need_lock);
+
+/**
+ * Check if the specified `port` is used.
+ * return: false when used, true when idle
+ */
+bool is_idle_port(int port);
+
+/**
+ * free the used port into free port queue
+ */
+void free_port(int port, int need_lock);
 
 
 #ifdef __cplusplus

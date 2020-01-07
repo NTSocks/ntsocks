@@ -16,6 +16,7 @@
 #include "ntm_msg.h"
 #include "socket.h"
 #include "ntm_socket.h"
+#include "nt_backlog.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,6 +37,9 @@ struct ntm_config {
 	int listen_port;
 	int ipaddr_len;
 
+	int nt_max_conn_num;    // max number of ntb-based socket connections
+	int nt_max_port_num;	// max number of ntb-based port
+
 };
 
 typedef struct ntm_conn * ntm_conn_t;
@@ -45,19 +49,23 @@ typedef struct ntm_conn * ntm_conn_t;
 /**
  * Definitions for the shm communication between nt-monitor and nts app.
  */
-#define SHM_NAME_LEN 256
+
 
 struct nts_shm_conn {
 	nt_sock_id sockid;
 	nt_socket_t socket;
+	int domain;
+    int protocol;
 
 	int sock_status;
 	bool is_listen;
-	bool stop_signal;
+	bool running_signal; // if 1, running; else stop
 
 	int port;
+	int addrlen;
 	char ip[16];
 
+	int shm_addrlen;
 	char nts_shm_name[SHM_NAME_LEN];
 	nts_shm_context_t nts_shm_ctx;
 
@@ -121,7 +129,7 @@ struct ntm_conn {
     int addrlen;
     int sockfd;
     int port;
-    bool stop_signal;
+    bool running_signal; // if 1, running; else stop
     ntm_socket_t client_sock;
     pthread_t recv_thr;
 };
@@ -139,7 +147,7 @@ struct ntm_conn_context {
 
 	ntm_socket_t server_sock;
 	pthread_t ntm_sock_listen_thr;
-	int stop_signal;
+	int running_signal; // if 1, running; else stop
 	int addrlen;
 	int listen_port;
 	char *listen_ip;
@@ -170,12 +178,26 @@ struct nt_accepted_conn {
 };
 typedef struct nt_accepted_conn * nt_accepted_conn_t;
 
-
+#define BACKLOG_SHMLEN 30
 struct nt_listener_wrapper {
 
 	nt_listener_t listener;
 	int port;
+	int addrlen;
 	char ip[16];
+
+	/**
+	 * backlog context:
+	 * 	hold the established client nt_socket list.
+	 * 	the max capacity of backlog is determined by the backlog in nt_listener.
+	 * 
+	 * when received established client nt_socket, push it into backlog queue.
+	 * Meanwhile, the listening nts endpoint consumes the established client nt_socket
+	 * 	by invoking `accept()`.
+	 */
+	nt_backlog_context_t backlog_ctx;
+	char backlog_shmaddr[BACKLOG_SHMLEN];	// backlog shm name, default rule: backlog-{sock_id}
+	size_t backlog_shmlen;	
 
 	/**
 	 * hold the client socket accepted by current listener
@@ -215,6 +237,15 @@ struct ntm_manager {
 	ntm_conn_ctx_t ntm_conn_ctx;
 
 	nt_listener_context_t nt_listener_ctx;
+
+
+	/**
+	 * hold all (connect) client nt_socket indexed by client `port`
+	 * 
+	 * key: port
+	 * value: nt_socket_t
+	 */
+	HashMap port_sock_map;
 
 };
 
@@ -301,12 +332,6 @@ void * nts_shm_recv_thread(void *args);
  * receiver: ntb-monitor
  */
 void nts_shm_handle_msg(ntm_manager_t ntm_mgr, ntm_msg msg);
-
-
-
-
-
-
 
 
 int print_monitor();

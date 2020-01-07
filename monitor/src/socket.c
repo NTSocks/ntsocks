@@ -13,8 +13,16 @@
 #include "socket.h"
 
 nt_socket_t allocate_socket(int socktype, int need_lock) {
+	struct nt_socket new_socket;
 
-	return NULL;
+	new_socket.sockid = 12;
+	new_socket.socktype = socktype;
+	new_socket.saddr.sin_family = AF_INET;
+	new_socket.saddr.sin_port = htons(8080);
+	new_socket.saddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	new_socket.state = CLOSED;
+
+	return &new_socket;
 }
 
 void free_socket(int sockid, int need_lock) {
@@ -24,4 +32,18 @@ void free_socket(int sockid, int need_lock) {
 nt_socket_t get_socket(int sockid) {
 
 	return NULL;
+}
+
+nt_port allocate_port(int need_lock) {
+
+	return 9092;
+}
+
+bool is_idle_port(int port) {
+
+	return true;
+}
+
+void free_port(int port, int need_lock) {
+
 }
