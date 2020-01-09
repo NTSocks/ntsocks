@@ -31,6 +31,10 @@ static void *ntp_recv_thread(void *arg);
 
 static void *ntp_send_thread(void *arg);
 
+static inline bool try_close_ntm_listener(ntm_conn_ctx_t ntm_conn_ctx);
+
+
+
 static inline void test_ntm_ring()
 {
 	//	ntm_shmring_handle_t ns_handle;
@@ -259,7 +263,7 @@ int ntm_init(const char *config_file)
 	ntm_conn_ctx->running_signal = 0;
 	ntm_conn_ctx->server_sock = ntm_sock_create();
 	pthread_create(&ntm_conn_ctx->ntm_sock_listen_thr, NULL,
-				   ntm_sock_listen_thread, ntm_conn_ctx);
+				   	ntm_sock_listen_thread, ntm_conn_ctx);
 	//	pthread_create(&(ntm_conn_ctx->ntm_sock_listen_thr), NULL,
 	//			nts_send_thread, NULL);
 
@@ -1459,4 +1463,21 @@ int print_monitor()
 	printf("Bye, Ntb Monitor.\n");
 
 	return 0;
+}
+
+inline bool try_close_ntm_listener(ntm_conn_ctx_t ntm_conn_ctx) {
+	assert(ntm_conn_ctx);
+
+	int retval;
+	ntm_socket_t client_sock = ntm_sock_create();
+	ntm_conn_ctx->running_signal = false;
+	retval = ntm_connect_to_tcp_server(client_sock, 
+										ntm_conn_ctx->listen_port, ntm_conn_ctx->listen_ip);
+	if(retval) {
+		ntm_close_socket(client_sock);
+		return false;
+	}
+
+	return true;
+
 }
