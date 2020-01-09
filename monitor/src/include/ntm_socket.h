@@ -99,19 +99,6 @@ int ntm_connect_to_tcp_server(ntm_socket_t ntsock, int port, char *name);
 int ntm_close_socket(ntm_socket_t ntsock);
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 #ifdef __cplusplus
 };
 #endif

@@ -245,7 +245,7 @@ bool nts_shmring_pop(nts_shmring_handle_t self, nts_msg *element) {
 
    /// Queue is empty (or was empty when we checked)
    if (empty(w_idx, r_idx))
-       return -1;
+       return false;
 
     nts_msgcopy(&(self->shmring->buf[self->shmring->read_index]), element);
 
