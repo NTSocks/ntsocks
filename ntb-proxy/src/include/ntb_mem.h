@@ -11,7 +11,7 @@
 #ifndef NTB_MEM_H_
 #define NTB_MEM_H_
 
-#include "nts_shm.h"
+#include "ntm_shm.h"
 #include "hash_map.h"
 
 #define DETECT_PKG 0
@@ -30,7 +30,8 @@
 #define MEM_NODE_HEADER_LEN 6
 
 #define READY_CONN 1
-#define CLOSE_CONN 2
+#define CLOSE_SERVER 2
+#define CLOSE_CLIENT 3
 
 struct ntb_ring
 {
@@ -88,8 +89,8 @@ struct ntb_link
 	struct rte_rawdev *dev;
 	struct ntb_hw *hw;
 	HashMap map;
-	nts_shm_context_t ntm_ntp;
-	nts_shm_context_t ntp_ntm;
+	ntm_shm_context_t ntm_ntp;
+	ntm_shm_context_t ntp_ntm;
 	ntp_ring_list_node *ring_head;
 	ntp_ring_list_node *ring_tail;
 

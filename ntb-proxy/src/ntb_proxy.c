@@ -35,11 +35,11 @@
 #include <rte_cycles.h>
 
 #include "nt_log.h"
-#include "ntm_shm.h"
 #include "ntb_proxy.h"
 #include "ntp_config.h"
 #include "ntlink_parser.h"
 #include "ntb_mem.h"
+#include "ntp_shm.h"
 
 #define XEON_LINK_STATUS_OFFSET 0x01a2
 
@@ -55,27 +55,38 @@ static int
 ntb_send_thread(__attribute__((unused)) void *arg)
 {
 	struct ntp_ring_list_node *move_node = ntb_link->ring_head;
+	struct ntp_ring_list_node *next_node = NULL;
 	while (1)
 	{
-		move_node = move_node->next_node;
-		//读取send_ring中的指针
-		if (move_node == ntb_link->ring_head)
+		next_node = move_node->next_node;
+		if (next_node == ntb_link->ring_head)
 		{
+			move_node = next_node;
 			continue;
 		}
-		if(move_node->conn->state != READY_CONN){
-			Remove(ntb_link->map,move_node->conn->name);
-			free(move_node);
+		if (next_node->conn->state != READY_CONN)
+		{
+			if (next_node->conn->state == CLOSE_SERVER)
+			{
+				ntb_send_data(ntb_link->sublink[0], next_node->conn->send_ring);
+			}
+			ntp_shm_close(next_node->conn->send_ring);
+			ntp_shm_close(next_node->conn->recv_ring);
+			Remove(ntb_link->map, next_node->conn->name);
+			move_node->next_node = next_node->next_node;
+			free(next_node);
+			//下面返回控制消息给ntp-ntm
 			continue;
 		}
 		ntb_send_data(ntb_link->sublink[0], move_node->conn->send_ring);
+		move_node = next_node;
 	}
 	return 0;
 }
 static int
 ntb_receive_thread(__attribute__((unused)) void *arg)
 {
-	ntb_receive(ntb_link->sublink[0],ntb_link);
+	ntb_receive(ntb_link->sublink[0], ntb_link);
 	return 0;
 }
 

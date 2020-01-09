@@ -26,7 +26,7 @@
 #include <rte_rwlock.h>
 #include <rte_ring.h>
 
-#include "ntm_ntp_shm.h"
+#include "ntm_shm.h"
 #include "ntp_shm.h"
 #include "ntp_config.h"
 #include "ntlink_parser.h"
@@ -148,7 +148,7 @@ static int ntb_msg_add_header(struct ntb_data_msg *msg, uint16_t src_port, uint1
 	}
 	else if (msg_type == FIN_PKG)
 	{
-		msg->header.msg_len |= 1 << 14;
+		msg->header.msg_lFINen |= 1 << 14;
 	}
 	else
 	{
@@ -282,7 +282,7 @@ int ntb_send_data(struct ntb_sublink *sublink, ntp_shm_context_t ring)
 	}
 	char *conn_name = create_conn_name(msg->src_port, msg->dst_port);
 	ntb_conn *conn = Get(ntlink->map, conn_name);
-	if (conn->state == CLOSE_CONN)
+	if (conn->state == CLOSE_SERVER)
 	{
 		//连接处于关闭状态则发送FIN
 		ntb_msg_add_header(msg, src_port, dst_port, 0, FIN_PKG);
@@ -367,10 +367,8 @@ int ntb_receive(struct ntb_sublink *sublink, struct ntb_link *ntlink)
 		}
 		else if (msg_type == FIN_PKG)
 		{
-			conn->state = CLOSE_CONN;
-			//收到FIN包先close send/recv buff，销毁交由libnts进行，遍历ring_list时判断conn->state来移出node并free
-			ntp_shm_close(conn->send_ring);
-			ntp_shm_close(conn->recv_ring);
+			conn->state = CLOSE_CLIENT;
+			//收到FIN包将state置为CLOSE—CLIENT。遍历ring_list时判断conn->state来close移出node并free
 			r->cur_serial = (r->cur_serial + 1) % (r->capacity);
 		}
 		else
@@ -453,14 +451,14 @@ ntb_start(uint16_t dev_id)
 	ntb_link->ring_head = ring_node;
 	ntb_link->ring_tail = ring_node;
 	ntb_link->map = createHashMap(NULL, NULL);
-	nts_shm_context_t ntm_ntp = nts_shm();
+	nts_shm_context_t ntm_ntp = ntm_shm();
 	char *ntm_ntp_name = "ntm-ntp";
-	nts_shm_accept(ntm_ntp, ntm_ntp_name, sizeof(ntm_ntp_name));
+	ntm_shm_accept(ntm_ntp, ntm_ntp_name, sizeof(ntm_ntp_name));
 	ntb_link->ntm_ntp = ntm_ntp;
 
-	nts_shm_context_t ntp_ntm = nts_shm();
+	nts_shm_context_t ntp_ntm = ntm_shm();
 	char *ntp_ntm_name = "ntp-ntm";
-	nts_shm_accept(ntp_ntm, ntp_ntm_name, sizeof(ntp_ntm_name));
+	ntm_shm_accept(ntp_ntm, ntp_ntm_name, sizeof(ntp_ntm_name));
 	ntb_link->ntp_ntm = ntp_ntm;
 
 	return ntb_link;

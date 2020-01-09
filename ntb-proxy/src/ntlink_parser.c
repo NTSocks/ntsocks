@@ -108,19 +108,12 @@ int ntp_create_conn_handler(struct ntb_link *ntlink, ntm_msg *msg, ntb_conn *con
 
 int ntp_destory_conn_handler(struct ntb_link *ntlink, ntm_msg *msg)
 {
-    //destory改变conn->state，同时close，返回确认信息。向对端发送destroy 控制消息。遍历发送FIN_PKG后移出ring_list的conn信息
-    //另一端接收到FIN_PKG，改变conn状态，close队列。返回确认信息。遍历ring_list移出conn信息，并free
-    //如果close时正在发送数据怎么办？所以还是没法走ctrl通道。
     //或者控制通道只负责改变conn-state。close和remove均在遍历时进行
-    //destory改变conn-state。遍历send——data发送FIN-PKG同时close（返回确认信息）。之后移除并free conn。返回确认信息
-    //对端接收到FIN—PKG。改变conn-state，同时close。（返回确认信息）。遍历send-data时候移除并free conn。返回确认信息
+    //destory改变conn-state。遍历send——data发送FIN-PKG。之后close、移除并free conn。返回确认信息
+    //对端接收到FIN—PKG。改变conn-state。遍历send-data同时close。移除并free conn。返回确认信息
     char *conn_name = create_conn_name(msg->src_port, msg->dst_port);
     ntb_conn *conn = Get(ntlink->map, conn_name);
-    ntp_shm_close(conn->send_ring);
-    ntp_shm_close(conn->recv_ring);
-    // ntp_shm_destroy(conn->send_ring);
-    Remove(ntlink->map, conn_name);
-    free(conn);
+    conn->state = CLOSE_SERVER;
     return 0;
 }
 
