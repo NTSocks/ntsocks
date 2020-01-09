@@ -41,8 +41,13 @@ typedef enum {
     SUCCESS = 30,
     FAILURE = 40,
     QUIT = 50,
+
     NT_SYN = 60,
-    NT_SYN_ACK = 61
+    NT_SYN_ACK = 61,
+    NT_INVALID_PORT = 62,
+    NT_LISTENER_NOT_FOUND = 63,
+    NT_LISTENER_NOT_READY = 64,
+    NT_BACKLOG_IS_FULL = 65
 
 } ntm_sock_msg_type;
 
@@ -211,7 +216,7 @@ typedef struct {
     nts_msg_type msg_type;
     ntsock_id sockid;
     int retval; // if 0, pass; else -1, failed
-    int errno;  // conresponding to error type
+    int nt_errno;  // conresponding to error type
 
     /**
      * For NTS_MSG_INIT
@@ -222,14 +227,14 @@ typedef struct {
      * For NTS_MSG_NEW_SOCK
      */
     // retval
-    // errno
+    // nt_errno
     // socket id
 
     /**
      * For NTS_MSG_BIND
      */
     // retval
-    // errno
+    // nt_errno
 
     /**
      * For NTS_MSG_LISTEN
@@ -253,7 +258,7 @@ typedef struct {
      */
     nt_conn_status conn_status;
     // retval
-    // errno
+    // nt_errno
 
     /**
      * For NTS_MSG_CLOSE
@@ -266,6 +271,7 @@ typedef struct {
     /**
      * For NTS_MSG_ESTABLISH
      */
+    // sockid
 
     /**
      * For NTS_MSG_DISCONNECT

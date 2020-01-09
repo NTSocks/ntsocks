@@ -107,6 +107,10 @@ int backlog_ntm_close(nt_backlog_context_t backlog_ctx);
  */
 void backlog_destroy(nt_backlog_context_t backlog_ctx);
 
+/**
+ * check whether the backlog is full or not
+ */
+bool backlog_is_full(nt_backlog_context_t backlog_ctx);
 
 #ifdef __cplusplus
 };

@@ -141,3 +141,10 @@ void backlog_destroy(nt_backlog_context_t backlog_ctx) {
     backlog_ctx = NULL;
     DEBUG("nt backlog destroy pass");
 }
+
+
+bool backlog_is_full(nt_backlog_context_t backlog_ctx) {
+    assert(backlog_ctx);
+    
+    return nt_spsc_shmring_is_full(backlog_ctx->shmring_handle);
+}

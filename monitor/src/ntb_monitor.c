@@ -226,6 +226,7 @@ int ntm_init(const char *config_file)
 
 	/**
 	 *	init global socket and port resources
+	 *	TODO:
 	 */
 	DEBUG("Init global socket and port resources");
 
@@ -427,6 +428,218 @@ ntm_manager_t init_ntm_manager()
  */
 static inline void send_connect_ok_msg(ntm_conn_t ntm_conn);
 
+static inline void handle_nt_syn_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg);
+static inline void handle_nt_syn_ack_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg);
+static inline void handle_nt_invalid_port_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg);
+static inline void handle_nt_listener_not_found_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg);
+static inline void handle_nt_listener_not_ready_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg);
+static inline void handle_backlog_is_full_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg);
+
+static inline void handle_connect_ok_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg);
+static inline void handle_failure_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg);
+static inline void handle_stop_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg);
+static inline void handle_stop_confirm_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg);
+
+
+inline void handle_nt_syn_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
+
+	ntm_sock_msg outgoing_msg;
+	outgoing_msg.src_addr = msg.dst_addr;
+	outgoing_msg.sport = msg.dport;
+	outgoing_msg.dport = msg.sport;
+	outgoing_msg.dst_addr = msg.dst_addr;
+
+	// check whether the SYN message is valid or not
+	int sport, dport;
+	sport = ntohs(msg.sport);
+	dport = ntohs(msg.dport);
+	if (sport <=0 || dport <=0)
+	{
+		outgoing_msg.type = NT_INVALID_PORT;
+		ntm_send_tcp_msg(ntm_conn->client_sock, 
+						(char*)&outgoing_msg, sizeof(outgoing_msg));
+		return;
+	}
+	
+	// check whether the specified dport has conresponding nt_listener
+	if(!Exists(ntm_mgr->nt_listener_ctx->listener_map, &dport)){
+		outgoing_msg.type = NT_LISTENER_NOT_FOUND;
+		ntm_send_tcp_msg(ntm_conn->client_sock, 
+						(char*)&outgoing_msg, sizeof(outgoing_msg));
+		return;
+	}
+
+	nt_listener_wrapper_t listener_wrapper;
+	listener_wrapper = (nt_listener_wrapper_t)Get(ntm_mgr->nt_listener_ctx->listener_map, &dport);
+	if (listener_wrapper->listener->socket->state != LISTENING)
+	{
+		outgoing_msg.type = NT_LISTENER_NOT_READY;
+		ntm_send_tcp_msg(ntm_conn->client_sock, 
+						(char*)&outgoing_msg, sizeof(outgoing_msg));
+		return;
+	}
+
+	if (backlog_is_full(listener_wrapper->backlog_ctx))
+	{
+		outgoing_msg.type = NT_BACKLOG_IS_FULL;
+		ntm_send_tcp_msg(ntm_conn->client_sock, 
+						(char*)&outgoing_msg, sizeof(outgoing_msg));
+		return;
+	}
+	
+	//If valid, generate client_socket to setup and push into backlog
+	nt_socket_t client_socket;
+	client_socket = allocate_socket(NT_SOCK_UNUSED, 1);
+	client_socket->listener = listener_wrapper->listener;
+	bzero(&client_socket->saddr, sizeof(struct sockaddr_in));
+	client_socket->saddr.sin_family = AF_INET;
+	client_socket->saddr.sin_port = msg.dport;
+	client_socket->saddr.sin_addr.s_addr = msg.dst_addr;
+
+	// TODO:
+	// instruct ntb-proxy to setup the ntb connection/queue
+	// i. setup ntp msg and send to ntp shm
+	// ii. wait for the response msg from ntp
+
+
+	// if receive `SETUP Success` message from ntb-proxy,
+	// update client socket state as `ESTABLISHED`
+	client_socket->state = ESTABLISHED;
+
+	nt_accepted_conn_t accepted_conn;
+	accepted_conn = (nt_accepted_conn_t) calloc(1, sizeof(struct nt_accepted_conn));
+	accepted_conn->client_sock = client_socket;
+	accepted_conn->ntm_conn = ntm_conn;
+	accepted_conn->listener = listener_wrapper->listener;
+	Put(listener_wrapper->accepted_conn_map, &client_socket->sockid, accepted_conn);
+
+	backlog_push(listener_wrapper->backlog_ctx, client_socket);
+
+
+	// send `SYN_ACK` back to source monitor.
+	outgoing_msg.type = NT_SYN_ACK;
+	ntm_send_tcp_msg(ntm_conn->client_sock, 
+				(char*)&outgoing_msg, sizeof(outgoing_msg));
+
+	DEBUG("handle NT_SYN message pass");			
+
+}
+
+inline void handle_nt_syn_ack_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
+	int sport, dport;
+	sport = ntohs(msg.sport);
+	dport = ntohs(msg.dport);
+
+	// check whether the SYN_ACK message is valid or not
+	if (sport <= 0 || dport <= 0) {
+		ERR("Invalid port value.");
+		return;
+	}
+
+	// locate the coressponding client nt_client via `dport`
+	nt_socket_t client_sock;
+	client_sock = (nt_socket_t) Get(ntm_mgr->port_sock_map, &dport);
+
+	// update the nt_socket state as `ESTABLISHED`
+	client_sock->state = ESTABLISHED;
+
+	if (!Exists(ntm_mgr->nts_ctx->nts_shm_conn_map, &client_sock->sockid))
+	{
+		ERR("The nts_shm_conn of client socket[sockid=%d, port=%d] is not found", client_sock->sockid, dport);
+		return;
+	}
+	nts_shm_conn_t nts_shm_conn;
+	nts_shm_conn = (nts_shm_conn_t) Get(ntm_mgr->nts_ctx->nts_shm_conn_map, &client_sock->sockid);
+
+
+	int retval;
+	nts_msg response_msg;
+	response_msg.msg_type = NTS_MSG_ESTABLISH;
+	response_msg.sockid = client_sock->sockid;
+	response_msg.retval = 0;
+	retval = nts_shm_send(nts_shm_conn->nts_shm_ctx, &response_msg);
+	if(retval) {
+		ERR("nts_shm_send failed for response to NTS_MSG_ESTABLISH");
+		return;
+	}
+
+	DEBUG("handle NT_SYN_ACK message pass");
+}
+
+inline void handle_nt_invalid_port_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
+
+	DEBUG("handle NT_INVALID_PORT message pass");
+}
+
+ 
+inline void handle_nt_listener_not_found_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
+
+
+	DEBUG("handle NT_LISTENER_NOT_FOUND message pass");
+}
+
+inline void handle_nt_listener_not_ready_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
+
+	DEBUG("handle NT_LISTENER_NOT_READY message pass");
+}
+
+inline void handle_backlog_is_full_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
+
+	DEBUG("handle NT_BACKLOG_IS_FULL pass");
+}
+
+
+inline void handle_connect_ok_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
+
+}
+
+inline void handle_failure_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
+
+}
+
+inline void handle_stop_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
+
+	/**
+	 * When ntm_conn stop: 
+	 *  1. Update running_signal as `false`
+	 *  2. Send `STOP_CONFIRM` message to remote ntm
+	 *  3. Wait a while and destory local ntm_conn
+	 */
+	ntm_conn->running_signal = false;
+
+	int retval;
+	ntm_sock_msg outgoing_msg;
+	outgoing_msg.type = STOP_CONFIRM;
+	outgoing_msg.dst_addr = msg.src_addr;
+	outgoing_msg.dport = msg.sport;
+	outgoing_msg.src_addr = msg.dst_addr;
+	outgoing_msg.sport = msg.dport;
+	retval = ntm_send_tcp_msg(ntm_conn->client_sock, (char *)&outgoing_msg, sizeof(outgoing_msg));
+	if(retval <= 0) {
+		ERR("ntm_send_tcp_msg send STOP_CONFIRM message failed");
+		return;
+	}
+
+	// wait a while and destroy local ntm_conn
+	usleep(1000);
+	ntm_close_socket(ntm_conn->client_sock);
+
+}
+
+inline void handle_stop_confirm_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
+
+	/**
+	 * When recv `STOP_CONFIRM`:
+	 *  1. running_signal as `false`
+	 *  2. Wait a while and destroy local ntm_conn
+	 */
+	ntm_conn->running_signal = false;
+
+	usleep(1000);
+	ntm_close_socket(ntm_conn->client_sock);
+
+}
+
 
 inline void send_connect_ok_msg(ntm_conn_t ntm_conn)
 {
@@ -463,7 +676,7 @@ void *ntm_sock_listen_thread(void *args)
 	{
 		DEBUG("ready to accept connection");
 
-		sleep(3);
+		sleep(2);
 		break;
 
 		// accept connection
@@ -550,6 +763,7 @@ void ntm_sock_handle_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg)
 		 * 		push it into accepted_queue which will be polled by nts accept()
 		 *  iv.  send `SYN_ACK` back to source monitor.
 		 */
+		handle_nt_syn_msg(ntm_conn, msg);
 
 		break;
 	}
@@ -565,55 +779,95 @@ void ntm_sock_handle_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg)
 		 *  iii. send `ESTABLISHED` message with 
 		 * 		<shm name of send/recv queue> into nts process via nts shm queue.
 		 */
+		handle_nt_syn_ack_msg(ntm_conn, msg);
+
+		break;
+	}
+	case NT_INVALID_PORT: {
+		DEBUG("INVALID PORT message");
+
+		handle_nt_invalid_port_msg(ntm_conn, msg);
+		
+		break;
+	}
+	case NT_LISTENER_NOT_FOUND: {
+		DEBUG("NT LISTENER NOT FOUND message");
+
+		handle_nt_listener_not_found_msg(ntm_conn, msg);
+
+		break;
+	}
+	case NT_LISTENER_NOT_READY: {
+		DEBUG("NT LISTENER NOT READY message");
+
+		handle_nt_listener_not_ready_msg(ntm_conn, msg);
+
+		break;
+	}
+	case NT_BACKLOG_IS_FULL: {
+		DEBUG("NT BACKLOG IS FULL message");
+
+		handle_backlog_is_full_msg(ntm_conn, msg);
 
 		break;
 	}
 	case TRACK:
 	{
 		// TRACK code block
-		printf("TRACK message \n");
+		DEBUG("TRACK message \n");
 		break;
 	}
 	case STOP:
 	{
 		// STOP code block
-		printf("STOP message \n");
+		DEBUG("STOP message \n");
+
+		handle_stop_msg(ntm_conn, msg);
+
 		break;
 	}
 	case SUCCESS:
 	{
 		human_data *data = (human_data *)&msg.payload;
-		printf("SUCCESS message \n");
+		DEBUG("SUCCESS message \n");
 		break;
 	}
 	case TRACK_CONFIRM:
 	{
 		// code block
-		printf("TRACK_CONFIRM message \n");
+		DEBUG("TRACK_CONFIRM message \n");
 		break;
 	}
 	case CONNECT_OK:
 	{
 		// code block
-		printf("CONNECT_OK message \n");
+		DEBUG("CONNECT_OK message \n");
+
+		handle_connect_ok_msg(ntm_conn, msg);
+
 		break;
 	}
 	case STOP_CONFIRM:
 	{
 		// code block
-		printf("STOP_CONFIRM message \n");
+		DEBUG("STOP_CONFIRM message \n");
+		handle_stop_confirm_msg(ntm_conn, msg);
+
 		break;
 	}
 	case FAILURE:
 	{
 		// code block
-		printf("FAILURE message \n");
+		DEBUG("FAILURE message \n");
+
+		handle_failure_msg(ntm_conn, msg);
+
 		break;
 	}
 	case QUIT:
 	{
 		// code block
-		printf("QUIT message \n");
+		DEBUG("QUIT message \n");
 		break;
 	}
 
@@ -726,7 +980,7 @@ inline void handle_msg_nts_connect(ntm_manager_t ntm_mgr, ntm_msg msg)
 	if (nts_shm_conn->socket->state != CLOSED 
 			|| nts_shm_conn->socket->state != BOUND) {
 		response_msg.retval = -1;
-		response_msg.errno = NT_ERR_REQUIRE_CLOSED_OR_BOUND_FIRST;
+		response_msg.nt_errno = NT_ERR_REQUIRE_CLOSED_OR_BOUND_FIRST;
 		ERR("connect() requires socket() first");
 		retval = nts_shm_send(nts_shm_conn->nts_shm_ctx, &response_msg);
 		if (retval) {
@@ -741,7 +995,7 @@ inline void handle_msg_nts_connect(ntm_manager_t ntm_mgr, ntm_msg msg)
 	if (msg.addrlen <= 0) {
 		// setting the errno as INVALID_IP
 		response_msg.retval = -1;
-		response_msg.errno = NT_ERR_INVALID_IP;
+		response_msg.nt_errno = NT_ERR_INVALID_IP;
 		retval = nts_shm_send(nts_shm_conn->nts_shm_ctx, &response_msg);
 		if (retval) {
 			ERR("nts_shm_send failed for response to NT_ERR_INVALID_IP");
@@ -754,7 +1008,7 @@ inline void handle_msg_nts_connect(ntm_manager_t ntm_mgr, ntm_msg msg)
 	 */
 	if (msg.port <= 0) {
 		response_msg.retval = -1;
-		response_msg.errno = NT_ERR_INVALID_PORT;
+		response_msg.nt_errno = NT_ERR_INVALID_PORT;
 		retval = nts_shm_send(nts_shm_conn->nts_shm_ctx, &response_msg);
 		if(retval) {
 			ERR("nts_shm_send failed for response to NT_ERR_INVALID_PORT");
@@ -788,7 +1042,7 @@ inline void handle_msg_nts_connect(ntm_manager_t ntm_mgr, ntm_msg msg)
 			ntm_close_socket(client_sock);
 
 			response_msg.retval = -1;
-			response_msg.errno = NT_ERR_REMOTE_NTM_NOT_FOUND;
+			response_msg.nt_errno = NT_ERR_REMOTE_NTM_NOT_FOUND;
 			retval = nts_shm_send(nts_shm_conn->nts_shm_ctx, &response_msg);
 			if (retval) {
 				ERR("nts_shm_send failed for response to NT_ERR_REMOTE_NTM_NOT_FOUND");
@@ -819,8 +1073,9 @@ inline void handle_msg_nts_connect(ntm_manager_t ntm_mgr, ntm_msg msg)
 	}
 	
 
+	// TODO:
 	// Check whether the specified IP supports NTB transport. 
-	// code here
+	/* code here */
 
 
 	// if NTB is supported and the client nt_socket state is not `BOUND`,
@@ -843,8 +1098,11 @@ inline void handle_msg_nts_connect(ntm_manager_t ntm_mgr, ntm_msg msg)
 	syn_msg.sport = nts_shm_conn->socket->saddr.sin_port;
 	syn_msg.dst_addr = inet_addr(ntm_conn->ip);
 	syn_msg.dport = htons(ntm_conn->port);
-	ntm_send_tcp_msg(ntm_conn->client_sock, (char*)&syn_msg, sizeof(syn_msg));
-
+	retval = ntm_send_tcp_msg(ntm_conn->client_sock, (char*)&syn_msg, sizeof(syn_msg));
+	if(retval <= 0) {
+		ERR("ntm_send_tcp_msg send NT_SYN message failed");
+		return;
+	}
 
 	// 2. send `dispatched` message back to related nts app
 	response_msg.retval = 0;
@@ -853,7 +1111,6 @@ inline void handle_msg_nts_connect(ntm_manager_t ntm_mgr, ntm_msg msg)
 		ERR("nts_shm_send failed for response to NTS_MSG_DISPATCHED");
 		return;
 	}
-
 
 	DEBUG("handle_msg_nts_connect pass");
 }
@@ -877,7 +1134,7 @@ inline void handle_msg_nts_bind(ntm_manager_t ntm_mgr, ntm_msg msg)
 	if (nts_shm_conn->socket->state != CLOSED)
 	{
 		response_msg.retval = -1;
-		response_msg.errno = NT_ERR_REQUIRE_CLOSED_FIRST;
+		response_msg.nt_errno = NT_ERR_REQUIRE_CLOSED_FIRST;
 		ERR("bind() requires socket() first");
 		retval = nts_shm_send(nts_shm_conn->nts_shm_ctx, &response_msg);
 		if(retval) {
@@ -895,7 +1152,7 @@ inline void handle_msg_nts_bind(ntm_manager_t ntm_mgr, ntm_msg msg)
 	{
 		// setting the errno as INVALID_IP
 		response_msg.retval = -1;
-		response_msg.errno = NT_ERR_INVALID_IP;
+		response_msg.nt_errno = NT_ERR_INVALID_IP;
 		retval = nts_shm_send(nts_shm_conn->nts_shm_ctx, &response_msg);
 		if (retval)
 		{
@@ -912,7 +1169,7 @@ inline void handle_msg_nts_bind(ntm_manager_t ntm_mgr, ntm_msg msg)
 	if (msg.port <= 0) // or other invalid range
 	{
 		response_msg.retval = -1;
-		response_msg.errno = NT_ERR_INVALID_PORT;
+		response_msg.nt_errno = NT_ERR_INVALID_PORT;
 		retval = nts_shm_send(nts_shm_conn->nts_shm_ctx, &response_msg);
 		if (retval)
 		{
@@ -926,7 +1183,7 @@ inline void handle_msg_nts_bind(ntm_manager_t ntm_mgr, ntm_msg msg)
 	if (!is_idle_port(msg.port))
 	{
 		response_msg.retval = -1;
-		response_msg.errno = NT_ERR_INUSE_PORT;
+		response_msg.nt_errno = NT_ERR_INUSE_PORT;
 		retval = nts_shm_send(nts_shm_conn->nts_shm_ctx, &response_msg);
 		if (retval)
 		{
@@ -987,7 +1244,7 @@ inline void handle_msg_nts_listen(ntm_manager_t ntm_mgr, ntm_msg msg)
 	if (nts_shm_conn->socket->state != BOUND)
 	{
 		response_msg.retval = -1;
-		response_msg.errno = NT_ERR_REQUIRE_BIND_FIRST;
+		response_msg.nt_errno = NT_ERR_REQUIRE_BIND_FIRST;
 		ERR("listen() require bind() first");
 		nts_shm_send(nts_shm_conn->nts_shm_ctx, &response_msg);
 		return;
@@ -1068,7 +1325,7 @@ inline void handle_msg_nts_accept(ntm_manager_t ntm_mgr, ntm_msg msg)
 	// if current socket_state is not LISTENING, then error
 	if(nts_shm_conn->socket->state != LISTENING) {
 		response_msg.retval = -1;
-		response_msg.errno = NT_ERR_REQUIRE_LISTEN_FIRST;
+		response_msg.nt_errno = NT_ERR_REQUIRE_LISTEN_FIRST;
 		ERR("accept() require listen() first");
 		nts_shm_send(nts_shm_conn, &response_msg);
 		return;
@@ -1080,6 +1337,14 @@ inline void handle_msg_nts_accept(ntm_manager_t ntm_mgr, ntm_msg msg)
 
 inline void handle_msg_nts_close(ntm_manager_t ntm_mgr, ntm_msg msg)
 {
+
+	/**
+	 *  Receive the `SHUTDOWN` message from nts app.
+	 * 	1. instruct ntb-proxy to destroy ntb connection/queue.
+	 *  2. destroy the related resources in ntb monitor.
+	 *  3. response the `SHUTDOWN Finished` message to nts app.
+	 *  
+	 */
 
 	DEBUG("handle_msg_nts_close pass");
 }

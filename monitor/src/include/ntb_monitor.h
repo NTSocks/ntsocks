@@ -50,7 +50,6 @@ typedef struct ntm_conn * ntm_conn_t;
  * Definitions for the shm communication between nt-monitor and nts app.
  */
 
-
 struct nts_shm_conn {
 	nt_sock_id sockid;
 	nt_socket_t socket;
@@ -100,7 +99,6 @@ struct ntm_nts_context {
 	nts_shm_context_t shm_send_ctx;
 	pthread_t shm_send_thr;
 	int shm_send_signal;
-
 
 };
 

@@ -50,6 +50,8 @@ bool nt_spsc_shmring_pop(nt_spsc_shmring_handle_t self, char *element, size_t el
 
 void nt_spsc_shmring_free(nt_spsc_shmring_handle_t self, int unlink);
 
+bool nt_spsc_shmring_is_full(nt_spsc_shmring_handle_t self);
+
 #ifdef __cplusplus
 };
 #endif

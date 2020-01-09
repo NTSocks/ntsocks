@@ -80,13 +80,13 @@ void nts_msgcopy(nts_msg *src_msg, nts_msg *target_msg) {
 	else if (target_msg->msg_type & NTS_MSG_NEW_SOCK)
 	{
 		target_msg->retval = src_msg->retval;
-		target_msg->errno = src_msg->errno;
+		target_msg->nt_errno = src_msg->nt_errno;
 		// target_msg->sockid = src_msg->sockid;
 	}
 	else if (target_msg->msg_type & NTS_MSG_BIND)
 	{
 		target_msg->retval = src_msg->retval;
-		target_msg->errno = src_msg->errno;
+		target_msg->nt_errno = src_msg->nt_errno;
 	}
 	else if (target_msg->msg_type & NTS_MSG_LISTEN)
 	{
@@ -103,7 +103,7 @@ void nts_msgcopy(nts_msg *src_msg, nts_msg *target_msg) {
 	{
 		target_msg->conn_status = src_msg->conn_status;
 		target_msg->retval = src_msg->retval;
-		target_msg->errno = src_msg->errno;
+		target_msg->nt_errno = src_msg->nt_errno;
 	}
 	else if (target_msg->msg_type & NTS_MSG_ESTABLISH)
 	{
@@ -123,7 +123,7 @@ void nts_msgcopy(nts_msg *src_msg, nts_msg *target_msg) {
 	}
 	else if (target_msg->msg_type & NTS_MSG_ERR)
 	{
-		target_msg->errno = src_msg->errno;
+		target_msg->nt_errno = src_msg->nt_errno;
 		target_msg->retval = src_msg->retval;
 	}
 	

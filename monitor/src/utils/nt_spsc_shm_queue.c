@@ -280,6 +280,26 @@ void nt_spsc_shmring_free(nt_spsc_shmring_handle_t self, int unlink) {
     printf("free nt spsc shmring successfully!\n");
 }
 
+
+bool nt_spsc_shmring_is_full(nt_spsc_shmring_handle_t self) {
+    assert(self);
+
+    const uint64_t w_idx = nt_atomic_load64_explicit(
+            self->write_index, ATOMIC_MEMORY_ORDER_RELAXED);
+
+    /// Assuming we write, where will move next ?
+    const uint64_t w_next_idx = mask_increment(w_idx, self->MASK);
+
+    /// The two pointers colliding means we would have exceeded the
+    /// ring buffer size and create an ambiguous state with being empty.
+    if (w_next_idx == nt_atomic_load64_explicit(
+            self->read_index, ATOMIC_MEMORY_ORDER_ACQUIRE))
+        return true;
+
+    return false;
+}
+
+
 /**
  * Print system error and exit
  * @param msg
