@@ -8,6 +8,12 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#include "nts_msg.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define NTM_MAX_BUFS 1024 // define NTM_MAX_BUFS as a power of 2 (65536 in our case)
 #define NTM_BUF_SIZE 256
 
@@ -21,14 +27,18 @@ typedef struct _ntm_shmring ntm_shmring_t;
 typedef ntm_shmring_t* ntm_shmring_handle_t;
 
 
-ntm_shmring_handle_t ntm_shmring_init();
+ntm_shmring_handle_t ntm_shmring_init(char *shm_addr, size_t addrlen);
 
-ntm_shmring_handle_t ntm_get_shmring();
+ntm_shmring_handle_t ntm_get_shmring(char *shm_addr, size_t addrlen);
 
-bool ntm_shmring_push(ntm_shmring_handle_t self, char *element, size_t len);
+bool ntm_shmring_push(ntm_shmring_handle_t self, ntm_msg *element);
 
-int ntm_shmring_pop(ntm_shmring_handle_t self, char *element, size_t len);
+bool ntm_shmring_pop(ntm_shmring_handle_t self, ntm_msg *element);
 
 void ntm_shmring_free(ntm_shmring_handle_t self, int unlink);
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif //NTM_SHMRING_H

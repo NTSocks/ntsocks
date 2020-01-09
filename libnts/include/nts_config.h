@@ -17,7 +17,8 @@ extern "C" {
 
 #define NTM_SHMRING_NAME "/ntm-shm-ring"
 
-#define NTS_CONFIG_FILE "/etc/nts.cfg"
+// #define NTS_CONFIG_FILE "/etc/nts.cfg"
+#define NTS_CONFIG_FILE "./nts.cfg"
 
 /* load configuration from specified configuration file name */
 int load_conf(const char *fname);
