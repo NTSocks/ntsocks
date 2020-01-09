@@ -1,5 +1,5 @@
 /*
- * <p>Title: nts_shmring.c</p>
+ * <p>Title: ntp_shmring.c</p>
  * <p>Description: </p>
  * <p>Copyright: Copyright (c) 2019 FDU NiSL</p>
  *
@@ -30,23 +30,23 @@
 
 DEBUG_SET_LEVEL(DEBUG_LEVEL_INFO);
 
-typedef struct nts_shmring_buf {
+typedef struct ntp_shmring_buf {
 //    char buf[NTS_MAX_BUFS + 1][NTS_BUF_SIZE];
 	ntp_msg buf[NTS_MAX_BUFS + 1];
     uint64_t write_index;
     uint64_t read_index;
-} nts_shmring_buf;
+} ntp_shmring_buf;
 
-typedef struct _nts_shmring {
+typedef struct _ntp_shmring {
     int shm_fd;
     unsigned long MASK;
     int addrlen;
     char *shm_addr;
     //read_index of opposite recv buffer
     uint64_t opposite_read_index;
-    struct nts_shmring_buf *shmring;
+    struct ntp_shmring_buf *shmring;
     uint64_t max_size;
-} _nts_shmring;
+} _ntp_shmring;
 
 
 static void error(const char *msg);
@@ -77,25 +77,25 @@ static inline bool empty(uint64_t write_index, uint64_t read_index) {
 
 /**
  * invoked by monitor process.
- * init the nts_shmring by:
+ * init the ntp_shmring by:
  *  1. register shm for data buffer;
  *  2. register shm-based semaphore for sync status
  *     between monitor and libnts apps processes;
  *  3. init the read and write index for shm-based data buffer.
  * @return
  */
-nts_shmring_handle_t nts_shmring_init(char *shm_addr, size_t addrlen) {
+ntp_shmring_handle_t ntp_shmring_init(char *shm_addr, size_t addrlen) {
 	assert(shm_addr);
 	assert(addrlen > 0);
 
-    nts_shmring_handle_t shmring_handle;
+    ntp_shmring_handle_t shmring_handle;
 
-    shmring_handle = (nts_shmring_handle_t) malloc(sizeof(nts_shmring_t));
-    DEBUG("init nts_shmring");
+    shmring_handle = (ntp_shmring_handle_t) malloc(sizeof(ntp_shmring_t));
+    DEBUG("init ntp_shmring");
     shmring_handle->addrlen = addrlen;
     shmring_handle->shm_addr = shm_addr;
 
-    // get shared memory for nts_shmring
+    // get shared memory for ntp_shmring
     shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
     if (shmring_handle->shm_fd == -1) {
         if (errno == ENOENT) {
@@ -112,16 +112,16 @@ nts_shmring_handle_t nts_shmring_init(char *shm_addr, size_t addrlen) {
     DEBUG("shm_open pass");
 
     int ret;
-    ret = ftruncate(shmring_handle->shm_fd, sizeof(struct nts_shmring_buf));
+    ret = ftruncate(shmring_handle->shm_fd, sizeof(struct ntp_shmring_buf));
     if (ret == -1) {
         error("ftruncate");
         goto FAIL;
     }
     DEBUG("ftruncate pass");
 
-    // mmap the allocated shared memory to nts_shmring
-    shmring_handle->shmring = (struct nts_shmring_buf *)
-            mmap(NULL, sizeof(struct nts_shmring_buf),
+    // mmap the allocated shared memory to ntp_shmring
+    shmring_handle->shmring = (struct ntp_shmring_buf *)
+            mmap(NULL, sizeof(struct ntp_shmring_buf),
                  PROT_READ | PROT_WRITE, MAP_SHARED,
                  shmring_handle->shm_fd, 0);
     if (shmring_handle->shmring == MAP_FAILED) {
@@ -150,15 +150,15 @@ nts_shmring_handle_t nts_shmring_init(char *shm_addr, size_t addrlen) {
 }
 
 
-nts_shmring_handle_t nts_get_shmring(char *shm_addr, size_t addrlen) {
+ntp_shmring_handle_t nts_get_shmring(char *shm_addr, size_t addrlen) {
 	assert(shm_addr);
 	assert(addrlen > 0);
 
-    nts_shmring_handle_t shmring_handle;
+    ntp_shmring_handle_t shmring_handle;
     DEBUG("nts get shmring start");
 
-    shmring_handle = (nts_shmring_handle_t) malloc(sizeof(nts_shmring_t));
-    memset(shmring_handle, 0, sizeof(nts_shmring_t));
+    shmring_handle = (ntp_shmring_handle_t) malloc(sizeof(ntp_shmring_t));
+    memset(shmring_handle, 0, sizeof(ntp_shmring_t));
     shmring_handle->addrlen = addrlen;
     shmring_handle->shm_addr = shm_addr;
 
@@ -170,9 +170,9 @@ nts_shmring_handle_t nts_get_shmring(char *shm_addr, size_t addrlen) {
     }
     DEBUG("shm_open pass with fd - %d", shmring_handle->shm_fd);
 
-    // mmap the allocated shared memory to nts_shmring
-    shmring_handle->shmring = (struct nts_shmring_buf *)
-            mmap(NULL, sizeof(struct nts_shmring_buf),
+    // mmap the allocated shared memory to ntp_shmring
+    shmring_handle->shmring = (struct ntp_shmring_buf *)
+            mmap(NULL, sizeof(struct ntp_shmring_buf),
                  PROT_READ | PROT_WRITE, MAP_SHARED,
                  shmring_handle->shm_fd, 0);
     if (shmring_handle->shmring == MAP_FAILED) {
@@ -203,7 +203,7 @@ nts_shmring_handle_t nts_get_shmring(char *shm_addr, size_t addrlen) {
  * @param len
  * @return
  */
-bool nts_shmring_push(nts_shmring_handle_t self, ntp_msg *element) {
+bool ntp_shmring_push(ntp_shmring_handle_t self, ntp_msg *element) {
     assert(self);
 
     /* Critical Section */
@@ -234,7 +234,7 @@ bool nts_shmring_push(nts_shmring_handle_t self, ntp_msg *element) {
 
 }
 
-bool nts_shmring_pop(nts_shmring_handle_t self, ntp_msg *element) {
+bool ntp_shmring_pop(ntp_shmring_handle_t self, ntp_msg *element) {
     assert(self);
 
 
@@ -266,11 +266,11 @@ bool nts_shmring_pop(nts_shmring_handle_t self, ntp_msg *element) {
  * @param self
  * @param unlink
  */
-void nts_shmring_free(nts_shmring_handle_t self, int unlink) {
+void ntp_shmring_free(ntp_shmring_handle_t self, int unlink) {
     assert(self);
     DEBUG("nts shmring free start");
 
-    munmap(self->shmring, sizeof(struct nts_shmring_buf));
+    munmap(self->shmring, sizeof(struct ntp_shmring_buf));
     close(self->shm_fd);
     DEBUG("munmap close pass");
 

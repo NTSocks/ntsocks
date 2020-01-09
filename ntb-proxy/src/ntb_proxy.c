@@ -63,32 +63,19 @@ ntb_send_thread(__attribute__((unused)) void *arg)
 		{
 			continue;
 		}
-		ntb_send_data(ntb_link->sublink[0], move_node->ring);
+		if(move_node->conn->state != READY_CONN){
+			Remove(ntb_link->map,move_node->conn->name);
+			free(move_node);
+			continue;
+		}
+		ntb_send_data(ntb_link->sublink[0], move_node->conn->send_ring);
 	}
 	return 0;
 }
 static int
 ntb_receive_thread(__attribute__((unused)) void *arg)
 {
-	struct ntb_ring *r = sublink->local_ring;
-	struct ntb_custom_message *msg;
-	int msg_len;
-	int msg_type;
-	while (1)
-	{
-		__asm__("mfence");
-		msg = (struct ntb_custom_message *)(r->start_addr + (r->cur_serial * MAX_NTB_msg_LEN));
-		msg_len = msg->header.msg_len;
-		if (msg_len == 0)
-		{
-			continue;
-		}
-		msg_type = ntb_prot_header_parser(sublink, msg);
-		if (msg_type == DATA_TYPE)
-		{
-			ntb_receive(sublink, recv_message_pool);
-		}
-	}
+	ntb_receive(ntb_link->sublink[0],ntb_link);
 	return 0;
 }
 
@@ -98,7 +85,16 @@ ntb_ctrl_receive_thread(__attribute__((unused)) void *arg)
 	while (1)
 	{
 		__asm__("mfence");
-		ntb_ctrl_msg_dequeue(ntb_link);
+	}
+	return 0;
+}
+
+static int
+ntm_ntp_receive_thread(__attribute__((unused)) void *arg)
+{
+	while (1)
+	{
+		__asm__("mfence");
 	}
 	return 0;
 }

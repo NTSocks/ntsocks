@@ -69,7 +69,7 @@ static char *create_ring_name(uint16_t src_port, uint16_t dst_port, bool is_send
     return ring_name;
 }
 
-static char *create_conn_name(uint16_t src_port, uint16_t dst_port)
+char *create_conn_name(uint16_t src_port, uint16_t dst_port)
 {
     char conn_name[14];
     char *bar = "-";
@@ -81,9 +81,10 @@ static char *create_conn_name(uint16_t src_port, uint16_t dst_port)
     return conn_name;
 }
 
-int ntp_create_ring_handler(struct ntb_link *ntlink, ntm_msg *msg, ntb_conn *conn)
+int ntp_create_conn_handler(struct ntb_link *ntlink, ntm_msg *msg, ntb_conn *conn)
 {
-    conn->state = 0;
+    ntb_conn *conn = malloc(sizeof(*conn));
+    conn->state = READY_CONN;
     conn->name = create_conn_name(msg->src_port, msg->dst_port);
     ntp_shm_context_t send_ring = ntp_shm();
     char *send_ring_name = create_ring_name(msg->src_port, msg->dst_port, true);
@@ -97,26 +98,31 @@ int ntp_create_ring_handler(struct ntb_link *ntlink, ntm_msg *msg, ntb_conn *con
     {
         DEBUG("create ntm_ntp_ring failed\n");
     }
-    add_shmring_to_ntlink(ntlink, send_ring);
     conn->send_ring = send_ring;
     conn->recv_ring = recv_ring;
+    add_conn_to_ntlink(ntlink, conn);
     Put(ntlink->map, conn->name, conn);
+    //向ntp_ntm队列中返回消息
     return 0;
 }
 
-int ntp_destory_ring_handler(struct ntb_link *ntlink, ntm_msg *msg)
+int ntp_destory_conn_handler(struct ntb_link *ntlink, ntm_msg *msg)
 {
+    //destory改变conn->state，同时close，返回确认信息。向对端发送destroy 控制消息。遍历发送FIN_PKG后移出ring_list的conn信息
+    //另一端接收到FIN_PKG，改变conn状态，close队列。返回确认信息。遍历ring_list移出conn信息，并free
+    //如果close时正在发送数据怎么办？所以还是没法走ctrl通道。
+    //或者控制通道只负责改变conn-state。close和remove均在遍历时进行
+    //destory改变conn-state。遍历send——data发送FIN-PKG同时close（返回确认信息）。之后移除并free conn。返回确认信息
+    //对端接收到FIN—PKG。改变conn-state，同时close。（返回确认信息）。遍历send-data时候移除并free conn。返回确认信息
     char *conn_name = create_conn_name(msg->src_port, msg->dst_port);
     ntb_conn *conn = Get(ntlink->map, conn_name);
     ntp_shm_close(conn->send_ring);
     ntp_shm_close(conn->recv_ring);
-    ntp_shm_destroy(conn->send_ring);
+    // ntp_shm_destroy(conn->send_ring);
     Remove(ntlink->map, conn_name);
     free(conn);
     return 0;
 }
-
-
 
 uint64_t get_read_index(struct ntb_link *ntlink, uint16_t src_port, uint16_t dst_port)
 {
@@ -144,6 +150,20 @@ int index_ctrl_handler(struct ntb_link *ntlink, struct ntb_ctrl_msg *msg)
     char *conn_name = create_conn_name(msg->header.dst_port, msg->header.src_port);
     ntb_conn *conn = Get(ntlink->map, conn_name);
     conn->send_ring->ntsring_handle->opposite_read_index = *(uint64_t *)msg->msg;
+    return 0;
+}
+
+int detect_pkg_handler(struct ntb_link *ntlink, struct ntb_data_msg *msg)
+{
+    //解析包时将源端口和目的端口调换。
+    ntp_trans_read_index(ntlink,msg->header.dst_port,msg->header.src_port);
+    return 0;
+}
+
+int fin_pkg_handler(struct ntb_link *ntlink, struct ntb_data_msg *msg)
+{
+    //解析包时将源端口和目的端口调换。
+    
     return 0;
 }
 
@@ -185,19 +205,19 @@ static int ntb_ctrl_msg_enqueue(struct ntb_link *ntlink, struct ntb_ctrl_msg *ms
 
 int ntb_ctrl_msg_dequeue(struct ntb_link *ntlink)
 {
-	struct ntb_ring *r = ntlink->ctrllink->local_ring;
-	uint8_t *ptr = r->start_addr + (r->cur_serial * NTB_CTRL_MSG_TL);
-	struct ntb_ctrl_msg *msg = (struct ntb_ctrl_msg *)ptr;
-	int msg_len = msg->header.mss_len;
-	if (msg_len == 0)
-	{
-		return -1;
-	}
-	int msg_type = ctrl_msg_header_parser(ntlink, msg);
-    index_ctrl_handler(ntlink,msg);
-	msg->header.msg_len = 0;
-	r->cur_serial = (r->cur_serial + 1) % (r->capacity);
-	return 0;
+    struct ntb_ring *r = ntlink->ctrllink->local_ring;
+    uint8_t *ptr = r->start_addr + (r->cur_serial * NTB_CTRL_MSG_TL);
+    struct ntb_ctrl_msg *msg = (struct ntb_ctrl_msg *)ptr;
+    int msg_len = msg->header.mss_len;
+    if (msg_len == 0)
+    {
+        return -1;
+    }
+    int msg_type = ctrl_msg_header_parser(ntlink, msg);
+    index_ctrl_handler(ntlink, msg);
+    msg->header.msg_len = 0;
+    r->cur_serial = (r->cur_serial + 1) % (r->capacity);
+    return 0;
 }
 
 // static struct ntb_ctrl_msg *creat_ctrl_msg(uint8_t msg_type, uint8_t msg_len, uint16_t src_port, uint16_t dst_port)

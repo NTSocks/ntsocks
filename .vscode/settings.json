@@ -16,6 +16,10 @@
         "*.tcc": "c",
         "map": "c",
         "ntb_proxy.h": "c",
-        "ntm_shm.h": "c"
+        "ntm_shm.h": "c",
+        "nts_shm.h": "c",
+        "ntm_ntp_shmring.h": "c",
+        "ntm_ntp_shm.h": "c",
+        "ntlink_parser.h": "c"
     }
 }

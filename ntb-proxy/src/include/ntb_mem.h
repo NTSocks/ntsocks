@@ -11,12 +11,14 @@
 #ifndef NTB_MEM_H_
 #define NTB_MEM_H_
 
+#include "nts_shm.h"
 #include "hash_map.h"
 
 #define DETECT_PKG 0
 #define SINGLE_PKG 1
 #define MULTI_PKG 2
 #define ENF_MULTI 3
+#define FIN_PKG 4
 
 // #define PRIORITY 8
 #define RING_SIZE 0x800000
@@ -26,6 +28,9 @@
 #define NTB_CTRL_MSG_TL 16
 #define NTB_HEADER_LEN 6
 #define MEM_NODE_HEADER_LEN 6
+
+#define READY_CONN 1
+#define CLOSE_CONN 2
 
 struct ntb_ring
 {
@@ -59,13 +64,21 @@ struct ntb_sublink
 
 typedef struct ntp_ring_list_node
 {
-	ntp_shm_context_t ring;
+	ntb_conn *conn;
 	ntp_ring_list_node *next_node;
 } ntp_ring_list_node;
 
-typedef struct ntb_conn_context {
+typedef struct ntb_conn_context
+{
 	uint8_t state;
-    char name[14];
+	char name[14];
+	ntp_shm_context_t send_ring;
+	ntp_shm_context_t recv_ring;
+} ntb_conn;
+typedef struct ntb_conn_context
+{
+	uint8_t state;
+	char name[14];
 	ntp_shm_context_t send_ring;
 	ntp_shm_context_t recv_ring;
 } ntb_conn;
@@ -75,8 +88,8 @@ struct ntb_link
 	struct rte_rawdev *dev;
 	struct ntb_hw *hw;
 	HashMap map;
-	ntm_shm_context_t ntm_ntp;
-	ntm_shm_context_t ntp_ntm;
+	nts_shm_context_t ntm_ntp;
+	nts_shm_context_t ntp_ntm;
 	ntp_ring_list_node *ring_head;
 	ntp_ring_list_node *ring_tail;
 
@@ -106,11 +119,11 @@ struct ntb_ctrl_msg
 	char msg[NTB_CTRL_MSG_TL - NTB_HEADER_LEN];
 };
 
-int add_shmring_to_ntlink(struct ntb_link *link,ntp_shm_context_t ring);
+int add_conn_to_ntlink(struct ntb_link *link, ntp_shm_context_t ring);
 
 int ntb_send_data(struct ntb_sublink *sublink, void *mp_node, uint16_t src_port, uint16_t dst_port);
 
-int ntb_receive(struct ntb_sublink *sublink, struct rte_mempool *recevie_message_pool);
+int ntb_receive(struct ntb_sublink *sublink, struct ntb_link *ntlink);
 
 struct ntb_link *ntb_start(uint16_t dev_id);
 

@@ -30,7 +30,6 @@ ntp_shm_context_t ntp_shm() {
 	return shm_ctx;
 }
 
-
 int ntp_shm_accept(ntp_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
 	assert(shm_ctx);
 	assert(addrlen > 0);

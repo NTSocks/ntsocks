@@ -142,7 +142,6 @@ void defaultPut(HashMap hashMap, let key, let value) {
     }
 
     if (hashMap->autoAssign && hashMap->size >= hashMap->listSize) {
-
         // 内存扩充至原来的两倍
         // *注: 扩充时考虑的是当前存储元素数量与存储空间的大小关系，而不是存储空间是否已经存满，
         // 例如: 存储空间为10，存入了10个键值对，但是全部冲突了，所以存储空间空着9个，其余的全部挂在一个上面，
