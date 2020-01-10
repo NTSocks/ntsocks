@@ -22,7 +22,8 @@ DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 struct nts_config NTS_CONFIG = {
         /* set default configuration */
         .tcp_timewait = 0,
-        .tcp_timeout = 1000
+        .tcp_timeout = 1000,
+        .local_has_ntbdev = 1
 };
 
 nts_context_t nts_ctx = NULL;
@@ -100,15 +101,19 @@ int load_conf(const char *fname)
         if (strcmp(_paramk, "") == 0 || strcmp(_paramv, "") == 0)
             continue;
         // DEBUG("ntb monitor configuration %s=%s\n", _paramk, _paramv);
-        if (strcmp(_paramk, "key1") == 0) {
-            NTS_CONFIG.key1 = atoi(_paramv);
-        } else if (strcmp(_paramk, "key2") == 0) {
-            NTS_CONFIG.key2 = atoi(_paramv);
+        if (strcmp(_paramk, "local_has_ntbdev") == 0) {
+            NTS_CONFIG.local_has_ntbdev = atoi(_paramv);
+        } else if (strcmp(_paramk, "local_nt_host") == 0) {
+            NTS_CONFIG.local_nt_host = calloc(_vlen, sizeof(char));
+            memcpy(NTS_CONFIG.local_nt_host, _paramv, _vlen);
+        } else if(strcmp(_paramk, "nt_host")){
+            NTS_CONFIG.nt_host = calloc(_vlen, sizeof(char));
+            memcpy(NTS_CONFIG.nt_host, _paramv, _vlen);
         } else if(strcmp(_paramk, "tcp_timewait") == 0){
             NTS_CONFIG.tcp_timewait = atoi(_paramv);
         } else if(strcmp(_paramk, "tcp_timeout") == 0){
             NTS_CONFIG.tcp_timeout = atoi(_paramv);
-        }else {
+        } else {
             fclose(file);
             return 1;
         }
@@ -120,5 +125,5 @@ int load_conf(const char *fname)
 
 void print_conf()
 {
-    printf("nts configuration: tcp_timewait=%d, tcp_timeout=%d, key1=%d, key2=%d\n",NTS_CONFIG.tcp_timewait,NTS_CONFIG.tcp_timeout, NTS_CONFIG.key1, NTS_CONFIG.key2);
+    printf("nts configuration: tcp_timewait=%d, tcp_timeout=%d, local_has_ntbdev=%d, local_nt_host=%s\n",NTS_CONFIG.tcp_timewait,NTS_CONFIG.tcp_timeout, NTS_CONFIG.local_has_ntbdev, NTS_CONFIG.key2);
 }
