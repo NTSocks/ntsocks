@@ -34,7 +34,11 @@ lib_libnts_la_SOURCES = socket.c libnts.c 		        \
 		nts_shmring.c $(INC_DIR)/nts_shmring.h			\
 		nts_shm.c $(INC_DIR)/nts_shm.h					\
 		ntm_shmring.c $(INC_DIR)/ntm_shmring.h			\
-		ntm_shm.c $(INC_DIR)/ntm_shm.h
+		ntm_shm.c $(INC_DIR)/ntm_shm.h					\
+		utils/array.c utils/include/array.h 			\
+		utils/hash_map.c utils/include/hash_map.h		\
+		utils/utils.c utils/include/utils.h				\
+		utils/include/data_struct.h					
 						
 
 # Linker options libTestProgram
@@ -43,10 +47,10 @@ lib_libnts_la_LDFLAGS =
 
 # Compiler options. Here we are adding the include directory
 # to be searched for headers included in the source code.
-lib_libnts_la_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/src/include -D_BSD_SOURCE -DHAVE_GCC_C11_ATOMICS
+lib_libnts_la_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/src/include -I$(top_srcdir)/src/utils/include -D_BSD_SOURCE -DHAVE_GCC_C11_ATOMICS
 #lib_libnts_la_CFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/src/include 
 					   
 #libnts_la_CCFLAGS = -I$(top_srcdir)/include
 
 # Specify the Library depencies via `_LIBADD`
-lib_libnts_la_LIBADD = -lz -lrt -lpthread -ldl
+lib_libnts_la_LIBADD = -lz -lrt -lpthread -ldl -luuid

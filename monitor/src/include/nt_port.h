@@ -27,7 +27,7 @@
 extern "C" {
 #endif
 
-typedef uint64_t nt_port_id;
+typedef uint16_t nt_port_id;
 
 typedef enum port_status{
     NT_PORT_UNUSED,

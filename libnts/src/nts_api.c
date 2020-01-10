@@ -35,7 +35,7 @@ static void * ntp_send_thread(void *arg);
 //}
 
 void * ntm_recv_thread(void *arg) {
-
+	
 	return 0;
 }
 
@@ -44,10 +44,13 @@ void * ntm_send_thread(void *arg) {
 
 	DEBUG("start to send requests to ntb monitor ...");
 
-	int i;
-	for (i = 0; i < 10; i++) {
-		ntm_shm_send(nts_ctx->ntm_ctx->shm_send_ctx, MSG_FROM_NTS, sizeof(MSG_FROM_NTS));
-	}
+	// int i;
+	// for (i = 0; i < 10; i++) {
+	// 	ntm_msg *msg = (struct ntm_msg) calloc(1, sizeof(struct ntm_msg));
+	// 	msg->msg_type = NTM_MSG_INIT;
+	// 	msg->addrlen = sizeof(MSG_FROM_NTS);
+	// 	ntm_shm_send(nts_ctx->ntm_ctx->shm_send_ctx, msg);
+	// }
 
 	DEBUG("ntm_send_thread end!");
 
@@ -199,6 +202,15 @@ int nts_socket(int domain, int type, int protocol) {
 	 */
 	DEBUG("entering nts_socket...");
 	nts_init(NTS_CONFIG_FILE);
+	if(!nts_ctx){
+		return -1;
+	}
+
+	if (domain != AF_INET) {
+		DEBUG("error domain is not AF_INET");
+		return -1;
+	}
+
 	getchar();
 	nts_destroy();
 
