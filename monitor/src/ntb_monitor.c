@@ -153,8 +153,8 @@ void *ntp_send_thread(void *arg)
 
 ntm_manager_t get_ntm_manager()
 {
-
-	return NULL;
+	assert(ntm_mgr);
+	return ntm_mgr;
 }
 
 int ntm_init(const char *config_file)
@@ -269,7 +269,7 @@ int ntm_init(const char *config_file)
 		return -1;
 	}
 
-	pthread_create(&nts_ctx->shm_recv_thr, NULL, nts_recv_thread, NULL);
+	// pthread_create(&nts_ctx->shm_recv_thr, NULL, nts_recv_thread, NULL);
 
 	/**
 	 * init the listen socket for the connection requests from remote nt-monitor
@@ -285,6 +285,8 @@ int ntm_init(const char *config_file)
 	//			nts_send_thread, NULL);
 
 	DEBUG("ntm_init pass");
+
+	nts_shm_recv_thread(NULL);
 
 	return 0;
 }
@@ -1385,13 +1387,13 @@ void *nts_shm_recv_thread(void *args)
 	DEBUG("nts_recv_thread ready...");
 	ntm_nts_context_t nts_ctx;
 	nts_ctx = ntm_mgr->nts_ctx;
-
-	int retval;
+	
 	ntm_msg recv_msg;
 	nts_ctx->shm_recv_signal = 1; // if 1, running; else stop
 
 	while (nts_ctx->shm_recv_signal)
 	{
+		int retval;
 		retval = ntm_shm_recv(nts_ctx->shm_recv_ctx, &recv_msg);
 		if (retval == 0)
 		{

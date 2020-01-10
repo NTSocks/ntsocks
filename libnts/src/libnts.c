@@ -88,18 +88,19 @@ void ntsocket_init(void) {
 	INIT_FUNCTION(fcntl);
 	INIT_FUNCTION(select);
 
-	inited = 1;
 	DEBUG("ntsocket init pass!!!");
-	DEBUG("before load conf");
-	print_conf();
-	load_conf(NTS_CONFIG_FILE);
-	DEBUG("after load conf");
+	nts_init(NTS_CONFIG_FILE);
+	
 	print_conf();
 	return;
 }
 
+
 __attribute__((destructor))
 void ntsocket_uninit(void) {
+
+	DEBUG("ntsocket end.");
+	nts_destroy();
 
 	return;
 }
