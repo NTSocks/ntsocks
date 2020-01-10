@@ -134,6 +134,8 @@ int nts_socket(int domain, int type, int protocol) {
 	nt_sock_ctx = (nt_sock_context_t)calloc(1, sizeof(struct nt_sock_context));
 	if(!nt_sock_ctx)
 		goto FAIL;
+	
+	nt_sock_ctx->ntm_msg_id = 1;
 
 	// generate nts_shm-uuid shm name
 	int retval;
@@ -151,9 +153,10 @@ int nts_socket(int domain, int type, int protocol) {
 	
 	// pack the `NTM_MSG_NEW_SOCK` ntm_msg and send the message into ntm
 	ntm_msg outgoing_msg;
-	outgoing_msg.msg_id = 1;
+	outgoing_msg.msg_id = nt_sock_ctx->ntm_msg_id;
 	outgoing_msg.msg_type = NTM_MSG_NEW_SOCK;
 	outgoing_msg.nts_shm_addrlen = nt_sock_ctx->nts_shmlen;
+	memcpy(outgoing_msg.nts_shm_name, nt_sock_ctx->nts_shmaddr, nt_sock_ctx->nts_shmlen);
 	outgoing_msg.domain = domain;
 	outgoing_msg.sock_type = type;
 	outgoing_msg.protocol = protocol;
@@ -187,6 +190,7 @@ int nts_socket(int domain, int type, int protocol) {
 	socket->socktype = type;
 	socket->state = CLOSED;
 	nt_sock_ctx->socket = socket;
+	nt_sock_ctx->ntm_msg_id ++;
 
 	// push `nt_sock_context` into `HashMap nt_sock_map`, then return sockid
 	Put(nts_ctx->nt_sock_map, &socket->sockid, nt_sock_ctx);
@@ -372,14 +376,131 @@ int nts_bind(int sockid, const struct sockaddr *addr, socklen_t addrlen){
 int nts_accept(int sockid, const struct sockaddr *addr, socklen_t *addrlen) {
 	DEBUG("nts_accept start...");
 	assert(nts_ctx);
+	assert(sockid > 0);
 
 	/**
 	 * 1. get the coressponding nt_sock_context via nt_socket_id
+	 * 2. check whether the specified sockid is a listener socket via check socket state
+	 * 3. check whether the backlog is ready ?
+	 * 4. pop a `ESTABLISHED` client socket, set socket type as `NT_SOCK_PIPE`,
+	 * 		set the listener_socket as current listener socket
+	 * 5. create coresponding nt_sock_context, init/create the nts shm queue, 
+	 * 		push the `nt_sock_context` into HashMap `nt_sock_map` in nts_context
+	 * 6. send the nts_shmaddr to ntb monitor via ntm_shm queue
+	 * 7. check whether the listener socket state is `CLOSED`
+	 * 8. return `ESTABLISHED` client socket id, sockaddr
 	 */
+
+	// 1. get the coressponding nt_sock_context via nt_socket_id
+	nt_sock_context_t nt_sock_ctx;
+	nt_sock_ctx = (nt_sock_context_t)Get(nts_ctx->nt_sock_map, &sockid);
+	if(!nt_sock_ctx || !nt_sock_ctx->socket) {
+		ERR("Non-existing sockid or Invalid sockid");
+		goto FAIL;
+	}
+
+	// 2. check whether the specified sockid is a listener socket via check socket state
+	if (nt_sock_ctx->socket->socktype != NT_SOCK_LISTENER) {
+		ERR("the specified sockid is not a passive listener socket");
+		goto FAIL;
+	}
+
+	if (nt_sock_ctx->socket->state != LISTENING) {
+		ERR("the specified listener sockid is not in `LISTENING` state");
+		goto FAIL;
+	}
+
+	// 3. check whether the backlog is ready ?
+	if (!nt_sock_ctx->backlog_ctx || 
+			nt_sock_ctx->backlog_ctx->backlog_stat != BACKLOG_READY) {
+		ERR("the backlog of the listener socket is non-existing or not ready.");
+		goto FAIL;
+	}
+
+	// 4. pop a `ESTABLISHED` client socket, set socket type as `NT_SOCK_PIPE`,
+	// 		set the listener_socket as current listener socket
+	int retval;
+	nt_socket_t client_socket;
+	client_socket = (nt_socket_t)calloc(1, sizeof(struct nt_socket));
+	retval = backlog_pop(nt_sock_ctx->backlog_ctx, client_socket);
+	while (retval == -1)
+	{
+		sched_yield();
+		retval = backlog_pop(nt_sock_ctx->backlog_ctx, client_socket);
+	}
+
+
+	// 5. create coresponding nt_sock_context, init/create the nts shm queue, 
+	// push the `nt_sock_context` into HashMap `nt_sock_map` in nts_context
+	// tell the local ntb monitor the coresponding nts shm address via `ntm_shm_send`
+	nt_sock_context_t nt_sock_ctx;
+	nt_sock_ctx = (nt_sock_context_t)calloc(1, sizeof(struct nt_sock_context));
+	if(!nt_sock_ctx)
+		goto FAIL;
+
+	nt_sock_ctx->ntm_msg_id = 1;
+
+	// generate nts_shm-uuid shm name
+	retval = generate_nts_shmname(nt_sock_ctx->nts_shmaddr);
+	if(retval == -1) {
+		ERR("generate nts_shm-uuid shm name failed");
+		goto FAIL;
+	}
+	nt_sock_ctx->nts_shmlen = strlen(nt_sock_ctx->nts_shmaddr);
+
+	// init/create nts_socket-coresponding nts_shm_ring
+	nt_sock_ctx->nts_shm_ctx = nts_shm();
+	nts_shm_accept(nt_sock_ctx->nts_shm_ctx, 
+				nt_sock_ctx->nts_shmaddr, nt_sock_ctx->nts_shmlen);
+
+	// 6. send the nts_shmaddr to ntb monitor via ntm_shm queue
+	// pack `NTM_MSG_ACCEPT_ACK` ntm_msg and sent it into ntb monitor
+	ntm_msg outgoing_msg;
+	outgoing_msg.msg_id = nt_sock_ctx->ntm_msg_id;
+	outgoing_msg.msg_type = NTM_MSG_ACCEPT_ACK;
+	outgoing_msg.nts_shm_addrlen = nt_sock_ctx->nts_shmlen;
+	memcpy(outgoing_msg.nts_shm_name, nt_sock_ctx->nts_shmaddr, nt_sock_ctx->nts_shmlen);
+	retval = ntm_shm_send(nts_ctx->ntm_ctx->shm_send_ctx, &outgoing_msg);
+	if(retval) {
+		ERR("ntm_shm_send NTM_MSG_ACCEPT_ACK message failed");
+		goto FAIL;
+	}
+
+
+	// 7. check whether the listener socket state is `CLOSED`
+	if (nt_sock_ctx->socket->state == CLOSED) {
+		ERR("the specified listener sockid is not in `LISTENING` state");
+		goto FAIL;
+	}
+
+
+	// 8. return `ESTABLISHED` client socket id, sockaddr
+	if (addr && addrlen) {
+		DEBUG("copy the IP:Port of accepted client socket into param `addr`. ");
+	}
 
 
 	DEBUG("nts_accept pass");
-	return 0;
+	return client_socket->sockid;
+
+	FAIL: 
+	if(client_socket) {
+		free(client_socket);
+	}
+
+	if(nt_sock_ctx->nts_shm_ctx) {
+		if (nt_sock_ctx->nts_shm_ctx->shm_stat == NTM_SHM_READY) {
+			nts_shm_close(nt_sock_ctx->nts_shm_ctx);
+		}
+		nts_shm_destroy(nt_sock_ctx->nts_shm_ctx);
+	}
+
+	if(nt_sock_ctx) {
+		free(nt_sock_ctx);
+	}
+
+	return -1;
+
 }
 
 int nts_connect(int sockid, const struct sockaddr *name, socklen_t namelen) {

@@ -16,6 +16,7 @@ UTILS_DIR = utils
 lib_libnts_la_SOURCES = socket.c libnts.c 		        \
 		nts_config.c $(INC_DIR)/nt_errno.h				\
 		nts_api.c $(INC_DIR)/nts_api.h					\
+		nt_backlog.c $(INC_DIR)/nt_backlog.h 			\
 		nts.c $(INC_DIR)/nts.h 							\
 		debug.c $(INC_DIR)/debug.h						\
 		clock.c $(INC_DIR)/clock.h						\

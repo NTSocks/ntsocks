@@ -24,15 +24,15 @@ extern "C" {
 /**
  * Definitions for the shm communication between nt-monitor and nts app.
  */
-typedef uint64_t nt_sock_id;
+typedef uint32_t nt_sock_id;
 
 typedef enum socket_type {
 	NT_SOCK_UNUSED = 1,
-	NT_SOCK_STREAM,  // default
-	NT_SOCK_PROXY,
-	NT_SOCK_LISTENER,
+	NT_SOCK_STREAM,  			// default, for connect-based socket
+	NT_SOCK_PROXY,	
+	NT_SOCK_LISTENER,			// for listener socket
 	NT_SOCK_EPOLL,
-	NT_SOCK_PIPE
+	NT_SOCK_PIPE				// for accepted-based socket
 } socket_type;
 
 typedef enum socket_state {
