@@ -31,8 +31,10 @@ extern "C" {
 struct nts_config {
 	int tcp_timewait;
 	int tcp_timeout;
-	int key1;
-	int key2;
+	int local_has_ntbdev;
+
+	char *local_nt_host;
+	char *nt_host;
 };
 
 /*----------------------------------------------------------------------------*/
