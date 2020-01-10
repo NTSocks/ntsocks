@@ -20,7 +20,7 @@ TEST_OBJS = $(patsubst %.cpp, %.o, $(TEST_SRCS))
 INCLUDE_PATH = -I./include/ -I./src/include/ -I./src/utils/include
 LIB_PATH = -L./lib/
 
-LIBS = -lpthread -lrt
+LIBS = -lpthread -lrt -luuid
 #LIBS = -ltest
 #LIBS = -libtest.a
 
