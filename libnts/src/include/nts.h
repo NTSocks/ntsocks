@@ -55,6 +55,7 @@ typedef struct nt_sock_context {
 	char nts_shmaddr[SHM_NAME_LEN];
 	int nts_shmlen;
 	nts_shm_context_t nts_shm_ctx;
+	int ntm_msg_id; 		// act as the global ntm_msg_id
 
 
 	/**
@@ -155,6 +156,15 @@ int nts_context_init(const char *config_file);
 
 void nts_context_destroy();
 
+/**
+ * generate unique nts shm name
+ * input: shm addr memory address
+ * output: unique nts shm name
+ * 
+ * if return 0, success
+ * else return -1, failed
+ */
+int generate_nts_shmname(char * nts_shmaddr);
 
 
 #ifdef __cplusplus

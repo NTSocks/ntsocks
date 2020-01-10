@@ -23,6 +23,8 @@
 extern "C" {
 #endif
 
+#define UUID_LEN 36
+
 #define NEW(type) (type *)malloc(sizeof(type))
 #define APPLY(task, ...) task(__VA_ARGS__)
 #define ABS(n) n > 0 ? n : -n
