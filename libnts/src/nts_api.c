@@ -207,7 +207,7 @@ int nts_socket(int domain, int type, int protocol) {
 
 }
 
-int nts_setsockopt(int s, int level, int optname, const void *optval,
+int nts_setsockopt(int sockid, int level, int optname, const void *optval,
     socklen_t optlen) {
 	DEBUG("nts_setsockopt() start...");
 	assert(nts_ctx);
@@ -216,7 +216,7 @@ int nts_setsockopt(int s, int level, int optname, const void *optval,
 	return 0;
 }
 
-int nts_getsockopt(int s, int level, int optname, void *optval,
+int nts_getsockopt(int sockid, int level, int optname, void *optval,
     socklen_t *optlen) {
 	DEBUG("nts_getsockopt() start...");
 	assert(nts_ctx);
@@ -225,7 +225,7 @@ int nts_getsockopt(int s, int level, int optname, void *optval,
 	return 0;
 }
 
-int nts_listen(int s, int backlog) {
+int nts_listen(int sockid, int backlog) {
 	DEBUG("nts_listen() start...");
 	assert(nts_ctx);
 
@@ -234,7 +234,7 @@ int nts_listen(int s, int backlog) {
 	return 0;
 }
 
-int nts_bind(int s, const struct sockaddr *addr, socklen_t addrlen){
+int nts_bind(int sockid, const struct sockaddr *addr, socklen_t addrlen){
 	DEBUG("nts_bind() start...");
 	assert(nts_ctx);
 
@@ -242,15 +242,20 @@ int nts_bind(int s, const struct sockaddr *addr, socklen_t addrlen){
 	return 0;
 }
 
-int nts_accept(int s, const struct sockaddr *addr, socklen_t *addrlen) {
+int nts_accept(int sockid, const struct sockaddr *addr, socklen_t *addrlen) {
 	DEBUG("nts_accept start...");
 	assert(nts_ctx);
+
+	/**
+	 * 1. get the coressponding nt_sock_context via nt_socket_id
+	 */
+
 
 	DEBUG("nts_accept pass");
 	return 0;
 }
 
-int nts_connect(int s, const struct sockaddr *name, socklen_t namelen) {
+int nts_connect(int sockid, const struct sockaddr *name, socklen_t namelen) {
 	DEBUG("nts_connect start...");
 	assert(nts_ctx);
 
@@ -266,7 +271,7 @@ int nts_close(int fd) {
 	return 0;
 }
 
-int nts_shutdown(int s, int how) {
+int nts_shutdown(int sockid, int how) {
 	DEBUG("nts_shutdown start...");
 	assert(nts_ctx);
 
@@ -276,13 +281,13 @@ int nts_shutdown(int s, int how) {
 
 
 
-int nts_getpeername(int s, struct sockaddr *name,
+int nts_getpeername(int sockid, struct sockaddr *name,
     socklen_t *namelen) {
 
 	return 0;
 }
 
-int nts_getsockname(int s, struct sockaddr *name,
+int nts_getsockname(int sockid, struct sockaddr *name,
     socklen_t *namelen) {
 
 	return 0;
@@ -322,14 +327,14 @@ ssize_t nts_writev(int fd, const struct iovec *iov, int iovcnt) {
 
 
 
-ssize_t nts_send(int s, const void *buf, size_t len, int flags) {
+ssize_t nts_send(int sockid, const void *buf, size_t len, int flags) {
 	DEBUG("nts_send start...");
 
 	DEBUG("nts_send pass");
 	return 0;
 }
 
-ssize_t nts_sendto(int s, const void *buf, size_t len, int flags,
+ssize_t nts_sendto(int sockid, const void *buf, size_t len, int flags,
     const struct sockaddr *to, socklen_t tolen) {
 	DEBUG("nts_sendto start...");
 
@@ -337,7 +342,7 @@ ssize_t nts_sendto(int s, const void *buf, size_t len, int flags,
 	return 0;
 }
 
-ssize_t nts_sendmsg(int s, const struct msghdr *msg, int flags) {
+ssize_t nts_sendmsg(int sockid, const struct msghdr *msg, int flags) {
 	DEBUG("nts_sendmsg start...");
 
 	DEBUG("nts_sendmsg pass");
@@ -346,14 +351,14 @@ ssize_t nts_sendmsg(int s, const struct msghdr *msg, int flags) {
 
 
 
-ssize_t nts_recv(int s, void *buf, size_t len, int flags) {
+ssize_t nts_recv(int sockid, void *buf, size_t len, int flags) {
 	DEBUG("nts_recv start...");
 
 	DEBUG("nts_recv pass");
 	return 0;
 }
 
-ssize_t nts_recvfrom(int s, void *buf, size_t len, int flags,
+ssize_t nts_recvfrom(int sockid, void *buf, size_t len, int flags,
     struct sockaddr *from, socklen_t *fromlen) {
 	DEBUG("nts_recvfrom start...");
 
@@ -361,7 +366,7 @@ ssize_t nts_recvfrom(int s, void *buf, size_t len, int flags,
 	return 0;
 }
 
-ssize_t nts_recvmsg(int s, struct msghdr *msg, int flags) {
+ssize_t nts_recvmsg(int sockid, struct msghdr *msg, int flags) {
 	DEBUG("nts_recvmsg start...");
 
 	DEBUG("nts_recvmsg pass");
