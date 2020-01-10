@@ -59,4 +59,4 @@ lib_libnts_la_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/src/include 			
 #libnts_la_CCFLAGS = -I$(top_srcdir)/include
 
 # Specify the Library depencies via `_LIBADD`
-lib_libnts_la_LIBADD = -lz -lrt -lpthread -ldl
+lib_libnts_la_LIBADD = -lz -lrt -lpthread -ldl -luuid
