@@ -36,6 +36,7 @@ lib_libnts_la_SOURCES = socket.c libnts.c 		        \
 		nts_shm.c $(INC_DIR)/nts_shm.h					\
 		ntm_shmring.c $(INC_DIR)/ntm_shmring.h			\
 		ntm_shm.c $(INC_DIR)/ntm_shm.h					\
+		nt_port.c $(INC_DIR)/nt_port.h					\
 		$(UTILS_DIR)/array.c $(UTILS_DIR)/include/array.h 								\
 		$(UTILS_DIR)/hash_map.c $(UTILS_DIR)/include/hash_map.h							\
 		$(UTILS_DIR)/utils.c $(UTILS_DIR)/include/utils.h 								\
@@ -52,7 +53,7 @@ lib_libnts_la_LDFLAGS =
 # to be searched for headers included in the source code.
 lib_libnts_la_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/src/include 			\
 						 -I$(top_srcdir)/src/utils/include -D_BSD_SOURCE -DHAVE_GCC_C11_ATOMICS
-						 
+
 #lib_libnts_la_CFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/src/include 
 					   
 #libnts_la_CCFLAGS = -I$(top_srcdir)/include
