@@ -47,9 +47,10 @@ typedef enum {
     NTM_MSG_CONNECT = 1 << 6,
     NTM_MSG_ESTABLISH = 1 << 7,
     NTM_MSG_CLOSE = 1 << 8,
-    NTM_MSG_DISCONNECT = 1 << 9, 
+    NTM_MSG_FIN = 1 << 9,               // for passively close/FIN
     NTM_MSG_SHUTDOWN = 1 << 10,
-    NTM_MSG_ERR = 1 << 11
+    NTM_MSG_ERR = 1 << 11,
+    NTM_MSG_DISCONNECT = 1 << 12
 } ntm_msg_type;
 
 
@@ -152,9 +153,11 @@ typedef enum {
     NTS_MSG_DISPATCHED = 1 << 6,
     NTS_MSG_ESTABLISH = 1 << 7,
     NTS_MSG_CLOSE = 1 << 8,
+    NTS_MSG_FIN = 1 << 9,               // for actively socket close/FIN
     NTS_MSG_DISCONNECT = 1 << 11,
     NTS_MSG_SHUTDOWN = 1 << 12,
     NTS_MSG_ERR = 1 << 13
+    
 } nts_msg_type;
 
 typedef enum {

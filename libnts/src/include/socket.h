@@ -44,7 +44,8 @@ typedef enum socket_state {
 	WAIT_DISPATCH,
 	WAIT_SERVER,
 
-	ESTABLISHED
+	ESTABLISHED,
+	WAIT_FIN					// when active socket actively invokes close(), update state to `WAIT_FIN`
 
 } socket_state;
 

@@ -18,9 +18,9 @@
 #include "nts_shm.h"
 #include "ntm_shm.h"
 #include "socket.h"
-#include "nt_port.h"
 #include "hash_map.h"
 #include "nt_backlog.h"
+#include "ntp_nts_shm.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -72,8 +72,9 @@ typedef struct nt_sock_context {
 	 * 
 	 * 1. init or create first when invoking `connect()` or `accept()` finished
 	 */
-
-
+	ntp_shm_context_t ntp_send_ctx;			// send data message from libnts to ntp
+	ntp_shm_context_t ntp_recv_ctx;			// receive data message from ntp to libnts
+	int ntp_msg_id;							// act as the global ntp_msg_id
 
 } nt_sock_context;
 

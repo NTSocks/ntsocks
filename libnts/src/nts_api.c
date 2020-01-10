@@ -248,7 +248,8 @@ int nts_listen(int sockid, int backlog) {
 	 * 4. poll or wait for the response message from ntm
 	 * 5. parse the response nts_msg with nt_socket_id, if success, return 0, else return -1
 	 */
-	nt_sock_context_t nt_sock_ctx = (nt_sock_context_t) Get(nts_ctx->nt_sock_map, &sockid);
+	nt_sock_context_t nt_sock_ctx;
+	nt_sock_ctx = (nt_sock_context_t) Get(nts_ctx->nt_sock_map, &sockid);
 	if(!nt_sock_ctx)
 		goto FAIL;
 
@@ -515,16 +516,165 @@ int nts_connect(int sockid, const struct sockaddr *name, socklen_t namelen) {
 	DEBUG("nts_connect start...");
 	assert(nts_ctx);
 
+
+
 	DEBUG("nts_connect pass");
 	return 0;
 }
 
-int nts_close(int fd) {
+int nts_close(int sockid) {
 	DEBUG("nts_close start...");
 	assert(nts_ctx);
+	assert(sockid > 0);
+
+	/**
+	 * 1. get/pop `nt_sock_context` from `HashMap nt_sock_map` using sockid.
+	 * 2. check whether the socket state is `CLOSED`
+	 * 3. if socket state is `CLOSED`, then return 0
+	 * 4. else if socket state is not `CLOSED`, check whether the socket state is `ESTABLSHED` or not
+	 * 5. if not `ESTABLISHED`, directly destroy nt_socket related resources according to socktype:
+	 * 		if socktype is `NT_SOCK_LISTENER`, destroy backlog_ctx, nts_shm_ctx, socket;
+	 * 		else, destroy ntp_send_ctx, ntp_recv_ctx, nts_shm_ctx, socket
+	 * 6. else if `ESTABLISHED`, send `NTP_NTS_MSG_FIN` ntp_msg to ntp
+	 * 7. poll or wait the nts_shm queue to receive the `NTS_MSG_FIN_ACK` nts_msg from ntm
+	 * 8. then set the socket state as `CLOSED` and destroy local ntb socket resources
+	 */
+
+	// 1. get/pop `nt_sock_context` from `HashMap nt_sock_map` using sockid.
+	nt_sock_context_t nt_sock_ctx;
+	nt_sock_ctx = (nt_sock_context_t) Get(nts_ctx->nt_sock_map, &sockid);
+	if(!nt_sock_ctx) {
+		ERR("Non-existing sockid. ");
+		goto FAIL;
+	}
+	
+	if (nt_sock_ctx->socket->state == CLOSED)
+		return 0;
+	
+	int retval;
+	if (nt_sock_ctx->socket->state != ESTABLISHED) {
+		DEBUG("directly destroy nt_socket related resources.");
+		nt_sock_ctx->socket->state = WAIT_FIN;
+
+		//TODO: libnts send `NTM_MSG_CLOSE` to ntm, ntm destroy resources, then return ACK
+		ntm_msg outgoing_msg;
+		outgoing_msg.msg_id = nt_sock_ctx->ntm_msg_id;
+		outgoing_msg.msg_type = NTM_MSG_CLOSE;
+		outgoing_msg.sockid = sockid;
+		retval = ntm_shm_send(nts_ctx->ntm_ctx->shm_send_ctx, &outgoing_msg);
+		if (retval) {
+			ERR("ntm_shm_send NTM_MSG_CLOSE with sockid[%d] failed.", sockid);
+			goto FAIL;
+		}
+
+		// poll or wait for the response message from ntm
+		nts_msg incoming_msg;
+		retval = nts_shm_recv(nt_sock_ctx->nts_shm_ctx, &incoming_msg);
+		while(retval) {
+			sched_yield();
+			retval = nts_shm_recv(nt_sock_ctx->nts_shm_ctx, &incoming_msg);
+		}
+
+		// parse the response nts_msg with nt_socket_id
+		if (incoming_msg.msg_id != outgoing_msg.msg_id) {
+			ERR("invalid message id for NTM_MSG_CLOSE response");
+			goto FAIL;
+		}
+		if (incoming_msg.msg_type != NTS_MSG_CLOSE) {
+			ERR("invalid message type for NTM_MSG_CLOSE response");
+			goto FAIL;
+		}
+		if (incoming_msg.retval == -1) {
+			ERR("NTM_MSG_CLOSE failed");
+			goto FAIL;
+		}
+		nt_sock_ctx->socket->state = CLOSED;
+
+		if (nt_sock_ctx->socket->socktype == NT_SOCK_LISTENER) {
+			DEBUG("destroy listener socket resources.");
+			if(nt_sock_ctx->backlog_ctx) {
+				backlog_nts_close(nt_sock_ctx->backlog_ctx);
+				backlog_destroy(nt_sock_ctx->backlog_ctx);
+			}
+
+		} else {
+			if(nt_sock_ctx->ntp_send_ctx) {
+				ntp_shm_close(nt_sock_ctx->ntp_send_ctx);
+				ntp_shm_destroy(nt_sock_ctx->ntp_send_ctx);
+			}
+			if(nt_sock_ctx->ntp_recv_ctx) {
+				ntp_shm_close(nt_sock_ctx->ntp_recv_ctx);
+				ntp_shm_destroy(nt_sock_ctx->ntp_recv_ctx);
+			}
+
+		}
+
+		if (nt_sock_ctx->nts_shm_ctx) {
+			nts_shm_close(nt_sock_ctx->nts_shm_ctx);
+			nts_shm_destroy(nt_sock_ctx->nts_shm_ctx);
+		}
+
+		free(nt_sock_ctx->socket);
+
+		return 0;
+	}
+
+
+
+	// else if `ESTABLISHED`, directly destroy nt_socket related resources.
+	nt_sock_ctx->socket->state = WAIT_FIN;
+
+	ntp_msg ntp_outgoing_msg;
+	ntp_outgoing_msg.msg_type = NTP_NTS_MSG_FIN;
+	ntp_outgoing_msg.msg_len = 0;
+	retval = ntp_shm_send(nt_sock_ctx->ntp_send_ctx, &ntp_outgoing_msg);
+	while (retval) {
+		sched_yield();
+		retval = ntp_shm_send(nt_sock_ctx->ntp_send_ctx, &ntp_outgoing_msg);
+	} 
+
+	nts_msg nts_incoming_msg;
+	retval = nts_shm_recv(nt_sock_ctx->nts_shm_ctx, &nts_incoming_msg);
+	while(retval) {
+		sched_yield();
+		retval = nts_shm_recv(nt_sock_ctx->nts_shm_ctx, &nts_incoming_msg);
+	}
+
+	// parse the response nts_msg with nt_socket_id
+	if(nts_incoming_msg.retval == -1){
+		ERR("SOCKET BIND failed");
+		goto FAIL;
+	}
+	if(nts_incoming_msg.msg_type != NTS_MSG_CLOSE) {
+		ERR("nts_close failed, the msg_type is not NTS_MSG_CLOSE");
+		goto FAIL;
+	}
+	nt_sock_ctx->socket->state = CLOSED;
+
+	// destroy socket related resources
+	// i.e., ntp_send_ctx, ntp_recv_ctx, nts_shm_ctx, socket
+	if(nt_sock_ctx->ntp_send_ctx) {
+		ntp_shm_close(nt_sock_ctx->ntp_send_ctx);
+		ntp_shm_destroy(nt_sock_ctx->ntp_send_ctx);
+	}
+	if(nt_sock_ctx->ntp_recv_ctx) {
+		ntp_shm_close(nt_sock_ctx->ntp_recv_ctx);
+		ntp_shm_destroy(nt_sock_ctx->ntp_recv_ctx);
+	}
+
+	if (nt_sock_ctx->nts_shm_ctx) {
+		nts_shm_close(nt_sock_ctx->nts_shm_ctx);
+		nts_shm_destroy(nt_sock_ctx->nts_shm_ctx);
+	}
+
+	free(nt_sock_ctx->socket);
 
 	DEBUG("nts_close pass");
 	return 0;
+
+	FAIL: 
+
+	return -1;
 }
 
 int nts_shutdown(int sockid, int how) {
