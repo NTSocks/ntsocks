@@ -125,5 +125,5 @@ int load_conf(const char *fname)
 
 void print_conf()
 {
-    printf("nts configuration: tcp_timewait=%d, tcp_timeout=%d, local_has_ntbdev=%d, local_nt_host=%s\n",NTS_CONFIG.tcp_timewait,NTS_CONFIG.tcp_timeout, NTS_CONFIG.local_has_ntbdev, NTS_CONFIG.key2);
+    printf("nts configuration: tcp_timewait=%d, tcp_timeout=%d, local_has_ntbdev=%d, local_nt_host=%s, nt_host=%s\n",NTS_CONFIG.tcp_timewait,NTS_CONFIG.tcp_timeout, NTS_CONFIG.local_has_ntbdev, NTS_CONFIG.local_nt_host, NTS_CONFIG.nt_host);
 }

@@ -27,7 +27,7 @@ DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
  * @param is_owner : if ntm, is_owner is true; else, is_owner is false
  * @return
  */
-static inline nt_backlog_context_t _backlog_init(nt_listener_t listener, char *shm_addr,
+static inline nt_backlog_context_t _backlog_init(nt_socket_t listener, char *shm_addr,
                                                  size_t addrlen, int backlog_size, bool is_owner) {
     assert(listener);
     assert(shm_addr);
@@ -43,7 +43,7 @@ static inline nt_backlog_context_t _backlog_init(nt_listener_t listener, char *s
     }
 
     backlog_ctx->backlog_size = (backlog_size <= 0 ? BACKLOG_SIZE : backlog_size);
-    backlog_ctx->listener = listener;
+    backlog_ctx->listener_sock = listener;
 
     backlog_ctx->shm_addr = malloc(addrlen);
     memset(backlog_ctx->shm_addr, 0, addrlen);
@@ -66,13 +66,13 @@ static inline nt_backlog_context_t _backlog_init(nt_listener_t listener, char *s
 }
 
 
-nt_backlog_context_t backlog_nts(nt_listener_t listener,
+nt_backlog_context_t backlog_nts(nt_socket_t listener,
                                  char *shm_addr, size_t addrlen, int backlog_size) {
     return _backlog_init(listener, shm_addr, addrlen, backlog_size, false);
 }
 
 
-nt_backlog_context_t backlog_ntm(nt_listener_t listener,
+nt_backlog_context_t backlog_ntm(nt_socket_t listener,
                                  char *shm_addr, size_t addrlen, int backlog_size) {
 
     return _backlog_init(listener, shm_addr, addrlen, backlog_size, true);

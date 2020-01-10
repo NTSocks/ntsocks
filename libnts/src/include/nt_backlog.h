@@ -43,7 +43,7 @@ struct nt_backlog_context {
     size_t addrlen;
 
     int backlog_size;   // default 128
-    nt_listener_t listener;
+    nt_socket_t listener_sock;
 };
 
 typedef struct nt_backlog_context* nt_backlog_context_t;
@@ -57,7 +57,7 @@ typedef struct nt_backlog_context* nt_backlog_context_t;
  * @param backlog_size
  * @return
  */
-nt_backlog_context_t backlog_nts(nt_listener_t listener,
+nt_backlog_context_t backlog_nts(nt_socket_t listener,
                                  char *shm_addr, size_t addrlen, int backlog_size);
 
 /**
@@ -68,7 +68,7 @@ nt_backlog_context_t backlog_nts(nt_listener_t listener,
  * @param backlog_size
  * @return
  */
-nt_backlog_context_t backlog_ntm(nt_listener_t listener,
+nt_backlog_context_t backlog_ntm(nt_socket_t listener,
                                  char *shm_addr, size_t addrlen, int backlog_size);
 
 /**
