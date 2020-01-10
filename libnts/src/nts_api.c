@@ -108,10 +108,100 @@ int nts_ioctl(int fd, unsigned long request, ...) {
 int nts_socket(int domain, int type, int protocol) {
 
 	DEBUG("entering nts_socket...");
+	assert(nts_ctx);
 
-	ntm_send_thread(NULL);
+	// ntm_send_thread(NULL);
 
-	return 0;
+	/**
+	 * 1. generate nts_shm-uuid shm name
+	 * 2. init/create nts_socket-coresponding nts_shm_ring 
+	 * 	  to receive response message from ntb monitor
+	 * 3. pack the `NTM_MSG_NEW_SOCK` ntm_msg and `ntm_shm_send()` the message into ntm
+	 * 4. poll or wait for the response message from ntm
+	 * 5. parse the response nts_msg with nt_socket_id, if success, create one nt_sock_context, nt_socket, 
+	 * 		and setup the nt_sock_context
+	 * 6. push `nt_sock_context` into `HashMap nt_sock_map`, then return sockid
+	 */
+	
+	nt_sock_context_t nt_sock_ctx;
+	nt_sock_ctx = (nt_sock_context_t)calloc(1, sizeof(struct nt_sock_context));
+	if(!nt_sock_ctx)
+		goto FAIL;
+
+	// generate nts_shm-uuid shm name
+	int retval;
+	retval = generate_nts_shmname(nt_sock_ctx->nts_shmaddr);
+	if (retval == -1) {
+		ERR("generate nts_shm-uuid shm name failed");
+		goto FAIL;
+	}
+	nt_sock_ctx->nts_shmlen = strlen(nt_sock_ctx->nts_shmaddr);
+
+	// init/create nts_socket-coresponding nts_shm_ring 
+	nt_sock_ctx->nts_shm_ctx = nts_shm();
+	nts_shm_accept(nt_sock_ctx->nts_shm_ctx, 
+				nt_sock_ctx->nts_shmaddr, nt_sock_ctx->nts_shmlen);
+	
+	// pack the `NTM_MSG_NEW_SOCK` ntm_msg and send the message into ntm
+	ntm_msg outgoing_msg;
+	outgoing_msg.msg_id = 1;
+	outgoing_msg.msg_type = NTM_MSG_NEW_SOCK;
+	outgoing_msg.nts_shm_addrlen = nt_sock_ctx->nts_shmlen;
+	outgoing_msg.domain = domain;
+	outgoing_msg.sock_type = type;
+	outgoing_msg.protocol = protocol;
+	retval = ntm_shm_send(nts_ctx->ntm_ctx->shm_send_ctx, &outgoing_msg);
+	if(retval) {
+		ERR("ntm_shm_send NTM_MSG_NEW_SOCK message failed");
+		goto FAIL;
+	}
+
+	// poll or wait for the response message from ntm
+	nts_msg incoming_msg;
+	retval = nts_shm_recv(nt_sock_ctx->nts_shm_ctx, &incoming_msg);
+	while(retval) {
+		sched_yield();
+		retval = nts_shm_recv(nt_sock_ctx->nts_shm_ctx, &incoming_msg);
+	}
+
+	// parse the response nts_msg with nt_socket_id
+	if (incoming_msg.msg_id != outgoing_msg.msg_id) {
+		ERR("invalid message id for NEW_SOCKET response");
+		goto FAIL;
+	}
+	if (incoming_msg.retval == -1) {
+		ERR("NEW_SOCKET failed");
+		goto FAIL;
+	}
+
+	nt_socket_t socket;
+	socket = (nt_socket_t)calloc(1, sizeof(struct nt_socket));
+	socket->sockid = incoming_msg.sockid;
+	socket->socktype = type;
+	socket->state = CLOSED;
+	nt_sock_ctx->socket = socket;
+
+	// push `nt_sock_context` into `HashMap nt_sock_map`, then return sockid
+	Put(nts_ctx->nt_sock_map, &socket->sockid, nt_sock_ctx);
+
+	return socket->sockid;
+
+	FAIL: 
+
+
+	if(nt_sock_ctx->nts_shm_ctx) {
+		if (nt_sock_ctx->nts_shm_ctx->shm_stat == NTM_SHM_READY) {
+			nts_shm_close(nt_sock_ctx->nts_shm_ctx);
+		}
+		nts_shm_destroy(nt_sock_ctx->nts_shm_ctx);
+	}
+
+	if(nt_sock_ctx) {
+		free(nt_sock_ctx);
+	}
+
+	return -1;
+
 }
 
 int nts_setsockopt(int s, int level, int optname, const void *optval,

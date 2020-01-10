@@ -42,7 +42,7 @@ char * generate_uuid() {
     uuid_t uuid;
     char * str;
 
-    str = (char *)calloc(36, sizeof(char));
+    str = (char *)calloc(UUID_LEN, sizeof(char));
     uuid_generate(uuid);
     uuid_unparse(uuid, str);
 

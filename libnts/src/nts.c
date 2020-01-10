@@ -158,5 +158,13 @@ void nts_context_destroy() {
     DEBUG("destroy nts_context pass");
 }
 
+int generate_nts_shmname(char * nts_shmaddr) {
+    assert(nts_shmaddr);
 
+    char *shm_uuid = generate_uuid();
+	sprintf(nts_shmaddr, "nts_shm-%s", shm_uuid);
+	free(shm_uuid);
+
+    return 0;
+}
 

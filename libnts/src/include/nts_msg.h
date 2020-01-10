@@ -29,7 +29,7 @@ typedef uint64_t ntsock_id;
  * sender: nts app
  * receiver: ntb-monitor
  */
-#define SHM_NAME_LEN 128
+#define SHM_NAME_LEN 50
 
 typedef enum {
     NT_SHUT_RD = 1,  // close socket read operation
