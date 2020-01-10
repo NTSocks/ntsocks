@@ -69,7 +69,7 @@ int nts_listen(int sockid, int backlog);
 int nts_bind(int sockid, const struct sockaddr *addr, socklen_t addrlen);
 int nts_accept(int sockid, const struct sockaddr *addr, socklen_t *addrlen);
 int nts_connect(int sockid, const struct sockaddr *name, socklen_t namelen);
-int nts_close(int fd);
+int nts_close(int sockid);
 int nts_shutdown(int sockid, int how);
 
 int nts_getpeername(int sockid, struct sockaddr *name,
