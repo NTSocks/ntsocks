@@ -17,6 +17,7 @@
 #include <stdarg.h>
 #include <time.h>
 #include <assert.h>
+#include <uuid/uuid.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,6 +32,8 @@ extern "C" {
 
 // uuid
 char * createUUID();
+
+char * generate_uuid();
 
 #ifdef __cplusplus
 };

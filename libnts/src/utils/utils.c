@@ -8,6 +8,7 @@
  * @version 1.0
  */
 
+
 #include "utils.h"
 
 char * createUUID() {
@@ -36,4 +37,15 @@ char * createUUID() {
     }
     *p = 0;
     return buf;
+}
+
+char * generate_uuid() {
+    uuid_t uuid;
+    char * str;
+
+    str = (char *)calloc(36, sizeof(char));
+    uuid_generate(uuid);
+    uuid_unparse(uuid, str);
+
+    return str;
 }
