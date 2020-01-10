@@ -10,6 +10,7 @@ include_HADERS =
 # Build information for each library
 
 INC_DIR = include
+UTILS_DIR = utils
 
 # Sources for libTest
 lib_libnts_la_SOURCES = socket.c libnts.c 		        \
@@ -35,10 +36,12 @@ lib_libnts_la_SOURCES = socket.c libnts.c 		        \
 		nts_shm.c $(INC_DIR)/nts_shm.h					\
 		ntm_shmring.c $(INC_DIR)/ntm_shmring.h			\
 		ntm_shm.c $(INC_DIR)/ntm_shm.h					\
-		utils/array.c utils/include/array.h 			\
-		utils/hash_map.c utils/include/hash_map.h		\
-		utils/utils.c utils/include/utils.h				\
-		utils/include/data_struct.h					
+		$(UTILS_DIR)/array.c $(UTILS_DIR)/include/array.h 								\
+		$(UTILS_DIR)/hash_map.c $(UTILS_DIR)/include/hash_map.h							\
+		$(UTILS_DIR)/utils.c $(UTILS_DIR)/include/utils.h 								\
+		$(UTILS_DIR)/nt_spsc_shm_queue.c $(UTILS_DIR)/include/nt_spsc_shm_queue.h 		\
+		$(UTILS_DIR)/include/data_struct.h $(UTILS_DIR)/include/nt_atomic.h 			\
+		$(UTILS_DIR)/include/gcc_builtins.h 
 						
 
 # Linker options libTestProgram
@@ -47,7 +50,9 @@ lib_libnts_la_LDFLAGS =
 
 # Compiler options. Here we are adding the include directory
 # to be searched for headers included in the source code.
-lib_libnts_la_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/src/include -I$(top_srcdir)/src/utils/include -D_BSD_SOURCE -DHAVE_GCC_C11_ATOMICS
+lib_libnts_la_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/src/include 			\
+						 -I$(top_srcdir)/src/utils/include -D_BSD_SOURCE -DHAVE_GCC_C11_ATOMICS
+						 
 #lib_libnts_la_CFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/src/include 
 					   
 #libnts_la_CCFLAGS = -I$(top_srcdir)/include

@@ -89,11 +89,11 @@ void ntsocket_init(void) {
 	INIT_FUNCTION(select);
 
 	inited = 1;
-	DEBUG("ntsocket init pass!!! \n");
-	DEBUG("before load conf\n");
+	DEBUG("ntsocket init pass!!!");
+	DEBUG("before load conf");
 	print_conf();
 	load_conf(NTS_CONFIG_FILE);
-	DEBUG("after load conf\n");
+	DEBUG("after load conf");
 	print_conf();
 	return;
 }

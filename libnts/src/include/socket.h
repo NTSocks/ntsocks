@@ -14,7 +14,6 @@
 #include <stdint.h>
 #include <netinet/in.h>
 #include <pthread.h>
-#include <sys/queue.h>
 #include <stdbool.h>
 
 #ifdef __cplusplus
@@ -62,28 +61,9 @@ struct nt_socket {
 		struct nt_listener *listener;
 	};
 
-	TAILQ_ENTRY (nt_socket) free_ntsock_link;
-
 } nt_socket;
 
 typedef struct nt_socket * nt_socket_t;
-
-struct nt_sock_context{
-	nt_socket_t ntsock;
-	TAILQ_HEAD (, nt_socket) free_ntsock;
-	pthread_mutex_t socket_lock;
-};
-
-typedef struct nt_sock_context * nt_sock_context_t;
-
-void init_socket_context(nt_sock_context_t ntsock_ctx, int max_concurrency);
-
-nt_socket_t allocate_socket(nt_sock_context_t ntsock_ctx, int socktype, int need_lock);
-
-void free_socket(nt_sock_context_t ntsock_ctx, int sockid, int need_lock);
-
-nt_socket_t get_socket(nt_sock_context_t ntsock_ctx, int sockid, int max_concurrency);
-
 
 struct nt_listener {
 	nt_sock_id sockid;

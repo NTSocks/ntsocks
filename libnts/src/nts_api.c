@@ -17,8 +17,6 @@
 
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
-#define MSG_FROM_NTS "Hello, Nt-Monitor! I am libnts app."
-
 
 
 static void * ntm_recv_thread(void *arg);
@@ -51,6 +49,11 @@ void * ntm_send_thread(void *arg) {
 	// 	msg->addrlen = sizeof(MSG_FROM_NTS);
 	// 	ntm_shm_send(nts_ctx->ntm_ctx->shm_send_ctx, msg);
 	// }
+	ntm_msg msg;
+	msg.msg_type = NTM_MSG_INIT;
+	msg.msg_id = 1;
+
+	ntm_shm_send(nts_ctx->ntm_ctx->shm_send_ctx, &msg);
 
 	DEBUG("ntm_send_thread end!");
 
