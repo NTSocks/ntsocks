@@ -240,6 +240,7 @@ int nts_listen(int sockid, int backlog) {
 	DEBUG("nts_listen() start...");
 	assert(nts_ctx);
 	assert(sockid > 0);
+	assert(backlog > 0);
 
 	/**
 	 * 1. pop `nt_sock_context` from `HashMap nt_sock_map` using sockid.
@@ -247,7 +248,7 @@ int nts_listen(int sockid, int backlog) {
 	 * 4. poll or wait for the response message from ntm
 	 * 5. parse the response nts_msg with nt_socket_id, if success, return 0, else return -1
 	 */
-	nt_sock_context_t nt_sock_ctx = (nt_sock_context_t) Get(nts_ctx->nt_sock_map, sockid);
+	nt_sock_context_t nt_sock_ctx = (nt_sock_context_t) Get(nts_ctx->nt_sock_map, &sockid);
 	if(!nt_sock_ctx)
 		goto FAIL;
 
@@ -299,7 +300,7 @@ int nts_listen(int sockid, int backlog) {
 	int backlog_shmlen;
 	sprintf(backlog_shmaddr, "backlog-%d", sockid);
 	backlog_shmlen = strlen(backlog_shmaddr);
-	nt_sock_ctx->backlog_ctx = backlog_nts(nt_sock_ctx->socket, backlog_shmaddr, backlog_shmlen);
+	nt_sock_ctx->backlog_ctx = backlog_nts(nt_sock_ctx->socket, backlog_shmaddr, backlog_shmlen, backlog);
 
 	nt_sock_ctx->ntm_msg_id++;
 	DEBUG("nts_listen() pass");
@@ -322,7 +323,7 @@ int nts_bind(int sockid, const struct sockaddr *addr, socklen_t addrlen){
 	 * 4. poll or wait for the response message from ntm
 	 * 5. parse the response nts_msg with nt_socket_id, if success, 
 	 */
-	nt_sock_context_t nt_sock_ctx = (nt_sock_context_t) Get(nts_ctx->nt_sock_map, sockid);
+	nt_sock_context_t nt_sock_ctx = (nt_sock_context_t) Get(nts_ctx->nt_sock_map, &sockid);
 	if(!nt_sock_ctx)
 		goto FAIL;
 
@@ -440,33 +441,33 @@ int nts_accept(int sockid, const struct sockaddr *addr, socklen_t *addrlen) {
 	// 5. create coresponding nt_sock_context, init/create the nts shm queue, 
 	// push the `nt_sock_context` into HashMap `nt_sock_map` in nts_context
 	// tell the local ntb monitor the coresponding nts shm address via `ntm_shm_send`
-	nt_sock_context_t nt_sock_ctx;
-	nt_sock_ctx = (nt_sock_context_t)calloc(1, sizeof(struct nt_sock_context));
+	nt_sock_context_t client_sock_ctx;
+	client_sock_ctx = (nt_sock_context_t)calloc(1, sizeof(struct nt_sock_context));
 	if(!nt_sock_ctx)
 		goto FAIL;
 
-	nt_sock_ctx->ntm_msg_id = 1;
+	client_sock_ctx->ntm_msg_id = 1;
 
 	// generate nts_shm-uuid shm name
-	retval = generate_nts_shmname(nt_sock_ctx->nts_shmaddr);
+	retval = generate_nts_shmname(client_sock_ctx->nts_shmaddr);
 	if(retval == -1) {
 		ERR("generate nts_shm-uuid shm name failed");
 		goto FAIL;
 	}
-	nt_sock_ctx->nts_shmlen = strlen(nt_sock_ctx->nts_shmaddr);
+	client_sock_ctx->nts_shmlen = strlen(client_sock_ctx->nts_shmaddr);
 
 	// init/create nts_socket-coresponding nts_shm_ring
-	nt_sock_ctx->nts_shm_ctx = nts_shm();
-	nts_shm_accept(nt_sock_ctx->nts_shm_ctx, 
-				nt_sock_ctx->nts_shmaddr, nt_sock_ctx->nts_shmlen);
+	client_sock_ctx->nts_shm_ctx = nts_shm();
+	nts_shm_accept(client_sock_ctx->nts_shm_ctx, 
+				client_sock_ctx->nts_shmaddr, client_sock_ctx->nts_shmlen);
 
 	// 6. send the nts_shmaddr to ntb monitor via ntm_shm queue
 	// pack `NTM_MSG_ACCEPT_ACK` ntm_msg and sent it into ntb monitor
 	ntm_msg outgoing_msg;
-	outgoing_msg.msg_id = nt_sock_ctx->ntm_msg_id;
+	outgoing_msg.msg_id = client_sock_ctx->ntm_msg_id;
 	outgoing_msg.msg_type = NTM_MSG_ACCEPT_ACK;
-	outgoing_msg.nts_shm_addrlen = nt_sock_ctx->nts_shmlen;
-	memcpy(outgoing_msg.nts_shm_name, nt_sock_ctx->nts_shmaddr, nt_sock_ctx->nts_shmlen);
+	outgoing_msg.nts_shm_addrlen = client_sock_ctx->nts_shmlen;
+	memcpy(outgoing_msg.nts_shm_name, client_sock_ctx->nts_shmaddr, client_sock_ctx->nts_shmlen);
 	retval = ntm_shm_send(nts_ctx->ntm_ctx->shm_send_ctx, &outgoing_msg);
 	if(retval) {
 		ERR("ntm_shm_send NTM_MSG_ACCEPT_ACK message failed");
@@ -495,15 +496,15 @@ int nts_accept(int sockid, const struct sockaddr *addr, socklen_t *addrlen) {
 		free(client_socket);
 	}
 
-	if(nt_sock_ctx->nts_shm_ctx) {
-		if (nt_sock_ctx->nts_shm_ctx->shm_stat == NTM_SHM_READY) {
-			nts_shm_close(nt_sock_ctx->nts_shm_ctx);
+	if(client_sock_ctx->nts_shm_ctx) {
+		if (client_sock_ctx->nts_shm_ctx->shm_stat == NTM_SHM_READY) {
+			nts_shm_close(client_sock_ctx->nts_shm_ctx);
 		}
-		nts_shm_destroy(nt_sock_ctx->nts_shm_ctx);
+		nts_shm_destroy(client_sock_ctx->nts_shm_ctx);
 	}
 
-	if(nt_sock_ctx) {
-		free(nt_sock_ctx);
+	if(client_sock_ctx) {
+		free(client_sock_ctx);
 	}
 
 	return -1;
