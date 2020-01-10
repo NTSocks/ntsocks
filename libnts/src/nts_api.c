@@ -236,17 +236,137 @@ int nts_listen(int sockid, int backlog) {
 	DEBUG("nts_listen() start...");
 	assert(nts_ctx);
 
-	DEBUG("nts_listen() pass");
+	/**
+	 * 1. pop `nt_sock_context` from `HashMap nt_sock_map` using sockid.
+	 * 3. pack the `NTM_MSG_LISTEN` ntm_msg and `ntm_shm_send()` the message into ntm
+	 * 4. poll or wait for the response message from ntm
+	 * 5. parse the response nts_msg with nt_socket_id, if success, return 0, else return -1
+	 */
+	nt_sock_context_t nt_sock_ctx = (nt_sock_context_t) Get(nts_ctx->nt_sock_map, sockid);
+	if(!nt_sock_ctx)
+		goto FAIL;
 
+	if(!nt_sock_ctx->socket || nt_sock_ctx->socket->state != BOUND) {
+		ERR("non-existing socket [sockid: %d], or the socket state is not `BOUND`. ", sockid);
+		goto FAIL;
+	}
+
+	int retval;
+	
+	// pack the `NTM_MSG_LISTEN` ntm_msg and `ntm_shm_send()` the message into ntm
+	ntm_msg outgoing_msg;
+	outgoing_msg.msg_id = 3;
+	outgoing_msg.msg_type = NTM_MSG_LISTEN;
+	outgoing_msg.sockid = sockid;
+	outgoing_msg.backlog = backlog;
+	retval = ntm_shm_send(nts_ctx->ntm_ctx->shm_send_ctx, &outgoing_msg);
+	if(retval){
+		ERR("ntm_shm_send NTM_MSG_LISTEN message failed");
+		goto FAIL;
+	}
+
+	//poll or wait for the response message from ntm
+	nts_msg incoming_msg;
+	retval = nts_shm_recv(nt_sock_ctx->nts_shm_ctx, &incoming_msg);
+	while(retval){
+		sched_yield();
+		retval = nts_shm_recv(nt_sock_ctx->nts_shm_ctx, &incoming_msg);
+	}
+
+	// parse the response nts_msg with nt_socket_id
+	if(incoming_msg.msg_id != outgoing_msg.msg_id){
+		ERR("invalid message id for LISTEN response");
+		goto FAIL;
+	}
+	if(incoming_msg.retval == -1){
+		ERR("SOCKET LISTEN failed");
+		goto FAIL;
+	}
+
+	// if the response message is valid
+	// i. update the socket state, socktype
+	// ii. create/get backlog context 
+	nt_sock_ctx->socket->state = LISTENING;
+	nt_sock_ctx->socket->socktype = NT_SOCK_LISTENER;
+
+	DEBUG("create/get backlog context ");
+
+	DEBUG("nts_listen() pass");
 	return 0;
+
+	FAIL:
+	if(nt_sock_ctx->nts_shm_ctx) {
+        if (nt_sock_ctx->nts_shm_ctx->shm_stat == NTM_SHM_READY) {
+            nts_shm_close(nt_sock_ctx->nts_shm_ctx);
+        }   
+        nts_shm_destroy(nt_sock_ctx->nts_shm_ctx);
+    }
+	return -1;
 }
 
 int nts_bind(int sockid, const struct sockaddr *addr, socklen_t addrlen){
 	DEBUG("nts_bind() start...");
 	assert(nts_ctx);
 
+	/**
+	 * 1. pop `nt_sock_context` from `HashMap nt_sock_map` using sockid.
+	 * 2. create nts_socket-coresponding nts_shm_ring from nt_sock_context to receive response message from ntb monitor
+	 * 3. pack the `NTM_MSG_BIND` ntm_msg and `ntm_shm_send()` the message into ntm
+	 * 4. poll or wait for the response message from ntm
+	 * 5. parse the response nts_msg with nt_socket_id, if success, 
+	 */
+	nt_sock_context_t nt_sock_ctx = (nt_sock_context_t) Get(nts_ctx->nt_sock_map, sockid);
+	if(!nt_sock_ctx)
+		goto FAIL;
+
+	// create nts_socket-coresponding nts_shm_ring
+	int retval;
+	nts_shm_accept(nt_sock_ctx->nts_shm_ctx, nt_sock_ctx->nts_shmaddr, nt_sock_ctx->nts_shmlen);
+	
+	// pack the `NTM_MSG_BIND` ntm_msg and `ntm_shm_send()` the message into ntm
+	struct sockaddr_in *sock = (struct sockaddr_in*)&addr;
+	ntm_msg outgoing_msg;
+	outgoing_msg.msg_id = 2;
+	outgoing_msg.msg_type = NTM_MSG_BIND;
+	outgoing_msg.sockid = sockid;
+	outgoing_msg.port = ntohs(sock->sin_port);
+	struct in_addr in = sock->sin_addr;
+	inet_ntop(AF_INET, &in, outgoing_msg.address, sizeof(outgoing_msg.address));
+	retval = ntm_shm_send(nts_ctx->ntm_ctx->shm_send_ctx, &outgoing_msg);
+	if(retval){
+		ERR("ntm_shm_send NTM_MSG_BIND message failed");
+		goto FAIL;
+	}
+
+	//poll or wait for the response message from ntm
+	nts_msg incoming_msg;
+	retval = nts_shm_recv(nt_sock_ctx->nts_shm_ctx, &incoming_msg);
+	while(retval){
+		sched_yield();
+		retval = nts_shm_recv(nt_sock_ctx->nts_shm_ctx, &incoming_msg);
+	}
+
+	// parse the response nts_msg with nt_socket_id
+	if(incoming_msg.msg_id != outgoing_msg.msg_id){
+		ERR("invalid message id for BIND response");
+		goto FAIL;
+	}
+	if(incoming_msg.retval == -1){
+		ERR("SOCKET BIND failed");
+		goto FAIL;
+	}
+	nt_sock_ctx->socket->state = BOUND;
 	DEBUG("nts_bind() pass");
 	return 0;
+
+	FAIL:
+	if(nt_sock_ctx->nts_shm_ctx) {
+        if (nt_sock_ctx->nts_shm_ctx->shm_stat == NTM_SHM_READY) {
+            nts_shm_close(nt_sock_ctx->nts_shm_ctx);
+        }   
+        nts_shm_destroy(nt_sock_ctx->nts_shm_ctx);
+    }
+	return -1;
 }
 
 int nts_accept(int sockid, const struct sockaddr *addr, socklen_t *addrlen) {
