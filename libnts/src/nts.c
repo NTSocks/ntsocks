@@ -141,6 +141,10 @@ void nts_context_destroy() {
             nts_shm_destroy(nt_sock_ctx->nts_shm_ctx);
         }
 
+        if (nt_sock_ctx->socket) {
+            free(nt_sock_ctx->socket);
+        }
+
         Remove(nts_ctx->nt_sock_map, &nt_sock_ctx->socket->sockid);
 
         DEBUG("free the nt_socket and nts_ntm_context");

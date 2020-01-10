@@ -107,7 +107,7 @@ int nts_ioctl(int fd, unsigned long request, ...) {
 
 int nts_socket(int domain, int type, int protocol) {
 
-	DEBUG("entering nts_socket...");
+	DEBUG("entering nts_socket()...");
 	assert(nts_ctx);
 
 	// ntm_send_thread(NULL);
@@ -183,11 +183,14 @@ int nts_socket(int domain, int type, int protocol) {
 
 	// push `nt_sock_context` into `HashMap nt_sock_map`, then return sockid
 	Put(nts_ctx->nt_sock_map, &socket->sockid, nt_sock_ctx);
+	DEBUG("nts_socket() pass");
 
 	return socket->sockid;
 
 	FAIL: 
-
+	if(socket) {
+		free(socket);
+	}
 
 	if(nt_sock_ctx->nts_shm_ctx) {
 		if (nt_sock_ctx->nts_shm_ctx->shm_stat == NTM_SHM_READY) {
@@ -206,41 +209,68 @@ int nts_socket(int domain, int type, int protocol) {
 
 int nts_setsockopt(int s, int level, int optname, const void *optval,
     socklen_t optlen) {
+	DEBUG("nts_setsockopt() start...");
+	assert(nts_ctx);
 
+	DEBUG("nts_setsockopt() pass");
 	return 0;
 }
 
 int nts_getsockopt(int s, int level, int optname, void *optval,
     socklen_t *optlen) {
+	DEBUG("nts_getsockopt() start...");
+	assert(nts_ctx);
 
+	DEBUG("nts_getsockopt() pass");
 	return 0;
 }
 
 int nts_listen(int s, int backlog) {
+	DEBUG("nts_listen() start...");
+	assert(nts_ctx);
+
+	DEBUG("nts_listen() pass");
+
 	return 0;
 }
 
 int nts_bind(int s, const struct sockaddr *addr, socklen_t addrlen){
+	DEBUG("nts_bind() start...");
+	assert(nts_ctx);
+
+	DEBUG("nts_bind() pass");
 	return 0;
 }
 
 int nts_accept(int s, const struct sockaddr *addr, socklen_t *addrlen) {
+	DEBUG("nts_accept start...");
+	assert(nts_ctx);
 
+	DEBUG("nts_accept pass");
 	return 0;
 }
 
 int nts_connect(int s, const struct sockaddr *name, socklen_t namelen) {
+	DEBUG("nts_connect start...");
+	assert(nts_ctx);
 
+	DEBUG("nts_connect pass");
 	return 0;
 }
 
 int nts_close(int fd) {
+	DEBUG("nts_close start...");
+	assert(nts_ctx);
 
+	DEBUG("nts_close pass");
 	return 0;
 }
 
 int nts_shutdown(int s, int how) {
+	DEBUG("nts_shutdown start...");
+	assert(nts_ctx);
 
+	DEBUG("nts_shutdown pass");
 	return 0;
 }
 
@@ -261,60 +291,80 @@ int nts_getsockname(int s, struct sockaddr *name,
 
 
 ssize_t nts_read(int d, void *buf, size_t nbytes) {
+	DEBUG("nts_read start...");
 
+	DEBUG("nts_read pass");
 	return 0;
 }
 
 ssize_t nts_readv(int fd, const struct iovec *iov, int iovcnt) {
+	DEBUG("nts_readv start...");
 
+	DEBUG("nts_readv pass");
 	return 0;
 }
 
 
 
 ssize_t nts_write(int fd, const void *buf, size_t nbytes) {
+	DEBUG("nts_write start...");
 
+	DEBUG("nts_write pass");
 	return 0;
 }
 
 ssize_t nts_writev(int fd, const struct iovec *iov, int iovcnt) {
+	DEBUG("nts_writev start...");
 
+	DEBUG("nts_writev pass");
 	return 0;
 }
 
 
 
 ssize_t nts_send(int s, const void *buf, size_t len, int flags) {
+	DEBUG("nts_send start...");
 
+	DEBUG("nts_send pass");
 	return 0;
 }
 
 ssize_t nts_sendto(int s, const void *buf, size_t len, int flags,
     const struct sockaddr *to, socklen_t tolen) {
+	DEBUG("nts_sendto start...");
 
+	DEBUG("nts_sendto pass");
 	return 0;
 }
 
 ssize_t nts_sendmsg(int s, const struct msghdr *msg, int flags) {
+	DEBUG("nts_sendmsg start...");
 
+	DEBUG("nts_sendmsg pass");
 	return 0;
 }
 
 
 
 ssize_t nts_recv(int s, void *buf, size_t len, int flags) {
+	DEBUG("nts_recv start...");
 
+	DEBUG("nts_recv pass");
 	return 0;
 }
 
 ssize_t nts_recvfrom(int s, void *buf, size_t len, int flags,
     struct sockaddr *from, socklen_t *fromlen) {
+	DEBUG("nts_recvfrom start...");
 
+	DEBUG("nts_recvfrom pass");
 	return 0;
 }
 
 ssize_t nts_recvmsg(int s, struct msghdr *msg, int flags) {
+	DEBUG("nts_recvmsg start...");
 
+	DEBUG("nts_recvmsg pass");
 	return 0;
 }
 
