@@ -66,101 +66,15 @@ void * ntp_send_thread(void *arg) {
 
 
 int nts_init(const char *config_file) {
+	assert(config_file);
 
-	nts_ntm_context_t ntm_ctx;
-	nts_ntp_context_t ntp_ctx;
-	int ret;
-
-	/**
-	 * read conf file and init libnts params
-	 */
-	nts_ctx = (nts_context_t) calloc(1, sizeof(struct nts_context));
-	if(!nts_ctx) {
-		perror("malloc");
-		ERR("Failed to allocate nts_context.");
-		return -1;
-	}
-	nts_ctx->ntm_ctx = (nts_ntm_context_t) calloc(1, sizeof(struct nts_ntm_context));
-	if(!nts_ctx->ntm_ctx) {
-		perror("malloc");
-		ERR("Failed to allocate nts_ntm_context.");
-		return -1;
-	}
-	ntm_ctx = nts_ctx->ntm_ctx;
-
-	nts_ctx->ntp_ctx = (nts_ntp_context_t) calloc(1, sizeof(struct nts_ntp_context));
-	if(!nts_ctx->ntp_ctx) {
-		perror("malloc");
-		ERR("Failed to allocate nts_ntp_context.");
-		return -1;
-	}
-	ntp_ctx = nts_ctx->ntp_ctx;
-
-
-
-
-	/**
-	 * init the ntm shm ringbuffer to send the requests to ntb monitor
-	 */
-	nts_ctx->ntm_ctx->shm_send_ctx = ntm_shm();
-	if(!nts_ctx->ntm_ctx->shm_send_ctx) {
-		ERR("Failed to allocate ntm_shm_context.");
-		return -1;
-	}
-
-	ret = ntm_shm_connect(nts_ctx->ntm_ctx->shm_send_ctx,
-			NTM_SHMRING_NAME, sizeof(NTM_SHMRING_NAME));
-	if(ret) {
-		ERR("ntm_shm_accept failed.");
-		return -1;
-	}
-	pthread_create(&ntm_ctx->shm_send_thr, NULL, ntm_send_thread, NULL);
-
-
-	/**
-	 * init the nts shm ringbuffer to receive the responses from ntb monitor
-	 */
-
-
-
-	/**
-	 * init the ntp shm ringbuffer to send the data to ntb proxy
-	 */
-
-
-	/**
-	 * init the nts shm ringbuffer to receive the response data from ntb proxy
-	 */
-
-
+	nts_context_init(config_file);
 
 	return 0;
 }
 
 void nts_destroy() {
-	assert(nts_ctx);
-
-	/**
-	 * Destroy the ntm shmring resources
-	 */
-	ntm_shm_context_t shm_send_ctx;
-	shm_send_ctx = nts_ctx->ntm_ctx->shm_send_ctx;
-	if (shm_send_ctx && shm_send_ctx->shm_stat == NTM_SHM_READY) {
-		ntm_shm_nts_close(shm_send_ctx);
-		ntm_shm_destroy(shm_send_ctx);
-	}
-
-	nts_shm_context_t shm_recv_ctx;
-	shm_recv_ctx = nts_ctx->ntm_ctx->shm_recv_ctx;
-	if (shm_recv_ctx && shm_recv_ctx->shm_stat == NTS_SHM_READY) {
-		nts_shm_close(shm_recv_ctx);
-		nts_shm_destroy(shm_recv_ctx);
-	}
-
-	free(nts_ctx->ntp_ctx);
-	free(nts_ctx->ntm_ctx);
-
-	free(nts_ctx);
+	nts_context_destroy();
 }
 
 int nts_setconf(struct nts_config *conf) {
@@ -193,13 +107,9 @@ int nts_ioctl(int fd, unsigned long request, ...) {
 
 int nts_socket(int domain, int type, int protocol) {
 
-	/**
-	 * test nts_init and nts_destroy
-	 */
 	DEBUG("entering nts_socket...");
-	nts_init(NTS_CONFIG_FILE);
-	getchar();
-	nts_destroy();
+
+	ntm_send_thread(NULL);
 
 	return 0;
 }

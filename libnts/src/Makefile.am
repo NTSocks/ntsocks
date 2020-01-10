@@ -14,7 +14,7 @@ UTILS_DIR = utils
 
 # Sources for libTest
 lib_libnts_la_SOURCES = socket.c libnts.c 		        \
-		nts_config.c 									\
+		nts_config.c $(INC_DIR)/nt_errno.h				\
 		nts_api.c $(INC_DIR)/nts_api.h					\
 		nts.c $(INC_DIR)/nts.h 							\
 		debug.c $(INC_DIR)/debug.h						\
