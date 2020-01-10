@@ -20,6 +20,7 @@
 #include "socket.h"
 #include "nt_port.h"
 #include "hash_map.h"
+#include "nt_backlog.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -55,6 +56,13 @@ typedef struct nt_sock_context {
 	nts_shm_context_t nts_shm_ctx;
 	int ntm_msg_id; 		// act as the global ntm_msg_id
 
+	union
+	{
+		nt_backlog_context_t backlog_ctx;	// for listener socket
+		nt_socket_t listener_socket;		// for client socket 
+	};
+
+	
 
 	/**
 	 * Data Plane:
