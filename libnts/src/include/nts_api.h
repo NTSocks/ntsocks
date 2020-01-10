@@ -17,6 +17,7 @@
 #include <netinet/in.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <arpa/inet.h>
 
 #include "nts_event.h"
 #include "nts_errno.h"

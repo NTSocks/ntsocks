@@ -40,6 +40,41 @@ static int trim(char s[])
     return n;
 }
 
+static void parse_nt_host(char * nt_host){
+    char * pch;
+    nt_host_entry_t addr_item;
+    
+    TAILQ_INIT(&nt_host_head);
+    pch = strtok(nt_host, " ,");
+    while(pch != NULL){
+        addr_item = (nt_host_entry_t) calloc(1, sizeof(struct nt_host_entry));
+        if(!addr_item){
+            DEBUG("allocate memeory for nt_host_entry failed");
+        }
+        addr_item->ipaddr = calloc(strlen(pch), sizeof(char));
+        memcpy(addr_item->ipaddr, pch, strlen(pch));
+        TAILQ_INSERT_TAIL(&nt_host_head, addr_item, entries);
+        pch = strtok(NULL, " ,");
+    }
+
+    free(addr_item);
+}
+
+int ip_is_vaild(char * addr){
+    nt_host_entry_t item;
+
+    item = (nt_host_entry_t) calloc(1, sizeof(struct nt_host_entry));
+    TAILQ_FOREACH(item, &nt_host_head, entries){
+        DEBUG("ip addr item is: %s", item->ipaddr);
+        if(strcmp(addr, item->ipaddr) != 0){
+            DEBUG("ip is not vaild.");
+            return -1;
+        }
+    }
+    free(item);
+    return 0;
+}
+
 int load_conf(const char *fname)
 {
     DEBUG("load ntb libnts configuration from conf file (%s)", fname);
@@ -54,6 +89,7 @@ int load_conf(const char *fname)
     int text_comment = 0;
     while (fgets(buf, MAX_BUF_LEN, file) != NULL) {
         trim(buf);
+        DEBUG("%s", buf);
         // to skip text comment with flags /* ... */
         if (buf[0] != '#' && (buf[0] != '/' || buf[1] != '/')) {
             if (strstr(buf, "/*") != NULL) {
@@ -100,15 +136,16 @@ int load_conf(const char *fname)
         }
         if (strcmp(_paramk, "") == 0 || strcmp(_paramv, "") == 0)
             continue;
-        // DEBUG("ntb monitor configuration %s=%s\n", _paramk, _paramv);
+        DEBUG("ntb monitor configuration %s=%s\n", _paramk, _paramv);
         if (strcmp(_paramk, "local_has_ntbdev") == 0) {
             NTS_CONFIG.local_has_ntbdev = atoi(_paramv);
         } else if (strcmp(_paramk, "local_nt_host") == 0) {
             NTS_CONFIG.local_nt_host = calloc(_vlen, sizeof(char));
             memcpy(NTS_CONFIG.local_nt_host, _paramv, _vlen);
-        } else if(strcmp(_paramk, "nt_host")){
+        } else if(strcmp(_paramk, "nt_host") == 0){
             NTS_CONFIG.nt_host = calloc(_vlen, sizeof(char));
             memcpy(NTS_CONFIG.nt_host, _paramv, _vlen);
+            parse_nt_host(_paramv);
         } else if(strcmp(_paramk, "tcp_timewait") == 0){
             NTS_CONFIG.tcp_timewait = atoi(_paramv);
         } else if(strcmp(_paramk, "tcp_timeout") == 0){
@@ -121,7 +158,6 @@ int load_conf(const char *fname)
     fclose(file);
     return 0;
 }
-
 
 void print_conf()
 {

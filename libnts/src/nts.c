@@ -32,8 +32,11 @@ int nts_context_init(const char *config_file) {
     /**
      * read nts-related config file and init libnts params
      */
+    print_conf();
     DEBUG("load the libnts config file");
     load_conf(config_file);
+    DEBUG("the libnts config file loaded");
+    print_conf();
 
     int ret;
     nts_ntm_context_t ntm_ctx;

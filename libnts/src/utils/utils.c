@@ -49,3 +49,4 @@ char * generate_uuid() {
 
     return str;
 }
+

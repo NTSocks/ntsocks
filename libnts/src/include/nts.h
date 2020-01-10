@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
+#include <sys/queue.h>
 
 #include "nts_shm.h"
 #include "ntm_shm.h"
@@ -37,6 +38,15 @@ struct nts_config {
 	char *local_nt_host;
 	char *nt_host;
 };
+
+typedef struct nt_host_entry {
+	char * ipaddr;
+	TAILQ_ENTRY(nt_host_entry) entries;
+} nt_host_entry;
+
+typedef struct nt_host_entry* nt_host_entry_t;
+TAILQ_HEAD(, nt_host_entry) nt_host_head;
+
 
 /*----------------------------------------------------------------------------*/
 /**

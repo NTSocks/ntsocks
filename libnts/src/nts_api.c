@@ -319,10 +319,12 @@ int nts_bind(int sockid, const struct sockaddr *addr, socklen_t addrlen){
 
 	/**
 	 * 1. pop `nt_sock_context` from `HashMap nt_sock_map` using sockid.
-	 * 3. pack the `NTM_MSG_BIND` ntm_msg and `ntm_shm_send()` the message into ntm
-	 * 4. poll or wait for the response message from ntm
-	 * 5. parse the response nts_msg with nt_socket_id, if success, 
+	 * 2. pack the `NTM_MSG_BIND` ntm_msg and `ntm_shm_send()` the message into ntm
+	 * 3. poll or wait for the response message from ntm
+	 * 4. parse the response nts_msg with nt_socket_id, if success, 
 	 */
+	int retval;
+
 	nt_sock_context_t nt_sock_ctx = (nt_sock_context_t) Get(nts_ctx->nt_sock_map, &sockid);
 	if(!nt_sock_ctx)
 		goto FAIL;
@@ -332,12 +334,6 @@ int nts_bind(int sockid, const struct sockaddr *addr, socklen_t addrlen){
 		ERR("non-existing socket [sockid: %d], or the socket state is not `CLOSED`. ", sockid);
 		goto FAIL;
 	}
-
-	/**
-	 * TODO: check whether the IP address is valid or not
-	 */
-
-	int retval;
 	
 	// pack the `NTM_MSG_BIND` ntm_msg and `ntm_shm_send()` the message into ntm
 	struct sockaddr_in *sock = (struct sockaddr_in*)&addr;
@@ -347,7 +343,15 @@ int nts_bind(int sockid, const struct sockaddr *addr, socklen_t addrlen){
 	outgoing_msg.sockid = sockid;
 	outgoing_msg.port = ntohs(sock->sin_port);
 	struct in_addr in = sock->sin_addr;
+	outgoing_msg.addrlen = strlen(outgoing_msg.address);
 	inet_ntop(AF_INET, &in, outgoing_msg.address, sizeof(outgoing_msg.address));
+
+	retval = ip_is_vaild(outgoing_msg.address);
+	if(retval){
+		ERR("the ip addr is not vaild. the current ip is %s, while the vaild ip is %s", outgoing_msg.address, NTS_CONFIG.nt_host);
+		goto FAIL;
+	}
+
 	retval = ntm_shm_send(nts_ctx->ntm_ctx->shm_send_ctx, &outgoing_msg);
 	if(retval){
 		ERR("ntm_shm_send NTM_MSG_BIND message failed");
@@ -374,6 +378,7 @@ int nts_bind(int sockid, const struct sockaddr *addr, socklen_t addrlen){
 
 	// if the response message is valid, update the socket state
 	nt_sock_ctx->socket->state = BOUND;
+	nt_sock_ctx->ntm_msg_id++;
 	DEBUG("nts_bind() pass");
 	return 0;
 
@@ -514,9 +519,102 @@ int nts_accept(int sockid, const struct sockaddr *addr, socklen_t *addrlen) {
 int nts_connect(int sockid, const struct sockaddr *name, socklen_t namelen) {
 	DEBUG("nts_connect start...");
 	assert(nts_ctx);
+	assert(sockid > 0);
+	assert(namelen > 0);
+	assert(name);
 
+	/**
+	 * 1. get `nt_sock_context` from `HashMap nt_sock_map` via sockid. 
+	 * 2. parse the sockaddr to get ip and port
+	 * 3. check whether the ip addr is valid or not
+	 * 4. pack the `NTM_MSG_CONNECT` ntm_msg and `ntm_shm_send()` the message into ntm
+	 * 5. poll or wait for the response message from ntm
+	 * 6. parse the response nts_msg with nt_socket_id, if success, change socket state and socket type
+	 * 7. check incoming_msg errno and add errmsg in nts_errno.h
+	 */
+
+	int retval;
+
+	// get `nt_sock_context` from `HashMap nt_sock_map` via sockid. 
+	nt_sock_context_t nt_sock_ctx = (nt_sock_context_t) Get(nts_ctx->nt_sock_map, &sockid);
+	if(!nt_sock_ctx)
+		goto FAIL;
+
+	// check whether the socket state is valid or not
+	if(!nt_sock_ctx->socket || nt_sock_ctx->socket->state != CLOSED || nt_sock_ctx->socket->state != BOUND) {
+		ERR("non-existing socket [sockid: %d], or the socket state is not `CLOSED`. ", sockid);
+		goto FAIL;
+	}
+
+	// parse the sockaddr to get ip and port
+	struct sockaddr_in *sock = (struct sockaddr_in*)&name;
+	ntm_msg outgoing_msg;
+	outgoing_msg.msg_id = nt_sock_ctx->ntm_msg_id;
+	outgoing_msg.msg_type = NTM_MSG_CONNECT;
+	outgoing_msg.sockid = sockid;
+	outgoing_msg.port = ntohs(sock->sin_port);
+	struct in_addr in = sock->sin_addr;
+	outgoing_msg.addrlen = strlen(outgoing_msg.address);
+	inet_ntop(AF_INET, &in, outgoing_msg.address, sizeof(outgoing_msg.address));
+
+	// check whether the ip addr is valid or not
+	retval = ip_is_vaild(outgoing_msg.address);
+	if(retval){
+		ERR("the ip addr is not vaild. the current ip is %s, while the vaild ip is %s", outgoing_msg.address, NTS_CONFIG.nt_host);
+		goto FAIL;
+	}
+
+	retval = ntm_shm_send(nts_ctx->ntm_ctx->shm_send_ctx, &outgoing_msg);
+	if(retval){
+		ERR("ntm_shm_send NTM_MSG_CONNECT message failed");
+		goto FAIL;
+	}
+
+	//poll or wait for the response message from ntm
+	nts_msg incoming_msg;
+	retval = nts_shm_recv(nt_sock_ctx->nts_shm_ctx, &incoming_msg);
+	while(retval){
+		sched_yield();
+		retval = nts_shm_recv(nt_sock_ctx->nts_shm_ctx, &incoming_msg);
+	}
+
+	// parse the response nts_msg with nt_socket_id
+	if(incoming_msg.msg_id != outgoing_msg.msg_id){
+		ERR("invalid message id for CONNECT response");
+		goto FAIL;
+	}
+	if(incoming_msg.retval == -1){
+		ERR("SOCKET CONNECT failed");
+		goto FAIL;
+	}
+	if(incoming_msg.msg_type != NTS_MSG_DISPATCHED){
+		ERR("invalid message type for CONNECT response. the current msg type is %d, expect msg type is %d", incoming_msg.msg_type, NTS_MSG_DISPATCHED);
+		goto FAIL;
+	}
+	DEBUG("socket[%d] receive NTS_MSG_DISPATCHED message, wait for NTS_MSG_ESTABLISH message.", sockid);
+
+	retval = nts_shm_recv(nt_sock_ctx->nts_shm_ctx, &incoming_msg);
+	while(retval){
+		sched_yield();
+		retval = nts_shm_recv(nt_sock_ctx->nts_shm_ctx, &incoming_msg);
+	}
+
+	// parse the response nts_msg with nt_socket_id
+	if(incoming_msg.retval == -1){
+		ERR("SOCKET CONNECT failed");
+		goto FAIL;
+	}
+	if(incoming_msg.msg_type != NTS_MSG_ESTABLISH){
+		ERR("invalid message type for CONNECT response. the current msg type is %d, expect msg type is %d", incoming_msg.msg_type, NTS_MSG_ESTABLISH);
+		goto FAIL;
+	}
+
+	nt_sock_ctx->socket->state = ESTABLISHED;
 	DEBUG("nts_connect pass");
 	return 0;
+
+	FAIL:
+	return -1;
 }
 
 int nts_close(int fd) {
