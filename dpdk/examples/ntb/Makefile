@@ -6,8 +6,8 @@ APP = ntb_fwd
 
 # all source are stored in SRCS-y
 SRCS-y := ntb_fwd.c
-# SRCS-y += ntb_custom.c
-# SRCS-y += ntb_trans_protocols.c
+SRCS-y += ntb_custom.c
+SRCS-y += ntb_trans_protocols.c
 
 # Build using pkg-config variables if possible
 $(shell pkg-config --exists libdpdk)

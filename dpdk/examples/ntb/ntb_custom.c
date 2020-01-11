@@ -38,17 +38,6 @@
 #include "ntb_trans_protocols.h"
 #include "ntb_custom.h"
 
-int ntb_app_mempool_get(struct rte_mempool *mp, void **obj_p, struct ntb_uuid *app_uuid)
-{
-	if (rte_mempool_get(mp, obj_p) < 0)
-	{
-		return -1;
-	}
-	struct ntb_mempool_node_header header = {app_uuid->ntb_port, 0, mp->elt_size};
-	rte_memcpy(*obj_p, &header, 6);
-	return 0;
-}
-
 int ntb_set_mw_trans(struct rte_rawdev *dev, const char *mw_name, int mw_idx, uint64_t mw_size)
 {
 	struct ntb_hw *hw = dev->dev_private;
@@ -71,6 +60,7 @@ int ntb_set_mw_trans(struct rte_rawdev *dev, const char *mw_name, int mw_idx, ui
 		NTB_LOG(ERR, "Cannot allocate aligned memzone.");
 		return -EIO;
 	}
+
 	hw->mz[mw_idx] = mz;
 	ret = (*hw->ntb_ops->mw_set_trans)(dev, mw_idx, mz->iova, mw_size);
 	if (ret)
@@ -78,9 +68,29 @@ int ntb_set_mw_trans(struct rte_rawdev *dev, const char *mw_name, int mw_idx, ui
 		NTB_LOG(ERR, "Cannot set mw translation.");
 		return ret;
 	}
+
 	return ret;
 }
 
+// int
+// ntb_set_mw_trans_custom(struct rte_rawdev *dev,struct rte_memzone *mz,int mw_idx)
+// {
+// 	struct ntb_hw *hw = dev->dev_private;
+// 	int ret = 0;
+// 	if (hw->ntb_ops->mw_set_trans == NULL) {
+// 		NTB_LOG(ERR, "Not supported to set mw.");
+// 		return -ENOTSUP;
+// 	}
+
+// 	hw->mz[mw_idx] = mz;
+// 	ret = (*hw->ntb_ops->mw_set_trans)(dev, mw_idx, mz->iova, hw->mw_size[mw_idx]);
+// 	if (ret) {
+// 		NTB_LOG(ERR, "Cannot set mw translation.");
+// 		return ret;
+// 	}
+
+// 	return ret;
+// }
 int ntb_mss_add_header(struct ntb_custom_message *mss, uint16_t process_id, int payload_len, bool eon)
 {
 	mss->header.process_id = process_id;
@@ -102,6 +112,7 @@ int ntb_mss_enqueue(struct ntb_custom_sublink *sublink, struct ntb_custom_messag
 	//looping send
 	while (next_serial == *sublink->local_cum_ptr)
 	{
+
 	}
 	if ((next_serial - *sublink->local_cum_ptr) % REV_MSS_COUNTER == 0)
 	{
@@ -138,7 +149,7 @@ int ntb_mss_dequeue(struct ntb_custom_sublink *sublink, struct ntb_buff *rev_buf
 	//rev_buff is NULL,return -1
 	if (rev_buff == NULL || rev_buff->buff == NULL)
 	{
-		NTB_LOG(ERR, "ntb socket rev_buff is NULL.");
+		NTB_LOG(ERR,"ntb socket rev_buff is NULL.");
 		return -1;
 	}
 	rte_memcpy(rev_buff->buff, mss->mss, mss->header.mss_len - NTB_HEADER_LEN);
@@ -148,54 +159,32 @@ int ntb_mss_dequeue(struct ntb_custom_sublink *sublink, struct ntb_buff *rev_buf
 	return 0;
 }
 
-// int ntb_send(struct ntb_custom_sublink *sublink, uint16_t process_id)
-// {
-// 	uint64_t data_len = sublink->process_map[process_id].send_buff->data_len;
-// 	uint64_t sent = 0;
-// 	struct ntb_custom_message *mss = malloc(sizeof(*mss));
-// 	while (data_len - sent > (MAX_NTB_MSS_LEN - NTB_HEADER_LEN))
-// 	{
-// 		rte_memcpy(mss->mss, sublink->process_map[process_id].send_buff->buff + sent, MAX_NTB_MSS_LEN - NTB_HEADER_LEN);
-// 		ntb_mss_add_header(mss, process_id, MAX_NTB_MSS_LEN - NTB_HEADER_LEN, false);
-// 		ntb_mss_enqueue(sublink, mss);
-// 		sent += MAX_NTB_MSS_LEN - NTB_HEADER_LEN;
-// 	}
-// 	rte_memcpy(mss->mss, sublink->process_map[process_id].send_buff->buff + sent, data_len - sent);
-// 	ntb_mss_add_header(mss, process_id, data_len - sent, true);
-// 	ntb_mss_enqueue(sublink, mss);
-// 	sent = data_len;
-// 	return 0;
-// }
-
-int ntb_send(struct ntb_custom_sublink *sublink, void *mp_node)
+int ntb_send(struct ntb_custom_sublink *sublink, uint16_t process_id)
 {
-	//(struct ntb_mempool_node_header *)mp_node;
-	void *mp_change = mp_node;
-	uint16_t ntb_port = *(uint16_t *)mp_change;
-	uint16_t data_len = *((uint16_t *)mp_change + 1) + MEM_NODE_HEADER_LEB;
-	uint64_t sent = MEM_NODE_HEADER_LEB;
+	uint64_t data_len = sublink->process_map[process_id].send_buff->data_len;
+	uint64_t sent = 0;
 	struct ntb_custom_message *mss = malloc(sizeof(*mss));
 	while (data_len - sent > (MAX_NTB_MSS_LEN - NTB_HEADER_LEN))
 	{
-		rte_memcpy(mss->mss, (uint8_t *)mp_node + sent, MAX_NTB_MSS_LEN - NTB_HEADER_LEN);
-		ntb_mss_add_header(mss, ntb_port, MAX_NTB_MSS_LEN - NTB_HEADER_LEN, false);
+		rte_memcpy(mss->mss, sublink->process_map[process_id].send_buff->buff + sent, MAX_NTB_MSS_LEN - NTB_HEADER_LEN);
+		ntb_mss_add_header(mss, process_id, MAX_NTB_MSS_LEN - NTB_HEADER_LEN, false);
 		ntb_mss_enqueue(sublink, mss);
 		sent += MAX_NTB_MSS_LEN - NTB_HEADER_LEN;
 	}
-	rte_memcpy(mss->mss, (uint8_t *)mp_node + sent, data_len - sent);
-	ntb_mss_add_header(mss, ntb_port, data_len - sent, true);
+	rte_memcpy(mss->mss, sublink->process_map[process_id].send_buff->buff + sent, data_len - sent);
+	ntb_mss_add_header(mss, process_id, data_len - sent, true);
 	ntb_mss_enqueue(sublink, mss);
 	sent = data_len;
 	return 0;
 }
 
-int ntb_receive(struct ntb_custom_sublink *sublink, struct rte_mempool *recevie_message_pool)
+int ntb_receive(struct ntb_custom_sublink *sublink,struct rte_mempool *recevie_message_pool)
 {
 	void *receive_buff = NULL;
 	//get receive node
 	while (rte_mempool_get(recevie_message_pool, &receive_buff) < 0)
 	{
-		NTB_LOG(ERR, "ntb_receive failed to get reveive node.");
+		NTB_LOG(ERR,"ntb_receive failed to get reveive node.");
 	}
 	struct ntb_ring *r = sublink->local_ring;
 	int received = 0;
@@ -218,13 +207,10 @@ int ntb_receive(struct ntb_custom_sublink *sublink, struct rte_mempool *recevie_
 		//if detected end of node sign,put into recv_ing
 		if (mss->header.mss_type &= 1 << 6)
 		{
-			char recv_temp[12] = "SEC_2_PRI_x";
-			recv_temp[10] = (char)(mss->header.process_id + 48);
-			const char *recv_que = recv_temp;
-			struct rte_ring *recv_ring = rte_ring_lookup(recv_que);
+			struct rte_ring *recv_ring = rte_ring_lookup("SEC_2_PRI");
 			while (rte_ring_enqueue(recv_ring, receive_buff) < 0)
 			{
-				NTB_LOG(ERR, "Failed to enqueue receive_buff to recv_ring.");
+				NTB_LOG(ERR,"Failed to enqueue receive_buff to recv_ring.");
 			}
 			break;
 		}
@@ -241,7 +227,7 @@ rte_ring_create_custom(uint8_t *ptr, uint64_t ring_size)
 	r->start_addr = ptr;
 	r->end_addr = r->start_addr + ring_size;
 	r->capacity = ring_size / MAX_NTB_MSS_LEN;
-	NTB_LOG(DEBUG, "ring_capacity == %ld.", r->capacity);
+	NTB_LOG(DEBUG,"ring_capacity == %ld.", r->capacity);
 	return r;
 }
 
@@ -271,7 +257,7 @@ struct ntb_custom_link *
 ntb_custom_start(uint16_t dev_id)
 {
 	struct rte_rawdev *dev;
-	NTB_LOG(DEBUG, "Start dev_id=%d.", dev_id);
+	NTB_LOG(DEBUG,"Start dev_id=%d.", dev_id);
 
 	dev = &rte_rawdevs[dev_id];
 
@@ -283,8 +269,8 @@ ntb_custom_start(uint16_t dev_id)
 
 	if (dev->started != 0)
 	{
-		NTB_LOG(ERR, "Device with dev_id=%d already started",
-				dev_id);
+		NTB_LOG(ERR,"Device with dev_id=%d already started",
+			   dev_id);
 		return 0;
 	}
 

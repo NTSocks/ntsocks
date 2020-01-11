@@ -156,10 +156,9 @@ qat_sym_build_request(void *in_op, uint8_t *out_msg,
 	uint32_t auth_len = 0, auth_ofs = 0;
 	uint32_t min_ofs = 0;
 	uint64_t src_buf_start = 0, dst_buf_start = 0;
-	uint64_t auth_data_end = 0;
+	uint64_t digest_start = 0;
 	uint8_t do_sgl = 0;
 	uint8_t in_place = 1;
-	int alignment_adjustment = 0;
 	struct rte_crypto_op *op = (struct rte_crypto_op *)in_op;
 	struct qat_sym_op_cookie *cookie =
 				(struct qat_sym_op_cookie *)op_cookie;
@@ -466,10 +465,6 @@ qat_sym_build_request(void *in_op, uint8_t *out_msg,
 								min_ofs);
 		}
 		dst_buf_start = src_buf_start;
-
-		/* remember any adjustment for later, note, can be +/- */
-		alignment_adjustment = src_buf_start -
-			rte_pktmbuf_iova_offset(op->sym->m_src, min_ofs);
 	}
 
 	if (do_cipher || do_aead) {
@@ -499,37 +494,33 @@ qat_sym_build_request(void *in_op, uint8_t *out_msg,
 		: (auth_param->auth_off + auth_param->auth_len);
 
 	if (do_auth && do_cipher) {
-		/* Handle digest-encrypted cases, i.e.
-		 * auth-gen-then-cipher-encrypt and
-		 * cipher-decrypt-then-auth-verify
-		 */
-		 /* First find the end of the data */
 		if (do_sgl) {
 			uint32_t remaining_off = auth_param->auth_off +
-				auth_param->auth_len + alignment_adjustment;
+				auth_param->auth_len;
 			struct rte_mbuf *sgl_buf =
 				(in_place ?
-					op->sym->m_src : op->sym->m_dst);
-
-			while (remaining_off >= rte_pktmbuf_data_len(sgl_buf)
-					&& sgl_buf->next != NULL) {
-				remaining_off -= rte_pktmbuf_data_len(sgl_buf);
+				op->sym->m_src : op->sym->m_dst);
+			while (remaining_off >= rte_pktmbuf_data_len(
+					sgl_buf)) {
+				remaining_off -= rte_pktmbuf_data_len(
+						sgl_buf);
 				sgl_buf = sgl_buf->next;
 			}
-
-			auth_data_end = (uint64_t)rte_pktmbuf_iova_offset(
+			digest_start = (uint64_t)rte_pktmbuf_iova_offset(
 				sgl_buf, remaining_off);
 		} else {
-			auth_data_end = (in_place ?
+			digest_start = (in_place ?
 				src_buf_start : dst_buf_start) +
 				auth_param->auth_off + auth_param->auth_len;
 		}
-		/* Then check if digest-encrypted conditions are met */
+		/* Handle cases of auth-gen-then-cipher and
+		 * cipher-decrypt-then-auth-verify with digest encrypted
+		 */
 		if ((auth_param->auth_off + auth_param->auth_len <
 					cipher_param->cipher_offset +
 					cipher_param->cipher_length) &&
 				(op->sym->auth.digest.phys_addr ==
-					auth_data_end)) {
+					digest_start)) {
 			/* Handle partial digest encryption */
 			if (cipher_param->cipher_offset +
 					cipher_param->cipher_length <

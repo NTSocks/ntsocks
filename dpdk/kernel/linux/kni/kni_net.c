@@ -438,7 +438,7 @@ kni_net_rx_lo_fifo(struct kni_dev *kni)
 		/* Copy mbufs */
 		for (i = 0; i < num; i++) {
 			kva = pa2kva(kni->pa[i]);
-			len = kva->data_len;
+			len = kva->pkt_len;
 			data_kva = kva2data_kva(kva);
 			kni->va[i] = pa2va(kni->pa[i], kva);
 

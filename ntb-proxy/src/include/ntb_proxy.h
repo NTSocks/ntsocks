@@ -11,9 +11,14 @@
 #ifndef NTB_PROXY_H_
 #define NTB_PROXY_H_
 
+struct ntp_config
+{
+    int sublink_number;
+    int sublink_data_ring_size;
+    int sublink_ctrl_ring_size;
+    int nts_buff_size;
+};
 
 // struct ntp_rs_ring ntp_ring_lookup(uint16_t src_port,uint16_t dst_port);
-
-
 
 #endif /* NTB_PROXY_H_ */

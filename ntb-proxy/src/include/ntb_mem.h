@@ -11,7 +11,9 @@
 #ifndef NTB_MEM_H_
 #define NTB_MEM_H_
 
-#include "ntm_shm.h"
+#include "ntm_ntp_shm.h"
+#include "ntp_ntm_shm.h"
+#include "ntp_nts_shm.h"
 #include "hash_map.h"
 
 #define DETECT_PKG 0
@@ -30,8 +32,11 @@
 #define MEM_NODE_HEADER_LEN 6
 
 #define READY_CONN 1
-#define CLOSE_SERVER 2
-#define CLOSE_CLIENT 3
+#define ACTIVE_CLOSE 2
+#define PASSIVE_CLOSE 3
+
+#define DATA_TYPE 1
+#define FIN_TYPE 2
 
 struct ntb_ring
 {
@@ -61,36 +66,29 @@ struct ntb_sublink
 	struct ntb_ring *remote_ring;
 };
 
-// typedef ntp_shm_context_t *ntp_rs_ring;
+typedef struct ntb_conn_context
+{
+	uint8_t state;
+	char *name;
+	ntp_shm_context_t send_ring;
+	ntp_shm_context_t recv_ring;
+} ntb_conn;
 
-typedef struct ntp_ring_list_node
+typedef struct ntp_send_list_node
 {
 	ntb_conn *conn;
-	ntp_ring_list_node *next_node;
+	struct ntp_send_list_node *next_node;
 } ntp_ring_list_node;
 
-typedef struct ntb_conn_context
-{
-	uint8_t state;
-	char name[14];
-	ntp_shm_context_t send_ring;
-	ntp_shm_context_t recv_ring;
-} ntb_conn;
-typedef struct ntb_conn_context
-{
-	uint8_t state;
-	char name[14];
-	ntp_shm_context_t send_ring;
-	ntp_shm_context_t recv_ring;
-} ntb_conn;
+
 
 struct ntb_link
 {
 	struct rte_rawdev *dev;
 	struct ntb_hw *hw;
 	HashMap map;
-	ntm_shm_context_t ntm_ntp;
-	ntm_shm_context_t ntp_ntm;
+	ntm_ntp_shm_context_t ntm_ntp;
+	ntp_ntm_shm_context_t ntp_ntm;
 	ntp_ring_list_node *ring_head;
 	ntp_ring_list_node *ring_tail;
 
@@ -120,12 +118,14 @@ struct ntb_ctrl_msg
 	char msg[NTB_CTRL_MSG_TL - NTB_HEADER_LEN];
 };
 
-int add_conn_to_ntlink(struct ntb_link *link, ntp_shm_context_t ring);
+int parser_conn_name(char *conn_name, uint16_t *src_port, uint16_t *dst_port);
 
-int ntb_send_data(struct ntb_sublink *sublink, void *mp_node, uint16_t src_port, uint16_t dst_port);
+int add_conn_to_ntlink(struct ntb_link *link, ntb_conn *conn);
 
-int ntb_receive(struct ntb_sublink *sublink, struct ntb_link *ntlink);
+int ntb_data_send(struct ntb_sublink *sublink, ntp_shm_context_t ring, struct ntb_link *ntlink);
+
+int ntb_data_receive(struct ntb_sublink *sublink, struct ntb_link *ntlink);
 
 struct ntb_link *ntb_start(uint16_t dev_id);
 
-#endif /* NTB_PROXY_H_ */
+#endif /* NTB_MEM_H_ */
