@@ -237,18 +237,12 @@ bool ntp_shmring_push(ntp_shmring_handle_t self, ntp_msg *element) {
 bool ntp_shmring_pop(ntp_shmring_handle_t self, ntp_msg *element) {
     assert(self);
 
+    uint64_t w_idx = nt_atomic_load64_explicit(&self->shmring->write_index, ATOMIC_MEMORY_ORDER_ACQUIRE);
+    uint64_t r_idx = nt_atomic_load64_explicit(&self->shmring->read_index, ATOMIC_MEMORY_ORDER_RELAXED);
 
-//   uint64_t r_idx = nt_atomic_load64_explicit(
-//           &self->shmring->read_index, ATOMIC_MEMORY_ORDER_CONSUME);
-//   uint64_t w_idx = nt_atomic_load64_explicit(
-//           &self->shmring->write_index, ATOMIC_MEMORY_ORDER_CONSUME);
-
-   uint64_t w_idx = nt_atomic_load64_explicit(&self->shmring->write_index, ATOMIC_MEMORY_ORDER_ACQUIRE);
-   uint64_t r_idx = nt_atomic_load64_explicit(&self->shmring->read_index, ATOMIC_MEMORY_ORDER_RELAXED);
-
-   /// Queue is empty (or was empty when we checked)
-   if (empty(w_idx, r_idx))
-       return -1;
+    /// Queue is empty (or was empty when we checked)
+    if (empty(w_idx, r_idx))
+        return false;
 
     ntp_msgcopy(&(self->shmring->buf[self->shmring->read_index]), element);
 
@@ -260,6 +254,33 @@ bool ntp_shmring_pop(ntp_shmring_handle_t self, ntp_msg *element) {
     return true;
 
 }
+
+/**
+ * front the top element
+ * @param self
+ * @param element
+ * @param len
+ * @return
+ */
+bool ntp_shmring_front(ntp_shmring_handle_t self, ntp_msg *element) {
+    assert(self);
+
+    uint64_t w_idx = nt_atomic_load64_explicit(&self->shmring->write_index, ATOMIC_MEMORY_ORDER_ACQUIRE);
+    uint64_t r_idx = nt_atomic_load64_explicit(&self->shmring->read_index, ATOMIC_MEMORY_ORDER_RELAXED);
+
+   /// Queue is empty (or was empty when we checked)
+   if (empty(w_idx, r_idx))
+       return false;
+
+    ntp_msgcopy(&(self->shmring->buf[self->shmring->read_index]), element);
+
+
+    DEBUG("front nts shmring successfully!");
+
+    return true;
+
+}
+
 
 /**
  * free nts shmring when nt-monitor process exit.

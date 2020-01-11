@@ -83,6 +83,16 @@ int ntp_shm_recv(ntp_shm_context_t shm_ctx, ntp_msg *buf) {
 	return ret ? 0 : -1;
 }
 
+int ntp_shm_front(ntp_shm_context_t shm_ctx, ntp_msg *buf) {
+	assert(shm_ctx);
+
+	bool ret;
+	ret = ntp_shmring_front(shm_ctx->ntsring_handle, buf);
+
+	DEBUG("ntp_shm_recv pass");
+	return ret ? 0 : -1;
+}
+
 //创建者销毁
 int ntp_shm_close(ntp_shm_context_t shm_ctx) {
 	assert(shm_ctx);

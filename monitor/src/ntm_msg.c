@@ -20,36 +20,48 @@ void ntm_msgcopy(ntm_msg *src_msg, ntm_msg *target_msg) {
 	target_msg->msg_id = src_msg->msg_id;
 	target_msg->msg_type = src_msg->msg_type;
 
-	if (target_msg->msg_type & NTM_MSG_NEW_SOCK) {
+	if(target_msg->sockid > 0) {
+		target_msg->sockid = src_msg->sockid;
+	}
+
+	if (target_msg->msg_type & NTM_MSG_INIT)
+	{
+		
+	}
+	else if (target_msg->msg_type & NTM_MSG_NEW_SOCK) {
 		target_msg->nts_shm_addrlen = src_msg->nts_shm_addrlen;
 		memcpy(target_msg->nts_shm_name, src_msg->nts_shm_name, src_msg->nts_shm_addrlen);
 		target_msg->domain = src_msg->domain;
 		target_msg->protocol = src_msg->protocol;
 		target_msg->sock_type = src_msg->sock_type;
 	}
-	else if (target_msg->msg_type & NTM_MSG_BIND) {
-		target_msg->sockid = src_msg->sockid;
+	else if (target_msg->msg_type & NTM_MSG_BIND) 
+	{
+
 	}
-	else if (target_msg->msg_type & NTM_MSG_LISTEN) {
-		target_msg->sockid = src_msg->sockid;
+	else if (target_msg->msg_type & NTM_MSG_LISTEN) 
+	{
 		target_msg->backlog = src_msg->backlog;
 	}
 	else if (target_msg->msg_type & NTM_MSG_ACCEPT)
 	{
-		target_msg->sockid = src_msg->sockid;
 		target_msg->req_client_sockaddr = src_msg->req_client_sockaddr;
+	}
+	else if (target_msg->msg_type & NTM_MSG_ACCEPT_ACK)
+	{
+		target_msg->nts_shm_addrlen = src_msg->nts_shm_addrlen;
+		memcpy(target_msg->nts_shm_name, src_msg->nts_shm_name, src_msg->nts_shm_addrlen);
 	}
 	else if (target_msg->msg_type & NTM_MSG_CONNECT)
 	{
-		target_msg->sockid = src_msg->sockid;
+		
 	}
 	else if (target_msg->msg_type & NTM_MSG_CLOSE)
 	{
-		target_msg->sockid = src_msg->sockid;
+
 	}
 	else if (target_msg->msg_type & NTM_MSG_SHUTDOWN )
 	{
-		target_msg->sockid = src_msg->sockid;
 		target_msg->howto = src_msg->howto;
 	}
 	else if (target_msg->msg_type & NTM_MSG_DISCONNECT)

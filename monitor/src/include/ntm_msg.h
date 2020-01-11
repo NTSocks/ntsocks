@@ -97,12 +97,14 @@ typedef enum {
     NTM_MSG_BIND = 1 << 2,
     NTM_MSG_LISTEN = 1 << 3,
     NTM_MSG_ACCEPT = 1 << 4,
-    NTM_MSG_CONNECT = 1 << 5,
-    NTM_MSG_ESTABLISH = 1 << 6,
-    NTM_MSG_CLOSE = 1 << 7,
-    NTM_MSG_DISCONNECT = 1 << 8, 
-    NTM_MSG_SHUTDOWN = 1 << 9,
-    NTM_MSG_ERR = 1 << 10
+    NTM_MSG_ACCEPT_ACK = 1 << 5,
+    NTM_MSG_CONNECT = 1 << 6,
+    NTM_MSG_ESTABLISH = 1 << 7,
+    NTM_MSG_CLOSE = 1 << 8,
+    NTM_MSG_FIN = 1 << 9,               // for passively close/FIN
+    NTM_MSG_SHUTDOWN = 1 << 10,
+    NTM_MSG_ERR = 1 << 11,
+    NTM_MSG_DISCONNECT = 1 << 12
 } ntm_msg_type;
 
 
@@ -147,6 +149,13 @@ typedef struct {
     // char address[16];
     // uint32_t addrlen;
     // uint64_t port;
+
+    /**
+     * For NTM_MSG_ACCEPT_ACK
+     */
+    // nt_sock_id sockid;
+    // int nts_shm_addrlen;
+    // char nts_shm_name[SHM_NAME_LEN];
 
 
     /**

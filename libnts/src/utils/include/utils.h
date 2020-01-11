@@ -18,6 +18,7 @@
 #include <time.h>
 #include <assert.h>
 #include <uuid/uuid.h>
+#include <netinet/in.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,6 +37,8 @@ extern "C" {
 char * createUUID();
 
 char * generate_uuid();
+
+int parse_sockaddr_port(struct sockaddr_in* saddr);
 
 #ifdef __cplusplus
 };

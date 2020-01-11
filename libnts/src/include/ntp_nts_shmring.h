@@ -40,6 +40,8 @@ bool ntp_shmring_push(ntp_shmring_handle_t self, ntp_msg *element);
 
 bool ntp_shmring_pop(ntp_shmring_handle_t self, ntp_msg *element);
 
+bool ntp_shmring_front(ntp_shmring_handle_t self, ntp_msg *element);
+
 void ntp_shmring_free(ntp_shmring_handle_t self, int unlink);
 
 #ifdef __cplusplus

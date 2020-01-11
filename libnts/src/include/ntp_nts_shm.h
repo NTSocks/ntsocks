@@ -65,6 +65,11 @@ extern "C"
 	int ntp_shm_recv(ntp_shm_context_t shm_ctx, ntp_msg *buf);
 
 	/**
+	 * used by libnts to front the top or next-pop ntp_msg
+	 */
+	int ntp_shm_front(ntp_shm_context_t shm_ctx, ntp_msg *buf);
+
+	/**
      * used by libnts app to close and unlink the shm ring buffer.
      */
 	int ntp_shm_close(ntp_shm_context_t shm_ctx);

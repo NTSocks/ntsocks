@@ -100,6 +100,7 @@ typedef struct {
     /**
      * For NTM_MSG_ACCEPT_ACK
      */
+    // nt_sock_id sockid;
     // int nts_shm_addrlen;
     // char nts_shm_name[SHM_NAME_LEN];
 

@@ -1445,6 +1445,12 @@ void nts_shm_handle_msg(ntm_manager_t ntm_mgr, ntm_msg msg)
 
 		// handle_msg_nts_accept(ntm_mgr, msg);
 	}
+	else if (msg.msg_type & NTM_MSG_ACCEPT_ACK)
+	{
+		DEBUG("handle NTM_MSG_ACCEPT");
+
+		// handle_msg_nts_accept(ntm_mgr, msg);
+	}
 	else if (msg.msg_type & NTM_MSG_CONNECT)
 	{
 		DEBUG("handle NTM_MSG_CONNECT");
