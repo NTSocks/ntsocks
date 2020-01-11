@@ -47,7 +47,10 @@ typedef enum {
     NT_INVALID_PORT = 62,
     NT_LISTENER_NOT_FOUND = 63,
     NT_LISTENER_NOT_READY = 64,
-    NT_BACKLOG_IS_FULL = 65
+    NT_BACKLOG_IS_FULL = 65,
+    NT_FIN = 66,
+    NT_FIN_ACK = 67
+
 
 } ntm_sock_msg_type;
 
@@ -173,8 +176,9 @@ typedef struct {
     // socket id
 
     /**
-     * For NTM_MSG_DISCONNECT
+     * For NTM_MSG_FIN
      */
+    // socket id
 
      /**
      * For NTM_MSG_SHUTDOWN

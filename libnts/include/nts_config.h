@@ -29,6 +29,8 @@ int load_conf(const char *fname);
 /* print setted configuration */
 void print_conf();
 
+/* free the calloced memory */
+void free_conf();
 
 
 #ifdef __cplusplus
