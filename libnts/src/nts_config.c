@@ -75,6 +75,7 @@ int ip_is_vaild(char * addr){
     return -1;
 }
 
+
 int load_conf(const char *fname)
 {
     DEBUG("load ntb libnts configuration from conf file (%s)", fname);
@@ -157,6 +158,18 @@ int load_conf(const char *fname)
     }
     fclose(file);
     return 0;
+}
+
+void free_conf(){
+    nt_host_entry_t item;
+    
+    item = (nt_host_entry_t) calloc(1, sizeof(struct nt_host_entry));
+    TAILQ_FOREACH(item, &nt_host_head, entries){
+        free(item->ipaddr);
+    }
+    free(item);
+    free(NTS_CONFIG.local_has_ntbdev);
+    free(NTS_CONFIG.nt_host);
 }
 
 void print_conf()

@@ -936,7 +936,7 @@ ssize_t nts_readv(int fd, const struct iovec *iov, int iovcnt) {
 
 
 
-ssize_t nts_write(int fd, const void *buf, size_t nbytes) {
+ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 	DEBUG("nts_write start...");
 	if (!buf || nbytes <= 0)
 	{
@@ -952,9 +952,58 @@ ssize_t nts_write(int fd, const void *buf, size_t nbytes) {
 	 * 4. return the write bytes.
 	 */
 
+	// get/pop `nt_sock_context` from `HashMap nt_sock_map` using sockid.
+	int retval;
+	int write_bytes;
+	nt_sock_context_t nt_sock_ctx;
+	nt_sock_ctx = (nt_sock_context_t) Get(nts_ctx->nt_sock_map, &sockid);
+	if(!nt_sock_ctx){
+		ERR("Non-existing sockid");
+		goto FAIL;
+	}
+	// check whether the socket state is `ESTABLISHED`.
+	if(nt_sock_ctx->socket->state != ESTABLISHED){
+		ERR("write() require `ESTABLISHED` socket first.");
+		goto FAIL;
+	}
+
+	// pack the data ntp_msg and push/write ntp_msg into ntp_send_buf
+	write_bytes = 0;
+	ntp_msg outgoing_msg;
+	outgoing_msg.msg_type = NTP_NTS_MSG_DATA;
+	outgoing_msg.msg_len = nbytes < NTP_PAYLOAD_MAX_SIZE ? nbytes : NTP_PAYLOAD_MAX_SIZE;
+	memcpy(outgoing_msg.msg, buf, outgoing_msg.msg_len);
+	retval = ntp_shm_send(nt_sock_ctx->ntp_send_ctx, &outgoing_msg);
+	while(retval==0){
+		write_bytes += outgoing_msg.msg_len;
+		if (nbytes - write_bytes < NTP_PAYLOAD_MAX_SIZE)
+			outgoing_msg.msg_len = nbytes - write_bytes;
+		else
+			outgoing_msg.msg_len = NTP_PAYLOAD_MAX_SIZE;
+		if(outgoing_msg.msg_len <= 0){
+			break;
+		}
+		memcpy(outgoing_msg.msg, buf+write_bytes, outgoing_msg.msg_len);
+		retval = ntp_shm_send(nt_sock_ctx->ntp_send_ctx, &outgoing_msg);
+	}
+	
+	if(retval == -1){
+		if(nt_sock_ctx->socket->state == CLOSED){
+			nt_sock_ctx->err_no = nts_ENETDOWN;
+		}else if(nt_sock_ctx->socket->state == ESTABLISHED){
+			/**
+			 * TODO: judge whether the ntb send buffer is full or not.
+			 */
+			nt_sock_ctx->err_no = nts_ENOSPC;
+		}
+		goto FAIL;
+	}
 
 	DEBUG("nts_write pass");
-	return 0;
+	return write_bytes;
+
+	FAIL:
+	return -1;
 }
 
 ssize_t nts_writev(int fd, const struct iovec *iov, int iovcnt) {
