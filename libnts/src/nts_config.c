@@ -67,6 +67,7 @@ int ip_is_vaild(char * addr){
     TAILQ_FOREACH(item, &nt_host_head, entries){
         DEBUG("ip addr item is: %s", item->ipaddr);
         if(strcmp(addr, item->ipaddr) == 0){
+            free(item);
             return 0;
         }
     }
