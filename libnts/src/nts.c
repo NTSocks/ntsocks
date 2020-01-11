@@ -175,3 +175,15 @@ int generate_nts_shmname(char * nts_shmaddr) {
     return 0;
 }
 
+int nt_sock_errno(int sockid){
+    assert(sockid > 0);
+
+    nt_sock_context_t nt_sock_ctx;
+	nt_sock_ctx = (nt_sock_context_t) Get(nts_ctx->nt_sock_map, &sockid);
+	if(!nt_sock_ctx){
+        ERR("Non-existing sockid or invaild sockid");
+        return -1;
+    }
+
+    return nt_sock_ctx->err_no;
+}

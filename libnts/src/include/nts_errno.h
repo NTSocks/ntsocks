@@ -129,4 +129,6 @@
 #define nts_ENOTRECOVERABLE 95        /* State not recoverable */
 #define nts_EOWNERDEAD      96        /* Previous owner died */
 
+
+const char * errmsg(int errno);
 #endif /* NTS_ERRNO_H_ */

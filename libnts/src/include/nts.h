@@ -85,7 +85,8 @@ typedef struct nt_sock_context {
 	ntp_shm_context_t ntp_send_ctx;			// send data message from libnts to ntp
 	ntp_shm_context_t ntp_recv_ctx;			// receive data message from ntp to libnts
 	int ntp_msg_id;							// act as the global ntp_msg_id
-
+	int err_no;								// error number when read/write data message from/to ntp
+	
 } nt_sock_context;
 
 typedef struct nt_sock_context* nt_sock_context_t;
@@ -184,6 +185,8 @@ void nts_context_destroy();
  * else return -1, failed
  */
 int generate_nts_shmname(char * nts_shmaddr);
+
+int nt_sock_errno(int sockid);
 
 
 #ifdef __cplusplus
