@@ -919,6 +919,7 @@ static inline void handle_msg_nts_bind(ntm_manager_t ntm_mgr, ntm_msg msg);
 static inline void handle_msg_nts_listen(ntm_manager_t ntm_mgr, ntm_msg msg);
 static inline void handle_msg_nts_accept(ntm_manager_t ntm_mgr, ntm_msg msg);
 static inline void handle_msg_nts_close(ntm_manager_t ntm_mgr, ntm_msg msg);
+static inline void handle_msg_nts_fin(ntm_manager_t ntm_mgr, ntm_msg msg);
 static inline void handle_msg_err(ntm_manager_t ntm_mgr, ntm_msg msg);
 
 inline void handle_msg_nts_new_socket(ntm_manager_t ntm_mgr, ntm_msg msg)
@@ -1378,6 +1379,13 @@ inline void handle_msg_nts_close(ntm_manager_t ntm_mgr, ntm_msg msg)
 	DEBUG("handle_msg_nts_close pass");
 }
 
+inline void handle_msg_nts_fin(ntm_manager_t ntm_mgr, ntm_msg msg) {
+	
+
+
+	DEBUG("handle_msg_nts_fin pass");
+}
+
 inline void handle_msg_err(ntm_manager_t ntm_mgr, ntm_msg msg)
 {
 
@@ -1466,9 +1474,11 @@ void nts_shm_handle_msg(ntm_manager_t ntm_mgr, ntm_msg msg)
 
 		handle_msg_nts_close(ntm_mgr, msg);
 	}
-	else if (msg.msg_type & NTM_MSG_DISCONNECT)
+	else if (msg.msg_type & NTM_MSG_FIN)
 	{
-		DEBUG("handle NTM_MSG_DISCONNECT");
+		DEBUG("handle NTM_MSG_FIN");
+
+		handle_msg_nts_fin(ntm_mgr, msg);
 	}
 	else
 	{

@@ -56,9 +56,9 @@ void ntm_msgcopy(ntm_msg *src_msg, ntm_msg *target_msg) {
 		target_msg->sockid = src_msg->sockid;
 		target_msg->howto = src_msg->howto;
 	}
-	else if (target_msg->msg_type & NTM_MSG_DISCONNECT)
+	else if (target_msg->msg_type & NTM_MSG_FIN)
 	{
-		
+		target_msg->sockid = src_msg->sockid;
 	}
 
 	if (src_msg->addrlen > 0) {

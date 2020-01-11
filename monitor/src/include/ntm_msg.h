@@ -47,7 +47,10 @@ typedef enum {
     NT_INVALID_PORT = 62,
     NT_LISTENER_NOT_FOUND = 63,
     NT_LISTENER_NOT_READY = 64,
-    NT_BACKLOG_IS_FULL = 65
+    NT_BACKLOG_IS_FULL = 65,
+    NT_FIN = 66,
+    NT_FIN_ACK = 67
+
 
 } ntm_sock_msg_type;
 
@@ -92,17 +95,19 @@ typedef enum {
 } shutdown_type;
 
 typedef enum {
-    NTM_MSG_INIT = 1 << 0,
-    NTM_MSG_NEW_SOCK = 1 << 1,
-    NTM_MSG_BIND = 1 << 2,
-    NTM_MSG_LISTEN = 1 << 3,
-    NTM_MSG_ACCEPT = 1 << 4,
-    NTM_MSG_CONNECT = 1 << 5,
-    NTM_MSG_ESTABLISH = 1 << 6,
-    NTM_MSG_CLOSE = 1 << 7,
-    NTM_MSG_DISCONNECT = 1 << 8, 
-    NTM_MSG_SHUTDOWN = 1 << 9,
-    NTM_MSG_ERR = 1 << 10
+    NTS_MSG_INIT = 1 << 0,
+    NTS_MSG_NEW_SOCK = 1 << 1,
+    NTS_MSG_BIND = 1 << 2,
+    NTS_MSG_LISTEN = 1 << 3,
+    NTS_MSG_ACCEPT = 1 << 4,
+    NTS_MSG_CONNECT = 1 << 5,
+    NTS_MSG_DISPATCHED = 1 << 6,
+    NTS_MSG_ESTABLISH = 1 << 7,
+    NTS_MSG_CLOSE = 1 << 8,
+    NTS_MSG_FIN = 1 << 9,               // for actively socket close/FIN
+    NTS_MSG_DISCONNECT = 1 << 11,
+    NTS_MSG_SHUTDOWN = 1 << 12,
+    NTS_MSG_ERR = 1 << 13
 } ntm_msg_type;
 
 
@@ -164,8 +169,9 @@ typedef struct {
     // socket id
 
     /**
-     * For NTM_MSG_DISCONNECT
+     * For NTM_MSG_FIN
      */
+    // socket id
 
      /**
      * For NTM_MSG_SHUTDOWN
