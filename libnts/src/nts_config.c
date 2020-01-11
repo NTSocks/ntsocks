@@ -62,17 +62,16 @@ static void parse_nt_host(char * nt_host){
 
 int ip_is_vaild(char * addr){
     nt_host_entry_t item;
-
+    
     item = (nt_host_entry_t) calloc(1, sizeof(struct nt_host_entry));
     TAILQ_FOREACH(item, &nt_host_head, entries){
         DEBUG("ip addr item is: %s", item->ipaddr);
-        if(strcmp(addr, item->ipaddr) != 0){
-            DEBUG("ip is not vaild.");
-            return -1;
+        if(strcmp(addr, item->ipaddr) == 0){
+            return 0;
         }
     }
     free(item);
-    return 0;
+    return -1;
 }
 
 int load_conf(const char *fname)
