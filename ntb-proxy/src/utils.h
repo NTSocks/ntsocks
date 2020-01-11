@@ -30,7 +30,7 @@ extern "C" {
 #define log printf
 
 // uuid
-char * createUUID(void);
+char * createUUID();
 
 #ifdef __cplusplus
 };

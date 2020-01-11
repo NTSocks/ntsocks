@@ -84,6 +84,7 @@ ntb_send_thread(__attribute__((unused)) void *arg)
 		}
 		if (next_node->conn->state != READY_CONN)
 		{
+			DEBUG("conn close,remove and free node");
 			// conn->state 不为READY，队列均已Close，移除map、list并free就可
 			Remove(ntb_link->map, next_node->conn->name);
 			// destory_conn_ack(ntb_link, next_node->conn->name);
@@ -91,6 +92,7 @@ ntb_send_thread(__attribute__((unused)) void *arg)
 			free(next_node);
 			continue;
 		}
+		DEBUG("ntb_data_send start");
 		ntb_data_send(ntb_link->sublink, move_node->conn->send_ring, ntb_link);
 		move_node = next_node;
 	}
@@ -123,6 +125,7 @@ ntm_ntp_receive_thread(__attribute__((unused)) void *arg)
 		}
 		if (recv_msg->msg_type == CREATE_CONN)
 		{
+			DEBUG("receive ntm_ntp_msg,create ntb_conn");
 			ntp_create_conn_handler(ntb_link, recv_msg);
 		}
 	}

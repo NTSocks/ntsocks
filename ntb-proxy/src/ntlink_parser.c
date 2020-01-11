@@ -84,23 +84,6 @@ static int create_conn_ack(struct ntb_link *ntlink, ntm_ntp_msg *msg)
     return 0;
 }
 
-int destory_conn_ack(struct ntb_link *ntlink, char *conn_name)
-{
-    // uint16_t src_port;
-    // uint16_t dst_port;
-    // parser_conn_name(conn_name, src_port, dst_port);
-    // ntm_msg *reply_msg = malloc(sizeof(*reply_msg));
-    // reply_msg->src_ip = 0;
-    // reply_msg->dst_ip = 0;
-    // reply_msg->src_port = src_port;
-    // reply_msg->dst_port = dst_port;
-    // reply_msg->msg_type = CLOSE_CONN_ACK;
-    // reply_msg->msg_len = 14;
-    // ntm_shm_send(ntlink->ntp_ntm, reply_msg);
-    // free(reply_msg);
-    return 0;
-}
-
 int ntp_create_conn_handler(struct ntb_link *ntlink, ntm_ntp_msg *msg)
 {
     ntb_conn *conn = malloc(sizeof(*conn));
@@ -178,6 +161,7 @@ int ntp_trans_read_index(struct ntb_link *ntlink, uint16_t src_port, uint16_t ds
     msg->header.msg_len = 6;
     rte_memcpy(msg->msg, &read_index, 8);
     ntb_ctrl_msg_enqueue(ntlink, msg);
+    DEBUG("send my read_index");
     return 0;
 }
 
@@ -187,6 +171,7 @@ int index_ctrl_handler(struct ntb_link *ntlink, struct ntb_ctrl_msg *msg)
     char *conn_name = create_conn_name(msg->header.dst_port, msg->header.src_port);
     ntb_conn *conn = (ntb_conn *)Get(ntlink->map, conn_name);
     ntp_set_opposide_readindex(conn->send_ring->ntsring_handle,*(uint64_t *)msg->msg);
+    DEBUG("set my opposide_readindex");
     free(conn_name);
     return 0;
 }
@@ -229,6 +214,7 @@ int ctrl_msg_receive(struct ntb_link *ntlink)
         {
             continue;
         }
+        DEBUG("receive a ntb_ctrl_msg");
         ctrl_msg_header_parser(ntlink, msg);
         //解析接收的包时将src和dst port交换
         uint16_t src_port = msg->header.dst_port;

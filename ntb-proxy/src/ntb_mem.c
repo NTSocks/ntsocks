@@ -84,6 +84,7 @@ static char **str_split(char *a_str, const char a_delim)
 
 static int parser_ring_name(char *ring_name, uint16_t *src_port, uint16_t *dst_port)
 {
+	DEBUG("parser_ring_name");
 	char name_copy[14];
 	strcpy(name_copy, ring_name);
 	char **results = str_split(name_copy, '-');
@@ -96,13 +97,14 @@ static int parser_ring_name(char *ring_name, uint16_t *src_port, uint16_t *dst_p
 	}
 	else
 	{
-		DEBUG("parser_ring_name err");
+		ERR("parser_ring_name err");
 	}
 	return -1;
 }
 
 int parser_conn_name(char *conn_name, uint16_t *src_port, uint16_t *dst_port)
 {
+	DEBUG("parser_conn_name");
 	char name_copy[14];
 	strcpy(name_copy, conn_name);
 	char **results = str_split(name_copy, '-');
@@ -115,7 +117,7 @@ int parser_conn_name(char *conn_name, uint16_t *src_port, uint16_t *dst_port)
 	}
 	else
 	{
-		DEBUG("parser_ring_name err");
+		ERR("parser_ring_name err");
 	}
 	return -1;
 }
@@ -137,6 +139,7 @@ static int ntb_trans_cum_ptr(struct ntb_sublink *sublink)
 
 static int data_msg_header_parser(struct ntb_sublink *sublink, struct ntb_data_msg *msg)
 {
+	DEBUG("data_msg_header_parser");
 	uint16_t msg_type = msg->header.msg_len;
 	if (msg_type & 1 << 15)
 	{
@@ -182,6 +185,7 @@ static int ntb_msg_add_header(struct ntb_data_msg *msg, uint16_t src_port, uint1
 
 static int ntb_data_enqueue(struct ntb_sublink *sublink, uint8_t *msg, int data_len)
 {
+	DEBUG("ntb_data_enqueue");
 	struct ntb_ring *r = sublink->remote_ring;
 	uint64_t next_serial = (r->cur_serial + 1) % (r->capacity);
 	//looping send
@@ -196,6 +200,7 @@ static int ntb_data_enqueue(struct ntb_sublink *sublink, uint8_t *msg, int data_
 
 static int ntb_msg_enqueue(struct ntb_sublink *sublink, struct ntb_data_msg *msg)
 {
+	DEBUG("ntb_msg_enqueue");
 	//msg_len 为包含头部的总长度，add_header时计算
 	struct ntb_ring *r = sublink->remote_ring;
 	uint16_t msg_len = msg->header.msg_len;
@@ -250,6 +255,7 @@ int ntb_data_send(struct ntb_sublink *sublink, ntp_shm_context_t ring, struct nt
 		{
 			break;
 		}
+		DEBUG("send data pkg");
 		data_len = send_msg->msg_len;
 		if (send_msg->msg_type == FIN_TYPE)
 		{
@@ -262,7 +268,7 @@ int ntb_data_send(struct ntb_sublink *sublink, ntp_shm_context_t ring, struct nt
 			ntp_shm_close(conn->recv_ring);
 			ntp_shm_close(conn->send_ring);
 			conn->state = ACTIVE_CLOSE;
-			DEBUG("send FIN_TYPE to opposite side");
+			DEBUG("send FIN_TYPE_PKG to opposite side");
 			return 0;
 		}
 		if (data_len <= NTB_DATA_MSG_TL - NTB_HEADER_LEN)
@@ -322,6 +328,7 @@ int ntb_data_receive(struct ntb_sublink *sublink, struct ntb_link *ntlink)
 		if (conn == NULL || conn->state != READY_CONN)
 		{
 			//连接已关闭，查找不到连接信息
+			DEBUG("receive a ntb_data_msg,which conn_state no ready");
 			int count = (msg_len + NTB_DATA_MSG_TL - 1) / NTB_DATA_MSG_TL;
 			uint64_t next_serial = (r->cur_serial + count) % (r->capacity);
 			for (int i = 0; i <= count; i++)
@@ -335,6 +342,7 @@ int ntb_data_receive(struct ntb_sublink *sublink, struct ntb_link *ntlink)
 		ntp_msg *recv_msg = malloc(sizeof(*recv_msg));
 		if (msg_type == SINGLE_PKG)
 		{
+			DEBUG("receive SINGLE_PKG");
 			recv_msg->msg_type = 0;
 			recv_msg->msg_len = msg_len - NTB_HEADER_LEN;
 			rte_memcpy(recv_msg->msg, msg->msg, msg_len - NTB_HEADER_LEN);
@@ -345,6 +353,7 @@ int ntb_data_receive(struct ntb_sublink *sublink, struct ntb_link *ntlink)
 		}
 		else if (msg_type == MULTI_PKG)
 		{
+			DEBUG("receive MULTI_PKG");
 			recv_msg->msg_type = 0;
 			recv_msg->msg_len = msg_len - NTB_HEADER_LEN;
 			uint64_t next_serial = (r->cur_serial + (recv_msg->msg_len + NTB_DATA_MSG_TL - 1) / NTB_DATA_MSG_TL) % (r->capacity);
@@ -378,12 +387,14 @@ int ntb_data_receive(struct ntb_sublink *sublink, struct ntb_link *ntlink)
 		}
 		else if (msg_type == DETECT_PKG)
 		{
+			DEBUG("receive DETECT_PKG");
 			detect_pkg_handler(ntlink, msg);
 			msg->header.msg_len = 0;
 			r->cur_serial = (r->cur_serial + 1) % (r->capacity);
 		}
 		else if (msg_type == FIN_PKG)
 		{
+			DEBUG("receive FIN_PKG");
 			recv_msg->msg_type = FIN_TYPE;
 			recv_msg->msg_len = msg_len - NTB_HEADER_LEN;
 			ntp_shm_send(conn->recv_ring, recv_msg);
