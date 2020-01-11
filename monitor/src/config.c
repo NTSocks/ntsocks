@@ -129,7 +129,8 @@ int load_conf(const char *fname)
 }
 
 void free_conf(){
-	free(NTM_CONFIG.listen_ip);
+	if(NTM_CONFIG.listen_ip)
+		free(NTM_CONFIG.listen_ip);
 }
 
 void print_conf() {

@@ -424,6 +424,11 @@ void ntm_destroy()
 
 	free(ntm_mgr);
 
+	/**
+     * destroy the memory which is allocated to NTM_CONFIG
+     */
+    free_conf();
+
 	DEBUG("ntm_destroy pass");
 }
 

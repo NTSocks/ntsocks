@@ -165,11 +165,14 @@ void free_conf(){
     
     item = (nt_host_entry_t) calloc(1, sizeof(struct nt_host_entry));
     TAILQ_FOREACH(item, &nt_host_head, entries){
-        free(item->ipaddr);
+        if(item->ipaddr)
+            free(item->ipaddr);
     }
     free(item);
-    free(NTS_CONFIG.local_has_ntbdev);
-    free(NTS_CONFIG.nt_host);
+    if(NTS_CONFIG.local_has_ntbdev)
+        free(NTS_CONFIG.local_has_ntbdev);
+    if(NTS_CONFIG.nt_host)
+        free(NTS_CONFIG.nt_host);
 }
 
 void print_conf()
