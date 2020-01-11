@@ -85,6 +85,8 @@ typedef struct nt_sock_context {
 	ntp_shm_context_t ntp_send_ctx;			// send data message from libnts to ntp
 	ntp_shm_context_t ntp_recv_ctx;			// receive data message from ntp to libnts
 	int ntp_msg_id;							// act as the global ntp_msg_id
+	char ntp_buf[NTP_PAYLOAD_MAX_SIZE];		// cache the remaining un-read/recv payload
+	int ntp_buflen; 						// the length of the remaining un-read/recv payload
 
 } nt_sock_context;
 
