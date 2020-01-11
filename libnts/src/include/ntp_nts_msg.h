@@ -24,7 +24,8 @@ extern "C" {
  * between local and remote ntb-monitor.
  */
 
-#define PAYLOAD_SIZE 1024
+#define PAYLOAD_SIZE            1024
+#define NTP_PAYLOAD_MAX_SIZE    253
 
 
 /*----------------------------------------------------------------------------*/
@@ -41,7 +42,7 @@ extern "C" {
 typedef struct {
     uint8_t msg_type;
     uint16_t msg_len;
-    char msg[253];
+    char msg[NTP_PAYLOAD_MAX_SIZE];
 } ntp_msg;
 
 void ntp_msgcopy(ntp_msg *src_msg, ntp_msg *target_msg);

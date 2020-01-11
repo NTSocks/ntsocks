@@ -14,13 +14,14 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "socket.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 typedef uint64_t ntm_msg_id;
 typedef uint64_t nts_msg_id;
-typedef uint64_t ntsock_id;
 
 
 /*----------------------------------------------------------------------------*/
@@ -57,7 +58,7 @@ typedef enum {
 typedef struct {
     ntm_msg_id msg_id;
     ntm_msg_type msg_type;
-    ntsock_id sockid;
+    nt_sock_id sockid;
 
     /**
      * For NTM_MSG_NEW_SOCK
@@ -88,7 +89,7 @@ typedef struct {
      * output: client socket id, (if req_client_sockaddr is 1, 
      *      return client ip address and port)
      */
-    // ntsock_id sockid;
+    // nt_sock_id sockid;
     uint8_t req_client_sockaddr; // if 1, return client addr:port; else, not
 
     // if req_client_sockaddr == 1
@@ -116,6 +117,13 @@ typedef struct {
      * For NTM_MSG_CLOSE
      */
     // socket id
+
+
+    /**
+     * For NTM_MSG_FIN
+     */
+    // socket id
+
 
     /**
      * For NTM_MSG_DISCONNECT
@@ -170,7 +178,7 @@ typedef enum {
 typedef struct {
     nts_msg_id msg_id;
     nts_msg_type msg_type;
-    ntsock_id sockid;
+    nt_sock_id sockid;
     int retval; // if 0, pass; else -1, failed
     int nt_errno;  // conresponding to error type
 
@@ -201,8 +209,8 @@ typedef struct {
      /**
      * For NTS_MSG_ACCEPT
      */
-    // client socket id = ntsock_id sockid;
-    ntsock_id client_sockid;
+    // client socket id = nt_sock_id sockid;
+    nt_sock_id client_sockid;
 
     // if req_client_sockaddr == 1
     // char address[16];

@@ -631,7 +631,7 @@ int nts_close(int sockid) {
 	 * 5. if not `ESTABLISHED`, directly destroy nt_socket related resources according to socktype:
 	 * 		if socktype is `NT_SOCK_LISTENER`, destroy backlog_ctx, nts_shm_ctx, socket;
 	 * 		else, destroy ntp_send_ctx, ntp_recv_ctx, nts_shm_ctx, socket
-	 * 6. else if `ESTABLISHED`, send `NTP_NTS_MSG_FIN` ntp_msg to ntp
+	 * 6. else if `ESTABLISHED`, set socket state to `WAIT_FIN`, send `NTP_NTS_MSG_FIN` ntp_msg to ntp
 	 * 7. poll or wait the nts_shm queue to receive the `NTS_MSG_FIN_ACK` nts_msg from ntm
 	 * 8. then set the socket state as `CLOSED` and destroy local ntb socket resources
 	 */
@@ -716,7 +716,6 @@ int nts_close(int sockid) {
 	}
 
 
-
 	// else if `ESTABLISHED`, directly destroy nt_socket related resources.
 	nt_sock_ctx->socket->state = WAIT_FIN;
 
@@ -797,11 +796,135 @@ int nts_getsockname(int sockid, struct sockaddr *name,
 
 
 
-ssize_t nts_read(int d, void *buf, size_t nbytes) {
+ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 	DEBUG("nts_read start...");
+	assert(nts_ctx);
+	assert(sockid > 0);
+
+	if (!buf || nbytes <= 0)
+	{
+		ERR("the specified recv buf is NULL or the nbytes is <= 0. ");
+		// set errno
+		goto FAIL;
+	}
+
+	/**
+	 * 1. get/pop `nt_sock_context` from `HashMap nt_sock_map` using sockid.
+	 * 2. check whether the socket state is `ESTABLISHED`, 
+	 * 		if socket state is not `ESTABLISHED`, then set errno & return -1.
+	 * 3. else, then check whether msg_type is `NTP_NTS_MSG_FIN`
+	 * 4. if is `NTP_NTS_MSG_FIN`, then start to passively close nt_socket
+	 * 5. else , pop/read/copy the data from ntp_recv_buf into params `buf`, 
+	 * 		then return the read bytes
+	 */
+
+	// 1. get/pop `nt_sock_context` from `HashMap nt_sock_map` using sockid.
+	nt_sock_context_t nt_sock_ctx;
+	nt_sock_ctx = (nt_sock_context_t) Get(nts_ctx->nt_sock_map, &sockid);
+	if(!nt_sock_ctx) {
+		ERR("Non-existing sockid. ");
+		goto FAIL;
+	}
+
+
+	// 2. check whether the socket state is `ESTABLISHED`, 
+	//     if socket state is not `ESTABLISHED`, then set errno & return -1.
+	if (nt_sock_ctx->socket->state != ESTABLISHED) {
+		ERR("write() require `ESTABLISHED` socket first. ");
+		//set errno 
+		goto FAIL;
+	}
+
+
+	// 3. else, then check whether msg_type is `NTP_NTS_MSG_FIN`
+	int retval;
+	ntp_msg incoming_data;
+	// TODO: ntp_shm_recv is replaced with ntp_shm_front() method
+	retval = ntp_shm_recv(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
+	while (retval)
+	{
+		sched_yield();
+		retval = ntp_shm_recv(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
+	}
+
+
+	// 4. if is `NTP_NTS_MSG_FIN`, then set the socket state to `WAIT_FIN` 
+	// 	    and start to passively close nt_socket
+	// two solution to destroy client socket-related resources in libnts and ntm
+	// solution 1: nts send `NTM_MSG_FIN` message into ntm, then: 
+	// 			set socket state to `CLOSED`, destroy local resources, 
+	//			nts_shm_ntm_close()/nts_shm_close()[??] to close nts_shm.
+	// solution 2: nts send `NTM_MSG_FIN` message into ntm, then:
+	//			set socket state to `WAIT_FIN`, wait for the response ACK from ntm,
+	//			set socket state to `CLOSED`, destroy local resources, 
+	//			nts_shm_close() to unlink nts_shm.
+	// To the end, we determine to use solution 1.
+	if (incoming_data.msg_type == NTP_NTS_MSG_FIN) {
+		nt_sock_ctx->socket->state = WAIT_FIN;
+		
+		ntm_msg ntm_outgoing_msg;
+		ntm_outgoing_msg.msg_type = NTM_MSG_FIN;
+		ntm_outgoing_msg.sockid = sockid;
+		retval = ntm_shm_send(nts_ctx->ntm_ctx, &ntm_outgoing_msg);
+		if (retval == -1) {
+			ERR("ntm_shm_send NTM_MSG_FIN failed. ");
+			goto FAIL;
+		}
+
+		nt_sock_ctx->socket->state = CLOSED;
+		
+		// destroy socket related resources
+		// i.e., ntp_send_ctx, ntp_recv_ctx, nts_shm_ctx, socket
+		DEBUG("destroy nt_socket-related resources.");
+		if(nt_sock_ctx->ntp_send_ctx) {
+			ntp_shm_close(nt_sock_ctx->ntp_send_ctx);
+			ntp_shm_destroy(nt_sock_ctx->ntp_send_ctx);
+		}
+		if(nt_sock_ctx->ntp_recv_ctx) {
+			ntp_shm_close(nt_sock_ctx->ntp_recv_ctx);
+			ntp_shm_destroy(nt_sock_ctx->ntp_recv_ctx);
+		}
+
+		if (nt_sock_ctx->nts_shm_ctx) {
+			nts_shm_close(nt_sock_ctx->nts_shm_ctx);
+			nts_shm_destroy(nt_sock_ctx->nts_shm_ctx);
+		}
+
+		free(nt_sock_ctx->socket);
+
+		// set errno
+		goto FAIL;
+	}
+
+
+	// 5. else , pop/read/copy the data from ntp_recv_buf into params `buf`, 
+	//		then return the read bytes. The detailed workflow is the following:
+	//  0. check whether there is data in ntp_buf[char[253]] of nt_sock_ctx, 
+	//		if true, read payload in `ntp_buf`, follow the normal workflow.
+	//	i. check whether the first ntp_msg msg_len < NTP_PAYLOAD_MAX_SIZE or not, 
+	//	   if true, check whether the buf size >= msg_len or not, 
+	//			if true, copy payload into buf, return msg_len;
+	//			else, copy the buf-size part of payload into buf, cache the remaining
+	//			payload into ntp_buf[char[253]] in nt_sock_ctx, return params `nbytes`;
+	//	   else if msg_len == NTP_PAYLOAD_MAX_SIZE, then:
+	//			check whether the buf size < msg_len or not:
+	//			if true, then copy the buf-size part of payload into buf, cache the remaining
+	//			 payload into ntp_buf[char[253]] in nt_sock_ctx, return params `nbytes`;
+	//			else if buf size == msg_len, then copy payload into buf, return msg_len;
+	//			else if buf size > msg_len, then copy payload into buf, 
+	//			 update avaliable buf size and buf pointer, ntp_shm_recv()/ntp_shm_front() poll next message;
+	//			judge whether msg_type is NTP_NTS_MSG_FIN or not, tack action.
+	//			jump to `step 0`.
+	
+	
+
 
 	DEBUG("nts_read pass");
 	return 0;
+
+	FAIL: 
+
+	return -1;
 }
 
 ssize_t nts_readv(int fd, const struct iovec *iov, int iovcnt) {
@@ -815,6 +938,20 @@ ssize_t nts_readv(int fd, const struct iovec *iov, int iovcnt) {
 
 ssize_t nts_write(int fd, const void *buf, size_t nbytes) {
 	DEBUG("nts_write start...");
+	if (!buf || nbytes <= 0)
+	{
+		ERR("the specified send buf is NULL or the nbytes is <= 0. ");
+		return -1;
+	}
+
+	/**
+	 * 1. get/pop `nt_sock_context` from `HashMap nt_sock_map` using sockid.
+	 * 2. check whether the socket state is `ESTABLISHED`, 
+	 * 		if socket state is not `ESTABLISHED`, then set errno & return -1.
+	 * 3. else, pack the data ntp_msg and push/write ntp_msg into ntp_send_buf
+	 * 4. return the write bytes.
+	 */
+
 
 	DEBUG("nts_write pass");
 	return 0;
