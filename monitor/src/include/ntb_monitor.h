@@ -65,6 +65,13 @@ struct nts_shm_conn {
 	int domain;
     int protocol;
 
+	/**
+	 * set `peer_sin_port` and `peer_sin_addr` 
+	 * when `handle_nt_syn_msg` or `handle_nt_syn_ack_msg`
+	 */
+	unsigned int peer_sin_port;		// peer remote nt_port for `ESTABLISHED` nt_socket
+	unsigned int peer_sin_addr;		// peer remote nt sin_addr for `ESTABLISHED` nt_socket
+
 	int sock_status;
 	bool is_listen;
 	bool running_signal; // if 1, running; else stop

@@ -557,7 +557,6 @@ inline void handle_nt_syn_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 
 	ntm_sock_msg outgoing_msg;
 	outgoing_msg.src_addr = msg.dst_addr;
-	outgoing_msg.sport = msg.dport;
 	outgoing_msg.dport = msg.sport;
 	outgoing_msg.dst_addr = msg.src_addr;
 
@@ -609,7 +608,6 @@ inline void handle_nt_syn_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 	client_socket->listener = listener_wrapper->listener;
 	bzero(&client_socket->saddr, sizeof(struct sockaddr_in));
 	client_socket->saddr.sin_family = AF_INET;
-	client_socket->saddr.sin_port = msg.dport;
 	client_socket->saddr.sin_addr.s_addr = msg.dst_addr;
 	// allocate a idle port for the accepted client socket
 	nt_port_t port;
@@ -676,6 +674,12 @@ inline void handle_nt_syn_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 	new_nts_shm_conn->running_signal = 1;
 	new_nts_shm_conn->listener = listener_wrapper;
 
+	/**
+	 * set `peer_sin_port` and `peer_sin_addr` after setup ntb connection in ntb proxy
+	 */
+	new_nts_shm_conn->peer_sin_addr = msg.src_addr;
+	new_nts_shm_conn->peer_sin_port = msg.sport;
+
 	// push new nts shm conn into hashmap
 	Put(ntm_mgr->nts_ctx->nts_shm_conn_map, &client_socket->sockid, new_nts_shm_conn);
 
@@ -688,6 +692,8 @@ inline void handle_nt_syn_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 	backlog_push(listener_wrapper->backlog_ctx, client_socket);
 
 
+	// set the allocated nt_port sin_port of accepted nt_socket as source port in `outgoing_msg.sport`
+	outgoing_msg.sport = client_socket->saddr.sin_port;
 	// send `SYN_ACK` back to source monitor.
 	outgoing_msg.type = NT_SYN_ACK;
 	ntm_send_tcp_msg(ntm_conn->client_sock, 
@@ -792,6 +798,12 @@ inline void handle_nt_syn_ack_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 	}
 	nts_shm_conn_t nts_shm_conn;
 	nts_shm_conn = (nts_shm_conn_t) Get(ntm_mgr->nts_ctx->nts_shm_conn_map, &client_sock->sockid);
+
+	/**
+	 * set `peer_sin_port` and `peer_sin_addr` after setup ntb connection in ntb proxy
+	 */
+	nts_shm_conn->peer_sin_port = msg.sport;
+	nts_shm_conn->peer_sin_addr = msg.src_addr;
 
 
 	nts_msg response_msg;
