@@ -131,8 +131,18 @@ int load_conf(const char *fname)
 void free_conf(){
 	if(NTM_CONFIG.listen_ip)
 		free(NTM_CONFIG.listen_ip);
+	
+	NTM_CONFIG.listen_ip = NULL;
 }
 
 void print_conf() {
-	printf("ntm configuration: remote_ntm_tcp_timewait=%d, remote_ntm_tcp_timeout=%d, listen_ip=%s, listen_port=%d, max_concurrency=%d, max_port\n", NTM_CONFIG.remote_ntm_tcp_timewait, NTM_CONFIG.remote_ntm_tcp_timeout, NTM_CONFIG.listen_ip, NTM_CONFIG.listen_port, NTM_CONFIG.max_concurrency, NTM_CONFIG.max_port);
+	printf("ntm configuration: remote_ntm_tcp_timewait=%d, " 
+			"remote_ntm_tcp_timeout=%d, listen_ip=%s, listen_port=%d, "
+			"max_concurrency=%d, max_port\n", 
+			NTM_CONFIG.remote_ntm_tcp_timewait, 
+			NTM_CONFIG.remote_ntm_tcp_timeout, 
+			NTM_CONFIG.listen_ip, 
+			NTM_CONFIG.listen_port, 
+			NTM_CONFIG.max_concurrency, 
+			NTM_CONFIG.max_port);
 }
