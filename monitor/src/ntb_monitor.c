@@ -1706,7 +1706,7 @@ inline void handle_msg_nts_listen(ntm_manager_t ntm_mgr, ntm_msg msg)
 	new_listener_wrapper.accepted_conn_map = createHashMap(NULL, NULL);
 
 	// setup backlog context
-	sprintf(new_listener_wrapper.backlog_shmaddr, "backlog-%ld", new_listener.sockid);
+	sprintf(new_listener_wrapper.backlog_shmaddr, "backlog-%d", new_listener.sockid);
 	new_listener_wrapper.backlog_shmlen = strlen(new_listener_wrapper.backlog_shmaddr);
 	new_listener_wrapper.backlog_ctx = backlog_ntm(&new_listener, 
 							new_listener_wrapper.backlog_shmaddr, 
@@ -2120,7 +2120,6 @@ inline void destroy_client_nt_socket_conn_with_nts_shm_conn(nts_shm_conn_t nts_s
 	assert(nts_shm_conn);
 
 	nt_socket_t client_socket;
-	int bound_port;
 
 	if (nts_shm_conn->socket)
 	{

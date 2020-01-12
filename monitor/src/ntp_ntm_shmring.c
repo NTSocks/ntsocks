@@ -26,7 +26,7 @@
 #include "nt_atomic.h"
 #include "nt_log.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_INFO);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 typedef struct ntp_ntm_shmring_buf {
 //    char buf[NTP_MAX_BUFS + 1][NTS_BUF_SIZE];
@@ -204,11 +204,6 @@ bool ntp_ntm_shmring_push(ntp_ntm_shmring_handle_t self, ntp_ntm_msg *element) {
     assert(self);
 
     /* Critical Section */
-    /*const uint64_t r_idx = nt_atomic_load64_explicit(
-            &self->shmring->read_index, ATOMIC_MEMORY_ORDER_CONSUME);*/
-//    const uint64_t w_idx = nt_atomic_load64_explicit(
-//            &self->shmring->write_index, ATOMIC_MEMORY_ORDER_CONSUME);
-
     const uint64_t w_idx = nt_atomic_load64_explicit(
             &self->shmring->write_index, ATOMIC_MEMORY_ORDER_RELAXED);
 
@@ -233,12 +228,6 @@ bool ntp_ntm_shmring_push(ntp_ntm_shmring_handle_t self, ntp_ntm_msg *element) {
 
 bool ntp_ntm_shmring_pop(ntp_ntm_shmring_handle_t self, ntp_ntm_msg *element) {
     assert(self);
-
-
-//   uint64_t r_idx = nt_atomic_load64_explicit(
-//           &self->shmring->read_index, ATOMIC_MEMORY_ORDER_CONSUME);
-//   uint64_t w_idx = nt_atomic_load64_explicit(
-//           &self->shmring->write_index, ATOMIC_MEMORY_ORDER_CONSUME);
 
    uint64_t w_idx = nt_atomic_load64_explicit(&self->shmring->write_index, ATOMIC_MEMORY_ORDER_ACQUIRE);
    uint64_t r_idx = nt_atomic_load64_explicit(&self->shmring->read_index, ATOMIC_MEMORY_ORDER_RELAXED);

@@ -14,7 +14,7 @@
 #include "nt_log.h"
 #include "config.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
+// DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 //#define CONFIG_FILE "/etc/ntm.cfg"
 #define CONFIG_FILE "./ntm.cfg"

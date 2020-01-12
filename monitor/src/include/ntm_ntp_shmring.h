@@ -23,8 +23,6 @@ extern "C" {
 // #define NTP_MAX_BUFS 1024 // define NTS_MAX_BUFS as [(a power of 2) -1] (65535 in our case)
 // #define NTP_BUF_SIZE 256
 
-#define NTS_SHM_NAME "/ntm_ntp-shm-ring"
-
 #define NTS_LIKELY(x) __builtin_expect(!!(x), 1)
 #define NTS_UNLIKELY(x) __builtin_expect(!!(x), 0)
 
