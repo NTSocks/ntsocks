@@ -28,7 +28,7 @@
 
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
-#define NTS_SHM_TEST "nts-test-shm"
+// #define NTS_SHM_TEST "nts-test-shm"
 
 typedef struct nts_shmring_buf {
 //    char buf[NTS_MAX_BUFS + 1][NTS_BUF_SIZE];
@@ -97,10 +97,10 @@ nts_shmring_handle_t nts_shmring_init(char *shm_addr, size_t addrlen) {
     shmring_handle->shm_addr = shm_addr;
 
     // get shared memory for nts_shmring
-    shmring_handle->shm_fd = shm_open(NTS_SHM_TEST, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
     if (shmring_handle->shm_fd == -1) {
         if (errno == ENOENT) {
-            shmring_handle->shm_fd = shm_open(NTS_SHM_TEST, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+            shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
             if (shmring_handle->shm_fd == -1) {
                 error("shm_open");
                 goto FAIL;
@@ -130,7 +130,7 @@ nts_shmring_handle_t nts_shmring_init(char *shm_addr, size_t addrlen) {
         goto FAIL;
     }
     // init the shared memory
-    shmring_handle->shmring->read_index = shmring_handle->shmring->write_index = 0;
+    // shmring_handle->shmring->read_index = shmring_handle->shmring->write_index = 0;
     DEBUG("mmap pass with read_index=%d, write_index=%d", shmring_handle->shmring->read_index,  shmring_handle->shmring->write_index);
 
     shmring_handle->MASK = NTS_MAX_BUFS - 1;
@@ -143,7 +143,7 @@ nts_shmring_handle_t nts_shmring_init(char *shm_addr, size_t addrlen) {
     FAIL:
     if (shmring_handle->shm_fd != -1) {
         close(shmring_handle->shm_fd);
-        shm_unlink(NTS_SHM_TEST);
+        shm_unlink(shmring_handle->shm_addr);
     }
 
     free(shmring_handle);
@@ -164,7 +164,7 @@ nts_shmring_handle_t nts_get_shmring(char *shm_addr, size_t addrlen) {
     shmring_handle->shm_addr = shm_addr;
 
     // get shared memory with specified SHM NAME
-    shmring_handle->shm_fd = shm_open(NTS_SHM_TEST, O_RDWR, 0);
+    shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR, 0);
     if (shmring_handle->shm_fd == -1) {
         error("shm_open");
         goto FAIL;

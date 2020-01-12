@@ -21,8 +21,9 @@
 int main(int argc, char * argv[]) {
 	printf("Hello libnts app!\n");
 
-	// int sockfd;
-	socket(AF_INET, SOCK_STREAM, 0);
+	int sockfd;
+	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	printf("sockfd=%d \n", sockfd);
     
 	// getchar();
 

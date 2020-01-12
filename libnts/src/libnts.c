@@ -170,8 +170,7 @@ int socket(int domain, int type, int protocol) {
 
 	ret = nts_socket(domain, type, protocol);
 
-
-	return 0;
+	return ret;
 }
 
 int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {

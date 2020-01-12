@@ -32,10 +32,10 @@ void ntm_msgcopy(ntm_msg *src_msg, ntm_msg *target_msg) {
 		
 	}
 	else if (target_msg->msg_type & NTM_MSG_NEW_SOCK) {
-		DEBUG("src_msg->nts_shm_name=%s, src_msg->nts_shm_addrlen=%d, target_msg->nts_shm_name=%s", 
-						src_msg->nts_shm_name, src_msg->nts_shm_addrlen, target_msg->nts_shm_name);
 		target_msg->nts_shm_addrlen = src_msg->nts_shm_addrlen;
 		memcpy(target_msg->nts_shm_name, src_msg->nts_shm_name, src_msg->nts_shm_addrlen);
+		DEBUG("src_msg->nts_shm_name=%s, src_msg->nts_shm_addrlen=%d, target_msg->nts_shm_name=%s", 
+						src_msg->nts_shm_name, src_msg->nts_shm_addrlen, target_msg->nts_shm_name);
 		target_msg->domain = src_msg->domain;
 		target_msg->protocol = src_msg->protocol;
 		target_msg->sock_type = src_msg->sock_type;
