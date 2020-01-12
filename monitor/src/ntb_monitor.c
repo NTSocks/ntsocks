@@ -766,7 +766,7 @@ inline void handle_nt_syn_ack_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 	// ntp_outgoing_msg.src_port = msg.dport;
 	// ntp_outgoing_msg.msg_type = 1;
 	// ntp_outgoing_msg.msg_len = 0;
-	// int retval;
+	int retval;
 	// retval = ntm_ntp_shm_send(ntm_mgr->ntp_ctx->shm_send_ctx, &ntp_outgoing_msg);
 	// while (retval == -1) {
 	// 	sched_yield();
