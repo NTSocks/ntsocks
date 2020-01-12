@@ -21,7 +21,8 @@ DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 typedef struct ntm_shmring_buf {
 //    char buf[NTM_MAX_BUFS][NTM_BUF_SIZE];
-	ntm_msg buf[NTM_MAX_BUFS + 1];
+	// ntm_msg buf[NTM_MAX_BUFS + 1];
+    ntm_msg buf[NTM_MAX_BUFS];
     unsigned long write_index;
     unsigned long read_index;
 } ntm_shmring_buf;
@@ -57,7 +58,7 @@ ntm_shmring_handle_t ntm_shmring_init(char *shm_addr, size_t addrlen) {
 	ntm_shmring_handle_t shmring_handle;
 
     shmring_handle = (ntm_shmring_handle_t) malloc(sizeof(ntm_shmring_t));
-	DEBUG("init ntm_shmring ");
+	DEBUG("init ntm_shmring with shm_addr=%s", shm_addr);
 	shmring_handle->addrlen = addrlen;
 	shmring_handle->shm_addr = shm_addr;
 
@@ -169,7 +170,7 @@ ntm_shmring_handle_t ntm_get_shmring(char *shm_addr, size_t addrlen) {
 	DEBUG("ntm get shmring start");
 
     shmring_handle = (ntm_shmring_handle_t) malloc(sizeof(ntm_shmring_t));
-    DEBUG("init ntm_shmring ");
+    DEBUG("init ntm_shmring with shm_addr=%s", shm_addr);
     shmring_handle->addrlen = addrlen;
     shmring_handle->shm_addr = shm_addr;
 
@@ -271,7 +272,10 @@ bool ntm_shmring_push(ntm_shmring_handle_t self, ntm_msg *element) {
     /* Critical Section */
 	ntm_msgcopy(element, &(self->shmring->buf[self->shmring->write_index]));
     (self->shmring->write_index)++;
-    self->shmring->write_index &= self->MASK;
+    // self->shmring->write_index &= self->MASK;
+    if (self->shmring->write_index >= NTM_MAX_BUFS) {
+        self->shmring->write_index = self->shmring->write_index - NTM_MAX_BUFS;   
+    }
 
     // Release mutex sem: V (mutex_sem)
     rc = sem_post(self->mutex_sem);
@@ -307,6 +311,10 @@ bool ntm_shmring_pop(ntm_shmring_handle_t self, ntm_msg *element) {
         goto FAIL;
     }
 
+    if(!element) {
+        DEBUG("element not existing.");
+    }
+    DEBUG("ntm_write_index=%d, ntm_read_index=%d", self->shmring->write_index, self->shmring->read_index);
 	ntm_msgcopy(&(self->shmring->buf[self->shmring->read_index]), element);
 
     /**
@@ -315,6 +323,9 @@ bool ntm_shmring_pop(ntm_shmring_handle_t self, ntm_msg *element) {
      */
     (self->shmring->read_index)++;
     self->shmring->read_index &= self->MASK;
+    // if (self->shmring->write_index >= NTM_MAX_BUFS) {
+    //     self->shmring->write_index = self->shmring->write_index - NTM_MAX_BUFS;   
+    // }
 
     /**
      * one element of shm ring has been pop.

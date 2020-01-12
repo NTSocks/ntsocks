@@ -44,31 +44,40 @@ static inline void destroy_client_nt_socket_conn_with_nts_shm_conn(nts_shm_conn_
 
 static inline void test_ntm_ring()
 {
-	//	ntm_shmring_handle_t ns_handle;
-	//	char *ntm_name = "/ntm-shm-ring";
-	//
-	//	ns_handle = ntm_shmring_init(ntm_name, sizeof(ntm_name));
-	//	ntm_shmring_push(ns_handle, MSG, sizeof(MSG));
-	//
-	//	char data[256];
-	//	size_t len = 256;
-	//
-	//	ntm_shmring_free(ns_handle, 0);
-	//	if (!ns_handle) {
-	//		printf("free ntm shmring pass \n\n");
-	//	}
-	//
-	//	ns_handle = ntm_get_shmring(ntm_name, sizeof(ntm_name));
-	//	if (ns_handle) {
-	//		printf("ntm get shmring pass \n");
-	//	}
-	//
-	//	int pop_msg_len;
-	//	pop_msg_len = ntm_shmring_pop(ns_handle, data, len);
-	//
-	//	printf("pop an element: data-%s, len-%d \n", data, pop_msg_len);
-	//
-	//	ntm_shmring_free(ns_handle, 1);
+	
+	ntm_shmring_handle_t ns_handle;
+	char *ntm_name = "/ntm-shm-ring";
+
+	ns_handle = ntm_shmring_init(ntm_name, sizeof(ntm_name));
+	// ntm_shmring_push(ns_handle, &msg);
+
+	// ntm_shmring_free(ns_handle, 0);
+	// if (!ns_handle) {
+	// 	printf("free ntm shmring pass \n\n");
+	// }
+
+	// ns_handle = ntm_get_shmring(ntm_name, sizeof(ntm_name));
+	// if (ns_handle) {
+	// 	printf("ntm get shmring pass \n");
+	// }
+
+	ntm_msg incoming_msg;
+
+	bool retval;
+	int i;
+	for (i = 0; i < 10; i++)
+	{
+		retval = ntm_shmring_pop(ns_handle, &incoming_msg);
+		printf("retval=%d\n", retval);
+
+		printf("pop an element: msg_id-%d, msg_type=%d, sockid=%d, domain=%d, protocol=%d, sock_type=%d shmaddr=%s, nts_shm_addrlen=%d \n",
+			   incoming_msg.msg_id, incoming_msg.msg_type,
+			   incoming_msg.sockid, incoming_msg.domain,
+			   incoming_msg.protocol, incoming_msg.sock_type,
+			   incoming_msg.nts_shm_name, incoming_msg.nts_shm_addrlen);
+	}
+
+	ntm_shmring_free(ns_handle, 1);
 }
 
 static inline void test_ntm_shm()
@@ -1990,7 +1999,7 @@ int print_monitor()
 {
 	printf("Hello Ntb Monitor.\n");
 
-	//	test_ntm_ring();
+		test_ntm_ring();
 	//	test_ntm_shm();
 	//	test_nts_shm();
 	printf("Bye, Ntb Monitor.\n");

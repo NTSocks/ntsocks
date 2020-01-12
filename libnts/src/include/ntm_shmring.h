@@ -14,7 +14,7 @@
 extern "C" {
 #endif
 
-#define NTM_MAX_BUFS 1024 // define NTM_MAX_BUFS as a power of 2 (65536 in our case)
+#define NTM_MAX_BUFS  8 // define NTM_MAX_BUFS as a power of 2 (65536 in our case)
 #define NTM_BUF_SIZE 256
 
 #define NTM_SEM_MUTEX_NAME "/ntm-sem-mutex"

@@ -86,7 +86,7 @@ typedef struct {
  * sender: nts app
  * receiver: ntb-monitor
  */
-#define SHM_NAME_LEN 128
+#define SHM_NAME_LEN 50
 
 typedef enum {
     NT_SHUT_RD = 1,  // close socket read operation
@@ -114,16 +114,30 @@ typedef enum {
 typedef struct {
     ntm_msg_id msg_id;
     ntm_msg_type msg_type;
-    ntsock_id sockid;
+    int sockid;
+    shutdown_type howto; 
+    int backlog;
+    int req_client_sockaddr;
+    int domain;
+    int sock_type;
+    int protocol;
+    int nts_shm_addrlen;
+    int addrlen;
+    int port;
+    char address[16];
+    char nts_shm_name[SHM_NAME_LEN];
 
     /**
      * For NTM_MSG_NEW_SOCK
      */
-    int nts_shm_addrlen;
-    char nts_shm_name[SHM_NAME_LEN];
-    int domain;
-    int sock_type;
-    int protocol;
+    // int nts_shm_addrlen;
+    // char nts_shm_name[SHM_NAME_LEN];
+    // int domain;
+    // int sock_type;
+    // int protocol;
+
+  
+    
 
     /**
      * For NTM_MSG_BIND
@@ -137,7 +151,7 @@ typedef struct {
      * For NTM_MSG_LISTEN
      * backlog: the upper limit of nt client connection
      */
-    int backlog;
+    // int backlog;
 
     /**
      * For NTM_MSG_ACCEPT
@@ -146,7 +160,7 @@ typedef struct {
      *      return client ip address and port)
      */
     // ntsock_id sockid;
-    uint8_t req_client_sockaddr; // if 1, return client addr:port; else, not
+    // uint8_t req_client_sockaddr; // if 1, return client addr:port; else, not
 
     // if req_client_sockaddr == 1
     // char address[16];
@@ -165,9 +179,9 @@ typedef struct {
      * For NTM_MSG_CONNECT
      */
     // sockid
-    char address[16];
-    uint8_t addrlen;
-    uint16_t port;
+    // char address[16];
+    // uint8_t addrlen;
+    // uint16_t port;
 
 
     /**
@@ -184,7 +198,7 @@ typedef struct {
      * For NTM_MSG_SHUTDOWN
      */
     // socket id
-    shutdown_type howto; // 
+    // shutdown_type howto; 
 
     /**
      * For NTM_MSG_ERR

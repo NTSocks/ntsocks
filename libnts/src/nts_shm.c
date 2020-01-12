@@ -82,7 +82,7 @@ int nts_shm_recv(nts_shm_context_t shm_ctx, nts_msg *buf) {
 	bool ret;
 	ret = nts_shmring_pop(shm_ctx->ntsring_handle, buf);
 
-	DEBUG("nts_shm_recv pass");
+	// DEBUG("nts_shm_recv pass");
 	return ret ? 0 : -1;
 }
 

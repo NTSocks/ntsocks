@@ -15,6 +15,8 @@
 #include "nts_config.h"
 #include "nt_log.h"
 #include "ntp_nts_shm.h"
+#include "ntm_shm.h"
+#include "nts_shm.h"
 
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
@@ -52,7 +54,7 @@ inline int handle_ntp_fin_msg(nt_sock_context_t nt_sock_ctx, int sockid) {
 	ntm_msg ntm_outgoing_msg;
 	ntm_outgoing_msg.msg_type = NTM_MSG_FIN;
 	ntm_outgoing_msg.sockid = sockid;
-	retval = ntm_shm_send(nts_ctx->ntm_ctx, &ntm_outgoing_msg);
+	retval = ntm_shm_send(nts_ctx->ntm_ctx->shm_send_ctx, &ntm_outgoing_msg);
 	if (retval == -1) {
 		ERR("ntm_shm_send NTM_MSG_FIN failed. ");
 		return -1;
@@ -133,6 +135,7 @@ int nts_init(const char *config_file) {
 	assert(config_file);
 
 	nts_context_init(config_file);
+	nts_ctx->init_flag = 1;
 
 	return 0;
 }
@@ -209,6 +212,7 @@ int nts_socket(int domain, int type, int protocol) {
 				nt_sock_ctx->nts_shmaddr, nt_sock_ctx->nts_shmlen);
 	
 	// pack the `NTM_MSG_NEW_SOCK` ntm_msg and send the message into ntm
+	DEBUG("nts_shmaddr=%s, nts_shmlen=%d", nt_sock_ctx->nts_shmaddr, nt_sock_ctx->nts_shmlen);
 	ntm_msg outgoing_msg;
 	outgoing_msg.msg_id = nt_sock_ctx->ntm_msg_id;
 	outgoing_msg.msg_type = NTM_MSG_NEW_SOCK;
@@ -624,8 +628,9 @@ int nts_connect(int sockid, const struct sockaddr *name, socklen_t namelen) {
 	if(!nt_sock_ctx)
 		goto FAIL;
 
-	// check whether the socket state is valid or not
-	if(!nt_sock_ctx->socket || nt_sock_ctx->socket->state != CLOSED || nt_sock_ctx->socket->state != BOUND) {
+	// TODO:HotFix check whether the socket state is valid or not
+	// if(!nt_sock_ctx->socket || nt_sock_ctx->socket->state != CLOSED || nt_sock_ctx->socket->state != BOUND) {
+	if(!nt_sock_ctx->socket || nt_sock_ctx->socket->state != CLOSED) {
 		ERR("non-existing socket [sockid: %d], or the socket state is not `CLOSED`. ", sockid);
 		goto FAIL;
 	}

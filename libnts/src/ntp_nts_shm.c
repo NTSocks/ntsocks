@@ -54,7 +54,7 @@ int ntp_shm_connect(ntp_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
 	memset(shm_ctx->shm_addr, 0, addrlen);
 	shm_ctx->addrlen = addrlen;
 	memcpy(shm_ctx->shm_addr, shm_addr, addrlen);
-	shm_ctx->ntsring_handle = nts_get_shmring(shm_ctx->shm_addr, shm_ctx->addrlen); /// note: need to improve
+	shm_ctx->ntsring_handle = ntp_get_shmring(shm_ctx->shm_addr, shm_ctx->addrlen); /// note: need to improve
 	shm_ctx->shm_stat = NTP_SHM_READY;
 
 	DEBUG("ntp_shm_connect pass");

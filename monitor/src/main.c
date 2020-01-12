@@ -32,8 +32,9 @@ static void usage(const char *argv0){
 }
 
 int main(int argc, char **argv) {
-	char *conf_file;
 	// print_monitor();
+	char *conf_file;
+	
 	while(1){
 		int c;
 		static struct option long_options[] = {

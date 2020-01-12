@@ -14,6 +14,7 @@
 
 #include "nts.h"
 #include "config.h"
+#include "nts_config.h"
 #include "nt_log.h"
 #include "nt_errno.h"
 
