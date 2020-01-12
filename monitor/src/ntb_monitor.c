@@ -117,8 +117,8 @@ void *nts_recv_thread(void *arg)
 {
 	assert(ntm_mgr->nts_ctx->shm_recv_ctx);
 
-	ntm_nts_context_t nts_ctx;
-	nts_ctx = ntm_mgr->nts_ctx;
+	// ntm_nts_context_t nts_ctx;
+	// nts_ctx = ntm_mgr->nts_ctx;
 
 	DEBUG("nts_recv_thread ready...");
 
@@ -184,11 +184,12 @@ int ntm_init(const char *config_file)
 	{
 		perror(err_msg);
 		ERR("Failed to allocate ntm_manager.");
-		return -1;
+		goto FAIL;
 	}
 
 	// hash map for the mapping relationship between port and client nt_socket
 	ntm_mgr->port_sock_map = createHashMap(NULL, NULL);
+
 
 	ntm_mgr->nts_ctx = (ntm_nts_context_t)calloc(1,
 												 sizeof(struct ntm_nts_context));
@@ -196,7 +197,7 @@ int ntm_init(const char *config_file)
 	{
 		perror(err_msg);
 		ERR("Failed to allocate ntm_nts_context.");
-		return -1;
+		goto FAIL;
 	}
 	nts_ctx = ntm_mgr->nts_ctx;
 	// hash map for cache the nts shm ringbuffer context created by nts
@@ -208,9 +209,10 @@ int ntm_init(const char *config_file)
 	{
 		perror(err_msg);
 		ERR("Failed to allocate ntm_ntp_context.");
-		return -1;
+		goto FAIL;
 	}
 	ntp_ctx = ntm_mgr->ntp_ctx;
+
 
 	ntm_mgr->ntm_conn_ctx = (ntm_conn_ctx_t)calloc(1,
 												   sizeof(struct ntm_conn_context));
@@ -218,11 +220,12 @@ int ntm_init(const char *config_file)
 	{
 		perror(err_msg);
 		ERR("Failed to allocate ntm_ntp_context.");
-		return -1;
+		goto FAIL;
 	}
 	ntm_conn_ctx = ntm_mgr->ntm_conn_ctx;
 	// hash map for cache the remote ntm connection list
 	ntm_conn_ctx->conn_map = createHashMap(NULL, NULL);
+
 
 	ntm_mgr->nt_listener_ctx = (nt_listener_context_t)calloc(1,
 															 sizeof(struct nt_listener_context));
@@ -230,11 +233,13 @@ int ntm_init(const char *config_file)
 	{
 		perror(err_msg);
 		ERR("Failed to allocate ntm_ntp_context.");
-		return -1;
+		goto FAIL;
 	}
 	nt_listener_ctx = ntm_mgr->nt_listener_ctx;
 	// hash map for holding all nt_listener indexed by port
 	nt_listener_ctx->listener_map = createHashMap(NULL, NULL);
+
+
 
 	/**
 	 *	init global socket and port resources
@@ -245,7 +250,7 @@ int ntm_init(const char *config_file)
 	if(!ntm_mgr->nt_sock_ctx) {
 		perror(err_msg);
 		ERR("Failed to allocate sock_context.");
-		return -1;
+		goto FAIL;
 	}
 	init_socket_context(ntm_mgr->nt_sock_ctx, NTM_CONFIG.max_concurrency);
 
@@ -253,9 +258,46 @@ int ntm_init(const char *config_file)
 	if(!ntm_mgr->nt_port_ctx) {
 		perror(err_msg);
 		ERR("Failed to allocate port_context");
-		return -1;
+		goto FAIL;
 	}
 	init_port_context(ntm_mgr->nt_port_ctx, NTM_CONFIG.max_port);
+
+
+
+	/**
+	 * init the ntp-related shm ringbuffer queue to recv/send from/to ntb-proxy
+	 * init the ntp ==> ntm shm recv queue
+	 * init the ntm ==> ntp shm send queue
+	 */
+	// init the ntp ==> ntm shm recv queue
+	ntp_ctx->shm_recv_ctx = ntp_ntm_shm();
+	if (!ntp_ctx->shm_recv_ctx) {
+		ERR("Failed to allocate ntp_ntm_shm_context.");
+		goto FAIL;
+	}
+
+	ret = ntp_ntm_shm_connect(ntp_ctx->shm_recv_ctx, 
+				NTP_NTM_SHM_NAME, sizeof(NTP_NTM_SHM_NAME));
+	if (ret == -1) {
+		ERR("ntp_ntm_shm_connect failed.");
+		goto FAIL;
+	}
+
+	// init the ntm ==> ntp shm send queue
+	ntp_ctx->shm_send_ctx = ntm_ntp_shm();
+	if (!ntp_ctx->shm_send_ctx) {
+		ERR("Failed to allocate ntp_ntm_shm_context.");
+		goto FAIL;
+	}
+
+	ret = ntm_ntp_shm_connect(ntp_ctx->shm_send_ctx, 
+				NTM_NTP_SHM_NAME, sizeof(NTM_NTP_SHM_NAME));
+	if (ret == -1) {
+		ERR("ntm_ntp_shm_connect failed.");
+		goto FAIL;
+	}
+
+
 
 	/**
 	 * init the ntm shm ringbuffer to receive the messages from libnts apps
@@ -264,7 +306,7 @@ int ntm_init(const char *config_file)
 	if (!ntm_mgr->nts_ctx->shm_recv_ctx)
 	{
 		ERR("Failed to allocate ntm_shm_context.");
-		return -1;
+		goto FAIL;
 	}
 
 	ret = ntm_shm_accept(ntm_mgr->nts_ctx->shm_recv_ctx,
@@ -272,7 +314,7 @@ int ntm_init(const char *config_file)
 	if (ret)
 	{
 		ERR("ntm_shm_accept failed.");
-		return -1;
+		goto FAIL;
 	}
 
 	// pthread_create(&nts_ctx->shm_recv_thr, NULL, nts_recv_thread, NULL);
@@ -295,6 +337,11 @@ int ntm_init(const char *config_file)
 	nts_shm_recv_thread(NULL);
 
 	return 0;
+
+	FAIL:
+
+	return -1;
+
 }
 
 void ntm_destroy()
@@ -392,7 +439,7 @@ void ntm_destroy()
 			nts_shm_destroy(nts_shm_conn->nts_shm_ctx);
 		}
 
-		Remove(ntm_mgr->nts_ctx->nts_shm_conn_map, nts_shm_conn->sockid);
+		Remove(ntm_mgr->nts_ctx->nts_shm_conn_map, &nts_shm_conn->sockid);
 	}
 	freeHashMapIterator(&iter);
 	Clear(ntm_mgr->nts_ctx->nts_shm_conn_map);
@@ -404,12 +451,36 @@ void ntm_destroy()
 	{
 		ntm_shm_close(shm_recv_ctx);
 		ntm_shm_destroy(shm_recv_ctx);
+		shm_recv_ctx = NULL;
 	}
 
 	DEBUG("Destroy the ntm-nts context resources pass");
 
 	// Destroy the port_sock_map hashmap
 	Clear(ntm_mgr->port_sock_map);
+
+	/**
+	 * Destroy the ntp-related (ntp <==> ntm) resources/context, including:
+	 * 1. destroy ntp ==> ntm shm recv queue
+	 * 2. destroy ntm ==> ntp shm send queue
+	 */
+	ntm_ntp_context_t ntp_ctx;
+	ntp_ctx = ntm_mgr->ntp_ctx;
+	if (ntp_ctx->shm_send_ctx && 
+				ntp_ctx->shm_send_ctx->shm_stat == SHM_READY) {
+		ntm_ntp_shm_ntm_close(ntp_ctx->shm_send_ctx);
+		ntm_ntp_shm_destroy(ntp_ctx->shm_send_ctx);
+		ntp_ctx->shm_send_ctx = NULL;
+	}
+	if (ntp_ctx->shm_recv_ctx &&
+				ntp_ctx->shm_recv_ctx->shm_stat == SHM_READY) {
+		ntp_ntm_shm_ntm_close(ntp_ctx->shm_recv_ctx);
+		ntp_ntm_shm_destroy(ntp_ctx->shm_recv_ctx);
+		ntp_ctx->shm_recv_ctx = NULL;
+	}
+
+	DEBUG("Destroy the ntm-ntp context resources pass");
+
 
 
 	//	nts_shm_context_t shm_send_ctx;
@@ -423,11 +494,16 @@ void ntm_destroy()
 	 * Destroy the context structure
 	 */
 	free(ntm_mgr->ntm_conn_ctx);
+	ntm_mgr->ntm_conn_ctx = NULL;
 	free(ntm_mgr->nt_listener_ctx);
+	ntm_mgr->nt_listener_ctx = NULL;
 	free(ntm_mgr->ntp_ctx);
+	ntm_mgr->ntp_ctx = NULL;
 	free(ntm_mgr->nts_ctx);
+	ntm_mgr->nts_ctx = NULL;
 
 	free(ntm_mgr);
+	ntm_mgr = NULL;
 
 	/**
      * destroy the memory which is allocated to NTM_CONFIG
@@ -483,7 +559,7 @@ inline void handle_nt_syn_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 	outgoing_msg.src_addr = msg.dst_addr;
 	outgoing_msg.sport = msg.dport;
 	outgoing_msg.dport = msg.sport;
-	outgoing_msg.dst_addr = msg.dst_addr;
+	outgoing_msg.dst_addr = msg.src_addr;
 
 	// check whether the SYN message is valid or not
 	int sport, dport;
@@ -547,10 +623,41 @@ inline void handle_nt_syn_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 	// instruct ntb-proxy to setup the ntb connection/queue
 	// i. setup ntp msg and send to ntp shm
 	// ii. wait for the response msg from ntp
+	ntm_ntp_msg ntp_outgoing_msg;	// for send msg into ntp
+	
+	ntp_outgoing_msg.dst_ip = msg.src_addr;
+	ntp_outgoing_msg.dst_port = msg.sport;
+	ntp_outgoing_msg.src_ip = msg.dst_addr;
+	ntp_outgoing_msg.src_port = msg.dport;
+	ntp_outgoing_msg.msg_type = 1;
+	ntp_outgoing_msg.msg_len = 0;
+	int retval;
+	retval = ntm_ntp_shm_send(ntm_mgr->ntp_ctx->shm_send_ctx, &ntp_outgoing_msg);
+	while (retval == -1) {
+		sched_yield();
+		retval = ntm_ntp_shm_send(ntm_mgr->ntp_ctx->shm_send_ctx, &ntp_outgoing_msg);
+	}
+	DEBUG("ntm_ntp_shm_send pass, wait to recv response from ntp.");
 
+	ntp_ntm_msg ntp_incoming_msg;	// for recv msg from ntp
+	retval = ntp_ntm_shm_recv(ntm_mgr->ntp_ctx->shm_recv_ctx, &ntp_incoming_msg);
+	while (retval == -1) {
+		sched_yield();
+		retval = ntp_ntm_shm_recv(ntm_mgr->ntp_ctx->shm_recv_ctx, &ntp_incoming_msg);
+	}
+	
+	// if ntb connection setup failed, goto FAIL.
+	if (ntp_incoming_msg.msg_type != 1) {
+		ERR("ntb connection setup failed");
+		goto FAIL;
+	}
+
+
+
+	DEBUG("recv the response message of `ntb connection setup successfully` from ntp.");
 
 	/** 
-	 * TODO: if receive `SETUP Success` message from ntb-proxy,
+	 * TODO: if receive `SETUP Success` message from ntb-proxy (ntp_incoming_msg.msg_type == 1),
 	 * 	init/create coresponding `nts_shm_conn_t` for the accepted nt_socket,
 	 * 	push new nts shm conn into hashmap,
 	 * 	update client socket state as `ESTABLISHED`
@@ -612,7 +719,7 @@ inline void handle_nt_syn_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 		free_socket(ntm_mgr->nt_sock_ctx, client_socket->sockid, 1);
 	}
 
-	if (new_nts_shm_conn) {
+	if (new_nts_shm_conn != NULL) {
 		free(new_nts_shm_conn);
 	}
 
@@ -638,8 +745,45 @@ inline void handle_nt_syn_ack_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 		return;
 	}
 
+	/**
+	 * receive `NT_SYN_ACK`, then tell ntp to setup ntb connection,
+	 * i. setup ntp msg and send to ntp shm
+	 * ii. wait for the response msg from ntp
+	 *  update the nt_socket state as `ESTABLISHED`. 
+	 */
+	ntm_ntp_msg ntp_outgoing_msg;	// for send msg into ntp
+	ntp_outgoing_msg.dst_ip = msg.src_addr;
+	ntp_outgoing_msg.dst_port = msg.sport;
+	ntp_outgoing_msg.src_ip = msg.dst_addr;
+	ntp_outgoing_msg.src_port = msg.dport;
+	ntp_outgoing_msg.msg_type = 1;
+	ntp_outgoing_msg.msg_len = 0;
+	int retval;
+	retval = ntm_ntp_shm_send(ntm_mgr->ntp_ctx->shm_send_ctx, &ntp_outgoing_msg);
+	while (retval == -1) {
+		sched_yield();
+		retval = ntm_ntp_shm_send(ntm_mgr->ntp_ctx->shm_send_ctx, &ntp_outgoing_msg);
+	}
+	DEBUG("ntm_ntp_shm_send pass, wait to recv response from ntp.");
+
+	ntp_ntm_msg ntp_incoming_msg;	// for recv msg from ntp
+	retval = ntp_ntm_shm_recv(ntm_mgr->ntp_ctx->shm_recv_ctx, &ntp_incoming_msg);
+	while (retval == -1) {
+		sched_yield();
+		retval = ntp_ntm_shm_recv(ntm_mgr->ntp_ctx->shm_recv_ctx, &ntp_incoming_msg);
+	}
+	
+	// if ntb connection setup failed, goto FAIL.
+	if (ntp_incoming_msg.msg_type != 1) {
+		ERR("ntb connection setup failed");
+		goto FAIL;
+	}
+
+	DEBUG("recv the response message of `ntb connection setup successfully` from ntp.");
+
 	// update the nt_socket state as `ESTABLISHED`
 	client_sock->state = ESTABLISHED;
+
 
 	if (!Exists(ntm_mgr->nts_ctx->nts_shm_conn_map, &client_sock->sockid))
 	{
@@ -650,7 +794,6 @@ inline void handle_nt_syn_ack_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 	nts_shm_conn = (nts_shm_conn_t) Get(ntm_mgr->nts_ctx->nts_shm_conn_map, &client_sock->sockid);
 
 
-	int retval;
 	nts_msg response_msg;
 	response_msg.msg_type = NTS_MSG_ESTABLISH;
 	response_msg.sockid = client_sock->sockid;
@@ -662,6 +805,10 @@ inline void handle_nt_syn_ack_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 	}
 
 	DEBUG("handle NT_SYN_ACK message pass");
+
+	FAIL: 
+
+	return;
 }
 
 inline void handle_nt_invalid_port_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
@@ -1052,7 +1199,7 @@ void ntm_sock_handle_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg)
 	}
 	case SUCCESS:
 	{
-		human_data *data = (human_data *)&msg.payload;
+		// human_data *data = (human_data *)&msg.payload;
 		DEBUG("SUCCESS message \n");
 		break;
 	}
@@ -1369,11 +1516,9 @@ inline void handle_msg_nts_connect(ntm_manager_t ntm_mgr, ntm_msg msg)
 
 	FAIL:
 	if(nts_shm_conn->socket->state == CLOSED) {
-		if (port)
+		if (port != NULL)
 		{
-			nts_shm_conn->socket->saddr.sin_family = NULL;
 			nts_shm_conn->socket->saddr.sin_port = htons(0);
-			nts_shm_conn->socket->saddr.sin_addr.s_addr = NULL;
 			free_port(ntm_mgr->nt_port_ctx, port->port_id, 1);
 		}
 		

@@ -19,12 +19,17 @@
 #include "nt_port.h"
 #include "nt_backlog.h"
 
+#include "ntm_ntp_shm.h"
+#include "ntp_ntm_shm.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 
 #define NTM_SHMRING_NAME "/ntm-shm-ring"
+#define NTP_NTM_SHM_NAME "/ntp-ntm"
+#define NTM_NTP_SHM_NAME "/ntm-ntp"
 
 
 /*----------------------------------------------------------------------------*/
@@ -118,6 +123,16 @@ typedef struct ntm_nts_context* ntm_nts_context_t;
  * Definitions for the shm communication between nt-monitor and ntb-proxy.
  */
 struct ntm_ntp_context {
+
+	/**
+	 * for ntp ==> ntm shm recv queue
+	 */
+	ntp_ntm_shm_context_t shm_recv_ctx;
+
+	/**
+	 * for ntm ==> ntp shm send queue
+	 */
+	ntm_ntp_shm_context_t shm_send_ctx;
 
 };
 
