@@ -15,18 +15,11 @@
 
 char *create_conn_name(uint16_t src_port, uint16_t dst_port);
 
-// int index_ctrl_handler(struct ntb_link *ntlink, struct ntb_ctrl_msg *msg);
 
 int detect_pkg_handler(struct ntb_link *ntlink, struct ntb_data_msg *msg);
 
 int ctrl_msg_receive(struct ntb_link *ntlink);
 
 int ntp_create_conn_handler(struct ntb_link *ntlink, ntm_ntp_msg *msg);
-
-// int ntp_destory_conn_handler(struct ntb_link *ntlink, ntm_msg *msg);
-
-// struct ntp_rs_ring ntp_rsring_lookup(uint16_t src_port,uint16_t dst_port);
-
-// struct ntp_rs_ring ntp_shmring_lookup();
 
 #endif /* _NTLINK_PARSER_H_ */

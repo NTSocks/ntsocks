@@ -137,17 +137,16 @@ static int ntb_trans_cum_ptr(struct ntb_sublink *sublink)
 	return 0;
 }
 
-static int data_msg_header_parser(struct ntb_sublink *sublink, struct ntb_data_msg *msg)
+static int parser_header_get_type(struct ntb_sublink *sublink, uint16_t msg_len)
 {
-	DEBUG("data_msg_header_parser");
-	uint16_t msg_type = msg->header.msg_len;
-	if (msg_type & 1 << 15)
+	DEBUG("parser_header_get_type");
+	if (msg_len & 1 << 15)
 	{
 		ntb_trans_cum_ptr(sublink);
 	}
-	msg_type = msg_type >> 12;
-	msg_type &= 0x07;
-	return msg_type;
+	msg_len = msg_len >> 12;
+	msg_len &= 0x07;
+	return msg_len;
 }
 
 static int ntb_msg_add_header(struct ntb_data_msg *msg, uint16_t src_port, uint16_t dst_port, int payload_len, int msg_type)
@@ -189,7 +188,6 @@ static int ntb_data_enqueue(struct ntb_sublink *sublink, uint8_t *msg, int data_
 	struct ntb_ring *r = sublink->remote_ring;
 	uint64_t next_serial = (r->cur_serial + 1) % (r->capacity);
 	//looping send
-	__asm__("mfence");
 	while (next_serial == *sublink->local_cum_ptr)
 	{
 	}
@@ -208,7 +206,6 @@ static int ntb_msg_enqueue(struct ntb_sublink *sublink, struct ntb_data_msg *msg
 	msg_len &= 0x0fff;
 	uint64_t next_serial = (r->cur_serial + 1) % (r->capacity);
 	//looping send
-	__asm__("mfence");
 	while (next_serial == *sublink->local_cum_ptr)
 	{
 	}
@@ -256,14 +253,12 @@ int ntb_data_send(struct ntb_sublink *sublink, ntp_shm_context_t ring, struct nt
 	{
 		if (ntp_shm_recv(ring, &send_msg) < 0)
 		{
-			DEBUG("ntb send recv pkg failed ,and break");
 			break;
 		}
 		DEBUG("send data pkg");
 		data_len = send_msg.msg_len;
 		(*counter)++;
 
-		INFO("get_read_index +1 = %ld,opposide_readindex = %ld,counter = %ld", ((ntp_get_read_index(ring->ntsring_handle) + 1) & 0x03ff), ntp_get_opposide_readindex(ring->ntsring_handle), *counter);
 		if (send_msg.msg_type == FIN_TYPE)
 		{
 			char *conn_name = create_conn_name(src_port, dst_port);
@@ -305,22 +300,30 @@ int ntb_data_send(struct ntb_sublink *sublink, ntp_shm_context_t ring, struct nt
 	}
 	if ((ntp_get_detect_pkg_state(ring->ntsring_handle) == 0) && ((ntp_get_read_index(ring->ntsring_handle) + 1) & 0x03ff) == ntp_get_opposide_readindex(ring->ntsring_handle))
 	{
+		// (ntp_get_opposide_readindex(ring->ntsring_handle) - ntp_get_read_index(ring->ntsring_handle)) & 0xff == 0;
 		ntp_set_detect_pkg_state(ring->ntsring_handle, 1);
+		INFO("send detect_pkg");
 		//若尚未发送探测包，则发送
 		ntb_msg_add_header(&msg, src_port, dst_port, 0, DETECT_PKG);
 		ntb_msg_enqueue(sublink, &msg);
 	}
-	INFO("data_send end");
+	else
+	{
+		INFO("detect_state %d ", ntp_get_detect_pkg_state(ring->ntsring_handle));
+		INFO("ntp_get_read_index+1 = %ld", (ntp_get_read_index(ring->ntsring_handle) + 1) & 0x03ff);
+		INFO("opposide = %ld", ntp_get_opposide_readindex(ring->ntsring_handle));
+	}
 	return 0;
 }
+
 
 int ntb_data_receive(struct ntb_sublink *sublink, struct ntb_link *ntlink, uint64_t *counter)
 {
 	struct ntb_ring *r = sublink->local_ring;
+	volatile struct ntb_data_msg *msg;
 	while (1)
 	{
-		__asm__("mfence");
-		struct ntb_data_msg *msg = (struct ntb_data_msg *)(r->start_addr + (r->cur_serial * NTB_DATA_MSG_TL));
+		msg = (struct ntb_data_msg *)(r->start_addr + (r->cur_serial * NTB_DATA_MSG_TL));
 		uint16_t msg_len = msg->header.msg_len;
 		msg_len &= 0x0fff;
 		//if no msg,continue
@@ -328,15 +331,16 @@ int ntb_data_receive(struct ntb_sublink *sublink, struct ntb_link *ntlink, uint6
 		{
 			continue;
 		}
-		// rte_memcpy((uint8_t *)receive_buff + received, msg->msg, msg_len - NTB_HEADER_LEN);
-		// r->cur_serial = (r->cur_serial + 1) % (r->capacity);
-		int msg_type = data_msg_header_parser(sublink, msg);
+
+		int msg_type = parser_header_get_type(sublink, msg->header.msg_len);
+
 		//解析接收的包时将src和dst port交换
 		uint16_t src_port = msg->header.dst_port;
 		uint16_t dst_port = msg->header.src_port;
 		char *conn_name = create_conn_name(src_port, dst_port);
 		ntb_conn *conn = (ntb_conn *)Get(ntlink->map, conn_name);
 		free(conn_name);
+
 		if (conn == NULL || conn->state == ACTIVE_CLOSE || conn->state == PASSIVE_CLOSE)
 		{
 			//连接已关闭，查找不到连接信息
@@ -355,7 +359,7 @@ int ntb_data_receive(struct ntb_sublink *sublink, struct ntb_link *ntlink, uint6
 		if (msg_type == SINGLE_PKG)
 		{
 			(*counter)++;
-			INFO("receive msg counter = %ld", *counter);
+			// INFO("receive msg counter = %ld", *counter);
 			DEBUG("receive SINGLE_PKG");
 			recv_msg.msg_type = 0;
 			recv_msg.msg_len = msg_len - NTB_HEADER_LEN;

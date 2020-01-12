@@ -51,9 +51,9 @@ struct ntb_ring
 struct ntb_ctrl_link
 {
 	//remote cum ptr,write to local
-	uint64_t *local_cum_ptr;
+	volatile uint64_t *local_cum_ptr;
 	//local cum ptr,wirte to remote
-	uint64_t *remote_cum_ptr;
+	volatile uint64_t *remote_cum_ptr;
 	struct ntb_ring *local_ring;
 	struct ntb_ring *remote_ring;
 };
@@ -61,9 +61,9 @@ struct ntb_ctrl_link
 struct ntb_sublink
 {
 	//remote cum ptr,write to local
-	uint64_t *local_cum_ptr;
+	volatile uint64_t *local_cum_ptr;
 	//local cum ptr,wirte to remote
-	uint64_t *remote_cum_ptr;
+	volatile uint64_t *remote_cum_ptr;
 	struct ntb_ring *local_ring;
 	struct ntb_ring *remote_ring;
 };

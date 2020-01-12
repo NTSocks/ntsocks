@@ -142,6 +142,7 @@ static int ntb_ctrl_msg_enqueue(struct ntb_link *ntlink, struct ntb_ctrl_msg *ms
     //looping send
     while (next_serial == *ntlink->ctrllink->local_cum_ptr)
     {
+        INFO("ntb_ctrl_msg_enqueue looping");
     }
     if ((next_serial - *ntlink->ctrllink->local_cum_ptr) & 0x3ff == 0)
     {
@@ -193,24 +194,22 @@ static int ctrl_trans_cum_ptr(struct ntb_link *ntlink)
     return 0;
 }
 
-int ctrl_msg_header_parser(struct ntb_link *link, struct ntb_ctrl_msg *msg)
+static int ctrl_parser_header(struct ntb_link *link, uint16_t msg_len)
 {
-    uint16_t msg_len = msg->header.msg_len;
     if (msg_len & 1 << 15)
     {
         ctrl_trans_cum_ptr(link);
     }
-    // msg_len &= 0x3f;
     return 0;
 }
 
 int ctrl_msg_receive(struct ntb_link *ntlink)
 {
     struct ntb_ring *r = ntlink->ctrllink->local_ring;
+    volatile struct ntb_ctrl_msg *msg;
     while (1)
     {
-        __asm__("mfence");
-        struct ntb_ctrl_msg *msg = (struct ntb_ctrl_msg *)(r->start_addr + (r->cur_serial * NTB_CTRL_MSG_TL));
+        msg = (struct ntb_ctrl_msg *)(r->start_addr + (r->cur_serial * NTB_CTRL_MSG_TL));
         uint16_t msg_len = msg->header.msg_len;
         msg_len &= 0x0fff;
         //if no msg,continue
@@ -219,7 +218,7 @@ int ctrl_msg_receive(struct ntb_link *ntlink)
             continue;
         }
         DEBUG("receive a ntb_ctrl_msg");
-        ctrl_msg_header_parser(ntlink, msg);
+        ctrl_parser_header(ntlink, msg->header.msg_len);
         //解析接收的包时将src和dst port交换
         uint16_t src_port = msg->header.dst_port;
         uint16_t dst_port = msg->header.src_port;
@@ -228,6 +227,7 @@ int ctrl_msg_receive(struct ntb_link *ntlink)
         free(conn_name);
         INFO("set my opposide_readindex = %ld",*(uint64_t *)msg->msg);
         ntp_set_opposide_readindex(conn->send_ring->ntsring_handle,*(uint64_t *)msg->msg);
+        ntp_set_detect_pkg_state(conn->send_ring->ntsring_handle,0);
         r->cur_serial = (r->cur_serial + 1) % (r->capacity);
         msg->header.msg_len = 0;
     }
