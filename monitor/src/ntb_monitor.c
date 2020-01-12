@@ -270,32 +270,32 @@ int ntm_init(const char *config_file)
 	 * init the ntm ==> ntp shm send queue
 	 */
 	// init the ntp ==> ntm shm recv queue
-	ntp_ctx->shm_recv_ctx = ntp_ntm_shm();
-	if (!ntp_ctx->shm_recv_ctx) {
-		ERR("Failed to allocate ntp_ntm_shm_context.");
-		goto FAIL;
-	}
+	// ntp_ctx->shm_recv_ctx = ntp_ntm_shm();
+	// if (!ntp_ctx->shm_recv_ctx) {
+	// 	ERR("Failed to allocate ntp_ntm_shm_context.");
+	// 	goto FAIL;
+	// }
 
-	ret = ntp_ntm_shm_connect(ntp_ctx->shm_recv_ctx, 
-				NTP_NTM_SHM_NAME, sizeof(NTP_NTM_SHM_NAME));
-	if (ret == -1) {
-		ERR("ntp_ntm_shm_connect failed.");
-		goto FAIL;
-	}
+	// ret = ntp_ntm_shm_connect(ntp_ctx->shm_recv_ctx, 
+	// 			NTP_NTM_SHM_NAME, sizeof(NTP_NTM_SHM_NAME));
+	// if (ret == -1) {
+	// 	ERR("ntp_ntm_shm_connect failed.");
+	// 	goto FAIL;
+	// }
 
-	// init the ntm ==> ntp shm send queue
-	ntp_ctx->shm_send_ctx = ntm_ntp_shm();
-	if (!ntp_ctx->shm_send_ctx) {
-		ERR("Failed to allocate ntp_ntm_shm_context.");
-		goto FAIL;
-	}
+	// // init the ntm ==> ntp shm send queue
+	// ntp_ctx->shm_send_ctx = ntm_ntp_shm();
+	// if (!ntp_ctx->shm_send_ctx) {
+	// 	ERR("Failed to allocate ntp_ntm_shm_context.");
+	// 	goto FAIL;
+	// }
 
-	ret = ntm_ntp_shm_connect(ntp_ctx->shm_send_ctx, 
-				NTM_NTP_SHM_NAME, sizeof(NTM_NTP_SHM_NAME));
-	if (ret == -1) {
-		ERR("ntm_ntp_shm_connect failed.");
-		goto FAIL;
-	}
+	// ret = ntm_ntp_shm_connect(ntp_ctx->shm_send_ctx, 
+	// 			NTM_NTP_SHM_NAME, sizeof(NTM_NTP_SHM_NAME));
+	// if (ret == -1) {
+	// 	ERR("ntm_ntp_shm_connect failed.");
+	// 	goto FAIL;
+	// }
 
 
 
@@ -464,20 +464,20 @@ void ntm_destroy()
 	 * 1. destroy ntp ==> ntm shm recv queue
 	 * 2. destroy ntm ==> ntp shm send queue
 	 */
-	ntm_ntp_context_t ntp_ctx;
-	ntp_ctx = ntm_mgr->ntp_ctx;
-	if (ntp_ctx->shm_send_ctx && 
-				ntp_ctx->shm_send_ctx->shm_stat == SHM_READY) {
-		ntm_ntp_shm_ntm_close(ntp_ctx->shm_send_ctx);
-		ntm_ntp_shm_destroy(ntp_ctx->shm_send_ctx);
-		ntp_ctx->shm_send_ctx = NULL;
-	}
-	if (ntp_ctx->shm_recv_ctx &&
-				ntp_ctx->shm_recv_ctx->shm_stat == SHM_READY) {
-		ntp_ntm_shm_ntm_close(ntp_ctx->shm_recv_ctx);
-		ntp_ntm_shm_destroy(ntp_ctx->shm_recv_ctx);
-		ntp_ctx->shm_recv_ctx = NULL;
-	}
+	// ntm_ntp_context_t ntp_ctx;
+	// ntp_ctx = ntm_mgr->ntp_ctx;
+	// if (ntp_ctx->shm_send_ctx && 
+	// 			ntp_ctx->shm_send_ctx->shm_stat == SHM_READY) {
+	// 	ntm_ntp_shm_ntm_close(ntp_ctx->shm_send_ctx);
+	// 	ntm_ntp_shm_destroy(ntp_ctx->shm_send_ctx);
+	// 	ntp_ctx->shm_send_ctx = NULL;
+	// }
+	// if (ntp_ctx->shm_recv_ctx &&
+	// 			ntp_ctx->shm_recv_ctx->shm_stat == SHM_READY) {
+	// 	ntp_ntm_shm_ntm_close(ntp_ctx->shm_recv_ctx);
+	// 	ntp_ntm_shm_destroy(ntp_ctx->shm_recv_ctx);
+	// 	ntp_ctx->shm_recv_ctx = NULL;
+	// }
 
 	DEBUG("Destroy the ntm-ntp context resources pass");
 
@@ -621,34 +621,35 @@ inline void handle_nt_syn_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 	// instruct ntb-proxy to setup the ntb connection/queue
 	// i. setup ntp msg and send to ntp shm
 	// ii. wait for the response msg from ntp
-	ntm_ntp_msg ntp_outgoing_msg;	// for send msg into ntp
+	DEBUG("instruct ntb-proxy to setup the ntb connection/queue");
+	// ntm_ntp_msg ntp_outgoing_msg;	// for send msg into ntp
 	
-	ntp_outgoing_msg.dst_ip = msg.src_addr;
-	ntp_outgoing_msg.dst_port = msg.sport;
-	ntp_outgoing_msg.src_ip = msg.dst_addr;
-	ntp_outgoing_msg.src_port = msg.dport;
-	ntp_outgoing_msg.msg_type = 1;
-	ntp_outgoing_msg.msg_len = 0;
-	int retval;
-	retval = ntm_ntp_shm_send(ntm_mgr->ntp_ctx->shm_send_ctx, &ntp_outgoing_msg);
-	while (retval == -1) {
-		sched_yield();
-		retval = ntm_ntp_shm_send(ntm_mgr->ntp_ctx->shm_send_ctx, &ntp_outgoing_msg);
-	}
-	DEBUG("ntm_ntp_shm_send pass, wait to recv response from ntp.");
+	// ntp_outgoing_msg.dst_ip = msg.src_addr;
+	// ntp_outgoing_msg.dst_port = msg.sport;
+	// ntp_outgoing_msg.src_ip = msg.dst_addr;
+	// ntp_outgoing_msg.src_port = msg.dport;
+	// ntp_outgoing_msg.msg_type = 1;
+	// ntp_outgoing_msg.msg_len = 0;
+	// int retval;
+	// retval = ntm_ntp_shm_send(ntm_mgr->ntp_ctx->shm_send_ctx, &ntp_outgoing_msg);
+	// while (retval == -1) {
+	// 	sched_yield();
+	// 	retval = ntm_ntp_shm_send(ntm_mgr->ntp_ctx->shm_send_ctx, &ntp_outgoing_msg);
+	// }
+	// DEBUG("ntm_ntp_shm_send pass, wait to recv response from ntp.");
 
-	ntp_ntm_msg ntp_incoming_msg;	// for recv msg from ntp
-	retval = ntp_ntm_shm_recv(ntm_mgr->ntp_ctx->shm_recv_ctx, &ntp_incoming_msg);
-	while (retval == -1) {
-		sched_yield();
-		retval = ntp_ntm_shm_recv(ntm_mgr->ntp_ctx->shm_recv_ctx, &ntp_incoming_msg);
-	}
+	// ntp_ntm_msg ntp_incoming_msg;	// for recv msg from ntp
+	// retval = ntp_ntm_shm_recv(ntm_mgr->ntp_ctx->shm_recv_ctx, &ntp_incoming_msg);
+	// while (retval == -1) {
+	// 	sched_yield();
+	// 	retval = ntp_ntm_shm_recv(ntm_mgr->ntp_ctx->shm_recv_ctx, &ntp_incoming_msg);
+	// }
 	
-	// if ntb connection setup failed, goto FAIL.
-	if (ntp_incoming_msg.msg_type != 1) {
-		ERR("ntb connection setup failed");
-		goto FAIL;
-	}
+	// // if ntb connection setup failed, goto FAIL.
+	// if (ntp_incoming_msg.msg_type != 1) {
+	// 	ERR("ntb connection setup failed");
+	// 	goto FAIL;
+	// }
 
 
 
@@ -757,33 +758,34 @@ inline void handle_nt_syn_ack_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 	 * ii. wait for the response msg from ntp
 	 *  update the nt_socket state as `ESTABLISHED`. 
 	 */
-	ntm_ntp_msg ntp_outgoing_msg;	// for send msg into ntp
-	ntp_outgoing_msg.dst_ip = msg.src_addr;
-	ntp_outgoing_msg.dst_port = msg.sport;
-	ntp_outgoing_msg.src_ip = msg.dst_addr;
-	ntp_outgoing_msg.src_port = msg.dport;
-	ntp_outgoing_msg.msg_type = 1;
-	ntp_outgoing_msg.msg_len = 0;
-	int retval;
-	retval = ntm_ntp_shm_send(ntm_mgr->ntp_ctx->shm_send_ctx, &ntp_outgoing_msg);
-	while (retval == -1) {
-		sched_yield();
-		retval = ntm_ntp_shm_send(ntm_mgr->ntp_ctx->shm_send_ctx, &ntp_outgoing_msg);
-	}
-	DEBUG("ntm_ntp_shm_send pass, wait to recv response from ntp.");
+	DEBUG("instruct ntp to setup ntb connection");
+	// ntm_ntp_msg ntp_outgoing_msg;	// for send msg into ntp
+	// ntp_outgoing_msg.dst_ip = msg.src_addr;
+	// ntp_outgoing_msg.dst_port = msg.sport;
+	// ntp_outgoing_msg.src_ip = msg.dst_addr;
+	// ntp_outgoing_msg.src_port = msg.dport;
+	// ntp_outgoing_msg.msg_type = 1;
+	// ntp_outgoing_msg.msg_len = 0;
+	// int retval;
+	// retval = ntm_ntp_shm_send(ntm_mgr->ntp_ctx->shm_send_ctx, &ntp_outgoing_msg);
+	// while (retval == -1) {
+	// 	sched_yield();
+	// 	retval = ntm_ntp_shm_send(ntm_mgr->ntp_ctx->shm_send_ctx, &ntp_outgoing_msg);
+	// }
+	// DEBUG("ntm_ntp_shm_send pass, wait to recv response from ntp.");
 
-	ntp_ntm_msg ntp_incoming_msg;	// for recv msg from ntp
-	retval = ntp_ntm_shm_recv(ntm_mgr->ntp_ctx->shm_recv_ctx, &ntp_incoming_msg);
-	while (retval == -1) {
-		sched_yield();
-		retval = ntp_ntm_shm_recv(ntm_mgr->ntp_ctx->shm_recv_ctx, &ntp_incoming_msg);
-	}
+	// ntp_ntm_msg ntp_incoming_msg;	// for recv msg from ntp
+	// retval = ntp_ntm_shm_recv(ntm_mgr->ntp_ctx->shm_recv_ctx, &ntp_incoming_msg);
+	// while (retval == -1) {
+	// 	sched_yield();
+	// 	retval = ntp_ntm_shm_recv(ntm_mgr->ntp_ctx->shm_recv_ctx, &ntp_incoming_msg);
+	// }
 	
-	// if ntb connection setup failed, goto FAIL.
-	if (ntp_incoming_msg.msg_type != 1) {
-		ERR("ntb connection setup failed");
-		goto FAIL;
-	}
+	// // if ntb connection setup failed, goto FAIL.
+	// if (ntp_incoming_msg.msg_type != 1) {
+	// 	ERR("ntb connection setup failed");
+	// 	goto FAIL;
+	// }
 
 	DEBUG("recv the response message of `ntb connection setup successfully` from ntp.");
 
