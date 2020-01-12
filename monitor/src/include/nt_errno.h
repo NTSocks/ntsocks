@@ -36,6 +36,8 @@ extern "C" {
 #define NT_ERR_REQUIRE_CLOSED_OR_BOUND_FIRST    50
 #define NT_ERR_REMOTE_NTM_NOT_FOUND             51
 
+// for finish
+#define NT_ERR_REQUIRE_ESTABLISHED_FIRST  60
 
 #ifdef __cplusplus
 };

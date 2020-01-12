@@ -1656,8 +1656,96 @@ inline void handle_msg_nts_close(ntm_manager_t ntm_mgr, ntm_msg msg)
 
 inline void handle_msg_nts_fin(ntm_manager_t ntm_mgr, ntm_msg msg) {
 	
+	/**
+	 * 1. get nts_shm_conn via msg.sockid
+	 * 2. check whether socket state is `ESTABLISHED` or not
+	 * 3. check whether the target server ip and port is valid or not
+	 * 4. send `NT_FIN_ACK` message to remote ntm via traditional TCP transport
+	 * 5. set socket state to `WAIT_CLOSE`
+	 * 6. destory client socket conn and nts_shm_conn
+	 * 6. set socket state to `CLOSED`
+	 */
+	int retval;
+	nts_shm_conn_t nts_shm_conn;
+	nts_msg response_msg;
 
+	response_msg.msg_id = msg.msg_id;
+	response_msg.msg_type = NTS_MSG_SHUTDOWN;
+	response_msg.sockid = msg.sockid;
+	nts_shm_conn = (nts_shm_conn_t) Get(ntm_mgr->nts_ctx->nts_shm_conn_map, &msg.sockid);
+	if(!nts_shm_conn){
+		ERR("nts_shm_conn not found");
+		return;
+	}
 
+	if(nts_shm_conn->socket->state != ESTABLISHED){
+		response_msg.retval = -1;
+		response_msg.nt_errno = NT_ERR_REQUIRE_ESTABLISHED_FIRST;
+		ERR("fin requires established first");
+		retval = nts_shm_send(nts_shm_conn->nts_shm_ctx, &response_msg);
+		if(retval){
+			ERR("nts_shm_send failed for response to NT_ERR_REQUIRE_ESTABLISHED_FIRST");
+		}
+		return;
+	}
+
+	/**
+	 * Check whether the target server ip is valid
+ 	 */
+    if (msg.addrlen <= 0) {
+        // setting the errno as INVALID_IP
+        response_msg.retval = -1;
+        response_msg.nt_errno = NT_ERR_INVALID_IP;
+        retval = nts_shm_send(nts_shm_conn->nts_shm_ctx, &response_msg);
+        if (retval) {
+            ERR("nts_shm_send failed for response to NT_ERR_INVALID_IP");
+        }
+        return;
+    }
+	/**
+     * check whether the target server port is valid
+     */
+	if (msg.port <= 0) {
+        response_msg.retval = -1;
+        response_msg.nt_errno = NT_ERR_INVALID_PORT;
+        retval = nts_shm_send(nts_shm_conn->nts_shm_ctx, &response_msg);
+        if(retval) {
+            ERR("nts_shm_send failed for response to NT_ERR_INVALID_PORT");
+        }
+	    return;
+    }
+
+	assert(ntm_mgr->ntm_conn_ctx);
+	ntm_conn_t ntm_conn;
+	if(Exists(ntm_mgr->ntm_conn_ctx->conn_map, msg.address)){
+		ntm_conn = (ntm_conn_t) Get(ntm_mgr->ntm_conn_ctx->conn_map, msg.address);
+	}else {
+		ERR("the communication between local ntm and remote ntm is not setup");
+		return;
+	}
+	
+	ntm_sock_msg sock_msg;
+	sock_msg.src_addr = nts_shm_conn->socket->saddr.sin_addr.s_addr;
+	sock_msg.sport = nts_shm_conn->socket->saddr.sin_port;
+	sock_msg.dst_addr = inet_addr(ntm_conn->ip);
+	sock_msg.dport = htons(ntm_conn->port);
+	sock_msg.type = NT_FIN_ACK;
+	retval = ntm_send_tcp_msg(ntm_conn->client_sock, (char*)&sock_msg, sizeof(sock_msg));
+	if(retval <= 0){
+		ERR("ntm_send_tcp_msg send NT_FIN_ACK message failed");
+		return;
+	}
+	// set state to WAIT_CLOSE
+	nt_socket_t sock = get_socket(ntm_mgr->nt_sock_ctx, msg.sockid, NTM_CONFIG.max_concurrency);
+	if(!sock){
+		ERR("Non-exist the socket gotten by msg.sockid");
+		return;
+	}
+	sock->state = WAIT_CLOSE;
+	destroy_client_nt_socket_conn_with_nts_shm_conn(nts_shm_conn);
+	sock->state = CLOSED;
+
+	// set state to CLOSED
 	DEBUG("handle_msg_nts_fin pass");
 }
 

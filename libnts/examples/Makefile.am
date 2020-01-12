@@ -7,7 +7,7 @@
 # Because a.out is only a sample program we don't want it to be installed.
 # The 'noinst_' prefix indicates that the following targets are not to be
 # installed.
-noinst_PROGRAMS=hello-ntsock
+noinst_PROGRAMS=hello-ntsock-client hello-ntsock-server
 
 
 #######################################
@@ -17,7 +17,7 @@ noinst_PROGRAMS=hello-ntsock
 # '_SOURCES' for example.
 
 # Sources for the a.out 
-hello_ntsock_SOURCES= hello-ntsock.c
+hello_ntsock_SOURCES= hello-ntsock-client.c hello-ntsock-server.c
 
 # Linker options for a.out
 #hello_ntsock_LDFLAGS = $(top_builddir)/src/libnts.la

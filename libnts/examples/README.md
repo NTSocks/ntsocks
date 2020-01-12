@@ -6,4 +6,4 @@
 
 3. make -j4
 
-4. LD_PRELOAD=./libnts.so ./hello-ntsock
+4. LD_PRELOAD=./libnts.so ./hello-ntsock-server
