@@ -13,6 +13,8 @@
 #include "ntb_monitor.h"
 #include "nt_log.h"
 #include "config.h"
+#include "nts_shm.h"
+#include "ntm_msg.h"
 
 // DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
@@ -30,6 +32,34 @@ static void usage(const char *argv0){
 	fprintf(stdout, "  -p, --port 			 listen on/connect to port\n");
 	fprintf(stdout, "  -c, --conf			 monitor config file path\n");
 }
+
+
+void test_nts_shm() {
+	nts_msg msg;
+
+	char *nts_shm_name = "nts-test";
+
+	nts_shmring_handle_t handle;
+	handle = nts_shmring_init(nts_shm_name, strlen(nts_shm_name));
+	int i;
+	bool ret;
+	for ( i = 0; i < 10; i++)
+	{
+		ret = nts_shmring_pop(handle, &msg);
+		while (!ret)
+		{
+			// sched_yield();
+			ret = nts_shmring_pop(handle, &msg);
+		}
+		printf("msg_id=%d, msg_type=%d, sockid=%d, retval=%d\n", 
+					msg.msg_id, msg.msg_type, msg.sockid, msg.retval);
+		
+	}
+
+	nts_shmring_free(handle, 1);
+
+}
+
 
 int main(int argc, char **argv) {
 	// print_monitor();
@@ -74,6 +104,8 @@ int main(int argc, char **argv) {
 	// load_conf(CONFIG_FILE);
 	// DEBUG("after load conf");
 	// print_conf();
+
+	// test_nts_shm();
 
 	ntm_init(CONFIG_FILE);
 

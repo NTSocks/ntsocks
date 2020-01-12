@@ -187,9 +187,14 @@ typedef enum {
 typedef struct {
     nts_msg_id msg_id;
     nts_msg_type msg_type;
-    nt_sock_id sockid;
+    int sockid;
     int retval; // if 0, pass; else -1, failed
     int nt_errno;  // conresponding to error type
+    nt_conn_status conn_status;
+    int addrlen;
+    int port;
+    char address[16];
+    
 
     /**
      * For NTS_MSG_INIT
@@ -218,8 +223,8 @@ typedef struct {
      /**
      * For NTS_MSG_ACCEPT
      */
-    // client socket id = nt_sock_id sockid;
-    nt_sock_id client_sockid;
+    // client socket id = ntsock_id sockid;
+    // ntsock_id client_sockid;
 
     // if req_client_sockaddr == 1
     // char address[16];
@@ -229,7 +234,7 @@ typedef struct {
     /**
      * For NTS_MSG_CONNECT
      */
-    nt_conn_status conn_status;
+    // nt_conn_status conn_status;
     // retval
     // nt_errno
 
@@ -254,12 +259,6 @@ typedef struct {
      * For NTS_MSG_SHUTDOWN
      */
     // retval
-
-
-    char address[16];
-    uint32_t addrlen;
-    uint64_t port;
-
    
 } nts_msg;
 

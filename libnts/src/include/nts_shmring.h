@@ -20,7 +20,7 @@
 extern "C" {
 #endif
 
-#define NTS_MAX_BUFS 1024 // define NTS_MAX_BUFS as [(a power of 2) -1] (65535 in our case)
+#define NTS_MAX_BUFS 8 // define NTS_MAX_BUFS as [(a power of 2) -1] (65535 in our case)
 #define NTS_BUF_SIZE 256
 
 #define NTS_SHM_NAME "/nts-shm-ring"

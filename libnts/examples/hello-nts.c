@@ -24,16 +24,16 @@ int main(int argc, char * argv[]) {
 	// int sockfd;
 	socket(AF_INET, SOCK_STREAM, 0);
     
-	getchar();
+	// getchar();
 
 	// close(sockfd);
 
 	// print_socket();
 	// test_ntm_shm();
+	// test_nts_shm();
+
 	// nts_init(NTS_CONFIG_FILE);
-
 	// getchar();
-
 	// nts_destroy();
 
 	printf("Bye, libnts app.\n");

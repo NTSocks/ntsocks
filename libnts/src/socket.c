@@ -11,6 +11,7 @@
 #include "ntm_shm.h"
 #include "socket.h"
 #include "debug.h"
+#include "nts_shm.h"
 
 
 int print_socket(){
@@ -22,6 +23,8 @@ int print_socket(){
 
 	return 0;
 }
+
+
 
 int test_ntm_shm() {
 	char *shm_name = "huangyibo";
@@ -61,4 +64,36 @@ int test_ntm_shm() {
 	ntm_shm_destroy(ntm_shm_ctx);
 
 	return 0;
+}
+
+void test_nts_shm() {	
+	nts_msg msg = {
+		.msg_id = 2,
+		.msg_type = 3,
+		.sockid = 4,
+		.retval = 0
+	};
+
+	char *nts_shm_name = "nts-test";
+
+	nts_shmring_handle_t handle;
+	handle = nts_get_shmring(nts_shm_name, strlen(nts_shm_name));
+	int i;
+	bool ret;
+	for ( i = 0; i < 10; i++)
+	{
+		msg.msg_id += i;
+		ret = nts_shmring_push(handle, &msg);
+		while (!ret)
+		{
+			// sched_yield();
+			ret = nts_shmring_push(handle, &msg);
+		}
+		printf("msg_id=%d, msg_type=%d, sockid=%d, retval=%d\n", 
+					msg.msg_id, msg.msg_type, msg.sockid, msg.retval);
+		
+	}
+	
+	nts_shmring_free(handle, 0);
+
 }
