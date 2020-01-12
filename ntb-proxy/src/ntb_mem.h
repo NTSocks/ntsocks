@@ -35,6 +35,7 @@
 #define READY_CONN 1
 #define ACTIVE_CLOSE 2
 #define PASSIVE_CLOSE 3
+#define SEND_DETECT 4
 
 #define DATA_TYPE 1
 #define FIN_TYPE 2
@@ -70,6 +71,7 @@ struct ntb_sublink
 typedef struct ntb_conn_context
 {
 	uint8_t state;
+	// uint8_t detect_send;
 	char *name;
 	ntp_shm_context_t send_ring;
 	ntp_shm_context_t recv_ring;
@@ -123,9 +125,9 @@ int parser_conn_name(char *conn_name, uint16_t *src_port, uint16_t *dst_port);
 
 int add_conn_to_ntlink(struct ntb_link *link, ntb_conn *conn);
 
-int ntb_data_send(struct ntb_sublink *sublink, ntp_shm_context_t ring, struct ntb_link *ntlink);
+int ntb_data_send(struct ntb_sublink *sublink, ntp_shm_context_t ring, struct ntb_link *ntlink,uint64_t *counter);
 
-int ntb_data_receive(struct ntb_sublink *sublink, struct ntb_link *ntlink);
+int ntb_data_receive(struct ntb_sublink *sublink, struct ntb_link *ntlink,uint64_t *counter);
 
 struct ntb_link *ntb_start(uint16_t dev_id);
 

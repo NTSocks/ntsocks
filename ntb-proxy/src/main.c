@@ -62,7 +62,6 @@ DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 #define CREATE_CONN 1
 
-
 static uint16_t dev_id;
 
 struct ntb_link *ntb_link;
@@ -72,36 +71,40 @@ unsigned lcore_id;
 static int
 ntb_send_thread(__attribute__((unused)) void *arg)
 {
-	ntp_ring_list_node *move_node = ntb_link->ring_head;
-	ntp_ring_list_node *next_node = NULL;
+	assert(ntb_link);
+	ntp_ring_list_node *pre_node = ntb_link->ring_head;
+	ntp_ring_list_node *curr_node = NULL;
+	uint64_t counter = 0;
 	while (1)
 	{
-		next_node = move_node->next_node;
-		if (next_node == ntb_link->ring_head)
+		__asm__("mfence");
+		curr_node = pre_node->next_node;
+		if (curr_node == ntb_link->ring_head)
 		{
-			move_node = next_node;
+			pre_node = curr_node;
 			continue;
 		}
-		if (next_node->conn->state != READY_CONN)
+		if (curr_node->conn->state == PASSIVE_CLOSE || curr_node->conn->state == ACTIVE_CLOSE)
 		{
 			DEBUG("conn close,remove and free node");
 			// conn->state 不为READY，队列均已Close，移除map、list并free就可
-			Remove(ntb_link->map, next_node->conn->name);
+			Remove(ntb_link->map, curr_node->conn->name);
 			// destory_conn_ack(ntb_link, next_node->conn->name);
-			move_node->next_node = next_node->next_node;
-			free(next_node);
+			pre_node->next_node = curr_node->next_node;
+			free(curr_node);
 			continue;
 		}
-		DEBUG("ntb_data_send start");
-		ntb_data_send(ntb_link->sublink, move_node->conn->send_ring, ntb_link);
-		move_node = next_node;
+		// INFO("send conn name = %s",curr_node->conn->name);
+		ntb_data_send(ntb_link->sublink, curr_node->conn->send_ring, ntb_link,&counter);
+		pre_node = curr_node;
 	}
 	return 0;
 }
 static int
 ntb_receive_thread(__attribute__((unused)) void *arg)
 {
-	ntb_data_receive(ntb_link->sublink, ntb_link);
+	uint64_t counter = 0;
+	ntb_data_receive(ntb_link->sublink, ntb_link,&counter);
 	return 0;
 }
 
@@ -116,17 +119,32 @@ static int
 ntm_ntp_receive_thread(__attribute__((unused)) void *arg)
 {
 	ntm_ntp_shm_context_t recv_shm = ntb_link->ntm_ntp;
-	ntm_ntp_msg *recv_msg = malloc(sizeof(*recv_msg));
+	// ntm_ntp_msg *recv_msg = malloc(sizeof(*recv_msg));
+	ntm_ntp_msg recv_msg;
+
+	//test mode
+	recv_msg.dst_port = 80;
+	recv_msg.src_port = 80;
+	recv_msg.msg_type = 1;
+	recv_msg.dst_ip = 1000020;
+	recv_msg.src_ip = 1000020;
+	ntp_create_conn_handler(ntb_link, &recv_msg);
+
+	//test mode end
 	while (1)
 	{
-		if (ntm_ntp_shm_recv(recv_shm, recv_msg) < 0)
+		__asm__("mfence");
+		if (ntm_ntp_shm_recv(recv_shm, &recv_msg) == -1)
 		{
 			continue;
 		}
-		if (recv_msg->msg_type == CREATE_CONN)
+		else
 		{
-			DEBUG("receive ntm_ntp_msg,create ntb_conn");
-			ntp_create_conn_handler(ntb_link, recv_msg);
+			DEBUG("receive ntm_ntp_msg, create ntb_conn");
+			if (recv_msg.msg_type == CREATE_CONN)
+			{
+				ntp_create_conn_handler(ntb_link, &recv_msg);
+			}
 		}
 	}
 	return 0;
@@ -137,7 +155,7 @@ int main(int argc, char **argv)
 	int ret, i;
 	ret = rte_eal_init(argc, argv);
 	if (ret < 0)
-	rte_exit(EXIT_FAILURE, "Error with EAL initialization.\n");
+		rte_exit(EXIT_FAILURE, "Error with EAL initialization.\n");
 	/* Find 1st ntb rawdev. */
 	for (i = 0; i < RTE_RAWDEV_MAX_DEVS; i++)
 		if (rte_rawdevs[i].driver_name &&

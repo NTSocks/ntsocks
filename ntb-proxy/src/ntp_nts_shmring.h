@@ -35,6 +35,10 @@ uint64_t ntp_get_read_index(ntp_shmring_handle_t shmring_handle);
 
 uint64_t ntp_get_opposide_readindex(ntp_shmring_handle_t shmring_handle);
 
+uint8_t ntp_get_detect_pkg_state(ntp_shmring_handle_t shmring_handle);
+
+int ntp_set_detect_pkg_state(ntp_shmring_handle_t shmring_handle,uint8_t val);
+
 int ntp_set_opposide_readindex(ntp_shmring_handle_t shmring_handle,uint64_t read_index);
 
 ntp_shmring_handle_t ntp_shmring_init(char *shm_addr, size_t addrlen);

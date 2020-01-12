@@ -15,7 +15,7 @@
 
 char *create_conn_name(uint16_t src_port, uint16_t dst_port);
 
-int index_ctrl_handler(struct ntb_link *ntlink, struct ntb_ctrl_msg *msg);
+// int index_ctrl_handler(struct ntb_link *ntlink, struct ntb_ctrl_msg *msg);
 
 int detect_pkg_handler(struct ntb_link *ntlink, struct ntb_data_msg *msg);
 

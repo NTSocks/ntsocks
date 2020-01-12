@@ -22,7 +22,7 @@
 #include "ntp_ntm_shm.h"
 #include "nt_log.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_INFO);
 
 static char *int_to_char(uint16_t x)
 {
@@ -72,15 +72,14 @@ char *create_conn_name(uint16_t src_port, uint16_t dst_port)
 
 static int create_conn_ack(struct ntb_link *ntlink, ntm_ntp_msg *msg)
 {
-    ntp_ntm_msg *reply_msg = malloc(sizeof(*reply_msg));
-    reply_msg->src_ip = msg->src_ip;
-    reply_msg->dst_ip = msg->dst_ip;
-    reply_msg->src_port = msg->src_port;
-    reply_msg->dst_port = msg->dst_port;
-    reply_msg->msg_type = CREATE_CONN_ACK;
-    reply_msg->msg_len = 14;
-    ntp_ntm_shm_send(ntlink->ntp_ntm, reply_msg);
-    free(reply_msg);
+    ntp_ntm_msg reply_msg;
+    reply_msg.src_ip = msg->src_ip;
+    reply_msg.dst_ip = msg->dst_ip;
+    reply_msg.src_port = msg->src_port;
+    reply_msg.dst_port = msg->dst_port;
+    reply_msg.msg_type = CREATE_CONN_ACK;
+    reply_msg.msg_len = 14;
+    ntp_ntm_shm_send(ntlink->ntp_ntm, &reply_msg);
     return 0;
 }
 
@@ -88,7 +87,8 @@ int ntp_create_conn_handler(struct ntb_link *ntlink, ntm_ntp_msg *msg)
 {
     ntb_conn *conn = malloc(sizeof(*conn));
     conn->state = READY_CONN;
-    conn->name = create_conn_name(msg->src_port, msg->dst_port);;
+    // conn->detect_send = 0;
+    conn->name = create_conn_name(msg->src_port, msg->dst_port);
     ntp_shm_context_t send_ring = ntp_shm();
     char *send_ring_name = create_ring_name(msg->src_port, msg->dst_port, true);
     if (ntp_shm_accept(send_ring, send_ring_name, sizeof(send_ring_name)) != 0)
@@ -107,6 +107,8 @@ int ntp_create_conn_handler(struct ntb_link *ntlink, ntm_ntp_msg *msg)
     Put(ntlink->map, conn->name, conn);
     //向ntp_ntm队列中返回确认消息
     create_conn_ack(ntlink, msg);
+    free(send_ring_name);
+    free(recv_ring_name);
     DEBUG("create conn success,conn name is %s",conn->name);
     return 0;
 }
@@ -154,27 +156,29 @@ static int ntb_ctrl_msg_enqueue(struct ntb_link *ntlink, struct ntb_ctrl_msg *ms
 
 int ntp_trans_read_index(struct ntb_link *ntlink, uint16_t src_port, uint16_t dst_port)
 {
-    struct ntb_ctrl_msg *msg = malloc(sizeof(*msg));
+    struct ntb_ctrl_msg msg;
     uint64_t read_index = get_read_index(ntlink, src_port, dst_port);
-    msg->header.src_port = src_port;
-    msg->header.dst_port = dst_port;
-    msg->header.msg_len = 6;
-    rte_memcpy(msg->msg, &read_index, 8);
-    ntb_ctrl_msg_enqueue(ntlink, msg);
-    DEBUG("send my read_index");
+
+    msg.header.src_port = src_port;
+    msg.header.dst_port = dst_port;
+    msg.header.msg_len = 6;
+    
+    rte_memcpy(msg.msg, &read_index, 8);
+    ntb_ctrl_msg_enqueue(ntlink, &msg);
+    INFO("send my read_index = %ld",read_index);
     return 0;
 }
 
-int index_ctrl_handler(struct ntb_link *ntlink, struct ntb_ctrl_msg *msg)
-{
-    //解析包时将源端口和目的端口调换。
-    char *conn_name = create_conn_name(msg->header.dst_port, msg->header.src_port);
-    ntb_conn *conn = (ntb_conn *)Get(ntlink->map, conn_name);
-    ntp_set_opposide_readindex(conn->send_ring->ntsring_handle,*(uint64_t *)msg->msg);
-    DEBUG("set my opposide_readindex");
-    free(conn_name);
-    return 0;
-}
+// int index_ctrl_handler(struct ntb_link *ntlink, struct ntb_ctrl_msg *msg)
+// {
+//     //解析包时将源端口和目的端口调换。
+//     char *conn_name = create_conn_name(msg->header.dst_port, msg->header.src_port);
+//     ntb_conn *conn = (ntb_conn *)Get(ntlink->map, conn_name);
+//     ntp_set_opposide_readindex(conn->send_ring->ntsring_handle,*(uint64_t *)msg->msg);
+//     INFO("set my opposide_readindex");
+//     free(conn_name);
+//     return 0;
+// }
 
 int detect_pkg_handler(struct ntb_link *ntlink, struct ntb_data_msg *msg)
 {
@@ -222,6 +226,7 @@ int ctrl_msg_receive(struct ntb_link *ntlink)
         char *conn_name = create_conn_name(src_port, dst_port);
         ntb_conn *conn = (ntb_conn *)Get(ntlink->map, conn_name);
         free(conn_name);
+        INFO("set my opposide_readindex = %ld",*(uint64_t *)msg->msg);
         ntp_set_opposide_readindex(conn->send_ring->ntsring_handle,*(uint64_t *)msg->msg);
         r->cur_serial = (r->cur_serial + 1) % (r->capacity);
         msg->header.msg_len = 0;

@@ -16,7 +16,7 @@
 #include "ntm_ntp_shm.h"
 #include "nt_log.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_INFO);
 
 ntm_ntp_shm_context_t ntm_ntp_shm() {
 	ntm_ntp_shm_context_t shm_ctx;
@@ -78,8 +78,6 @@ int ntm_ntp_shm_recv(ntm_ntp_shm_context_t shm_ctx, ntm_ntp_msg *buf) {
 
 	bool ret;
 	ret = ntm_ntp_shmring_pop(shm_ctx->ntm_ntpring_handle, buf);
-
-	// DEBUG("ntm_ntp_shm_recv pass");
 	return ret ? 0 : -1;
 }
 

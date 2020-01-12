@@ -245,7 +245,7 @@ bool ntp_ntm_shmring_pop(ntp_ntm_shmring_handle_t self, ntp_ntm_msg *element) {
 
    /// Queue is empty (or was empty when we checked)
    if (empty(w_idx, r_idx))
-       return -1;
+       return false;
 
     ntp_ntm_msgcopy(&(self->shmring->buf[self->shmring->read_index]), element);
 

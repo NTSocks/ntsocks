@@ -234,18 +234,12 @@ bool ntm_ntp_shmring_push(ntm_ntp_shmring_handle_t self, ntm_ntp_msg *element) {
 bool ntm_ntp_shmring_pop(ntm_ntp_shmring_handle_t self, ntm_ntp_msg *element) {
     assert(self);
 
-
-//   uint64_t r_idx = nt_atomic_load64_explicit(
-//           &self->shmring->read_index, ATOMIC_MEMORY_ORDER_CONSUME);
-//   uint64_t w_idx = nt_atomic_load64_explicit(
-//           &self->shmring->write_index, ATOMIC_MEMORY_ORDER_CONSUME);
-
    uint64_t w_idx = nt_atomic_load64_explicit(&self->shmring->write_index, ATOMIC_MEMORY_ORDER_ACQUIRE);
    uint64_t r_idx = nt_atomic_load64_explicit(&self->shmring->read_index, ATOMIC_MEMORY_ORDER_RELAXED);
 
    /// Queue is empty (or was empty when we checked)
    if (empty(w_idx, r_idx))
-       return -1;
+       return false;
 
     ntm_ntp_msgcopy(&(self->shmring->buf[self->shmring->read_index]), element);
 

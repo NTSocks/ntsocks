@@ -43,6 +43,8 @@ typedef struct _ntp_shmring
     unsigned long MASK;
     int addrlen;
     char *shm_addr;
+    //DETECT_PKG has been sent
+    uint8_t detect_sent;
     //read_index of opposite recv buffer
     uint64_t opposite_read_index;
     struct ntp_shmring_buf *shmring;
@@ -100,6 +102,18 @@ uint64_t ntp_get_opposide_readindex(ntp_shmring_handle_t shmring_handle)
 int ntp_set_opposide_readindex(ntp_shmring_handle_t shmring_handle,uint64_t read_index)
 {
     shmring_handle->opposite_read_index = read_index;
+    ntp_set_detect_pkg_state(shmring_handle,0);
+    return 0;
+}
+
+uint8_t ntp_get_detect_pkg_state(ntp_shmring_handle_t shmring_handle)
+{
+    return shmring_handle->detect_sent;
+}
+
+int ntp_set_detect_pkg_state(ntp_shmring_handle_t shmring_handle,uint8_t val)
+{
+    shmring_handle->detect_sent = val;
     return 0;
 }
 
@@ -159,6 +173,7 @@ ntp_shmring_handle_t ntp_shmring_init(char *shm_addr, size_t addrlen)
     shmring_handle->shmring->read_index = shmring_handle->shmring->write_index = 0;
     // init opposite_read_index
     shmring_handle->opposite_read_index = 0;
+    shmring_handle->detect_sent = 0;
     DEBUG("mmap pass");
 
     shmring_handle->MASK = NTS_MAX_BUFS - 1;
@@ -280,7 +295,7 @@ bool ntp_shmring_pop(ntp_shmring_handle_t self, ntp_msg *element)
 
     /// Queue is empty (or was empty when we checked)
     if (empty(w_idx, r_idx))
-        return -1;
+        return false;
 
     ntp_msgcopy(&(self->shmring->buf[self->shmring->read_index]), element);
 
