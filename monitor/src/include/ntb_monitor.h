@@ -46,6 +46,7 @@ struct ntm_config {
 };
 
 typedef struct ntm_conn * ntm_conn_t;
+typedef struct nt_listener_wrapper * nt_listener_wrapper_t;
 
 
 /*----------------------------------------------------------------------------*/
@@ -70,6 +71,10 @@ struct nts_shm_conn {
 	int shm_addrlen;
 	char nts_shm_name[SHM_NAME_LEN];
 	nts_shm_context_t nts_shm_ctx;
+
+	//if nt_socket type is created by `accept()`, point to coresponding `nt_listener_wrapper_t`
+	// of if socktype is `NT_SOCK_PIPE`
+	nt_listener_wrapper_t listener;
 
 	ntm_conn_t ntm_conn;
 };
@@ -168,16 +173,6 @@ typedef struct ntm_conn_context *ntm_conn_ctx_t;
  *	4. forward the accepted remote connection requests to corresponding nt_listener
  *
  */
-struct nt_accepted_conn {
-	nt_sock_id sockid;
-	nt_socket_t client_sock;
-
-	ntm_conn_t ntm_conn;
-
-	nt_listener_t listener;  // point the corresponding nt_listener pointer
-
-};
-typedef struct nt_accepted_conn * nt_accepted_conn_t;
 
 #define BACKLOG_SHMLEN 30
 struct nt_listener_wrapper {
@@ -198,20 +193,20 @@ struct nt_listener_wrapper {
 	 */
 	nt_backlog_context_t backlog_ctx;
 	char backlog_shmaddr[BACKLOG_SHMLEN];	// backlog shm name, default rule: backlog-{sock_id}
-	size_t backlog_shmlen;	
+	size_t backlog_shmlen;
 
 	/**
 	 * hold the client socket accepted by current listener
 	 *
 	 * key: & client socket id (memory address)
-	 * value: nt_accepted_conn_t
+	 * value:  nt_socket_t
 	 */
 	HashMap accepted_conn_map;
 
 	nts_shm_conn_t nts_shm_conn;  // point the related nts shm context pointer
 
 };
-typedef struct nt_listener_wrapper * nt_listener_wrapper_t;
+
 
 
 struct nt_listener_context {
@@ -250,7 +245,7 @@ struct ntm_manager {
 	nt_port_context_t nt_port_ctx;
 
 	/**
-	 * hold all (connect) client nt_socket indexed by client `port`
+	 * hold all (connect/accepted) client nt_socket indexed by client `port`
 	 * 
 	 * key: port
 	 * value: nt_socket_t

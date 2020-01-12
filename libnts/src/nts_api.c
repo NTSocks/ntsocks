@@ -552,6 +552,7 @@ int nts_accept(int sockid, const struct sockaddr *addr, socklen_t *addrlen) {
 	// pack `NTM_MSG_ACCEPT_ACK` ntm_msg and sent it into ntb monitor
 	ntm_msg outgoing_msg;
 	outgoing_msg.msg_id = client_sock_ctx->ntm_msg_id;
+	outgoing_msg.sockid = client_socket->sockid;
 	outgoing_msg.msg_type = NTM_MSG_ACCEPT_ACK;
 	outgoing_msg.nts_shm_addrlen = client_sock_ctx->nts_shmlen;
 	memcpy(outgoing_msg.nts_shm_name, client_sock_ctx->nts_shmaddr, client_sock_ctx->nts_shmlen);
@@ -714,7 +715,7 @@ int nts_close(int sockid) {
 	 * 		if socktype is `NT_SOCK_LISTENER`, destroy backlog_ctx, nts_shm_ctx, socket;
 	 * 		else, destroy ntp_send_ctx, ntp_recv_ctx, nts_shm_ctx, socket
 	 * 6. else if `ESTABLISHED`, set socket state to `WAIT_FIN`, send `NTP_NTS_MSG_FIN` ntp_msg to ntp
-	 * 7. poll or wait the nts_shm queue to receive the `NTS_MSG_FIN_ACK` nts_msg from ntm
+	 * 7. poll or wait the nts_shm queue to receive the `NTS_MSG_CLOSE` nts_msg from ntm
 	 * 8. then set the socket state as `CLOSED` and destroy local ntb socket resources
 	 */
 

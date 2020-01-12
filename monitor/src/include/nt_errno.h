@@ -15,6 +15,9 @@
 extern "C" {
 #endif
 
+#define MALLOC_ERR_MSG                      "malloc() failed"
+
+
 // for bind
 #define NT_ERR_INVALID_IP 		            11
 #define NT_ERR_INVALID_PORT		            12

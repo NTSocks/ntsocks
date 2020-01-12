@@ -45,7 +45,9 @@ typedef enum socket_state {
 	WAIT_DISPATCH,
 	WAIT_SERVER,
 
-	ESTABLISHED
+	ESTABLISHED,
+
+	WAIT_CLOSE			// WAIT_CLOSE -> CLOSED
 
 } socket_state;
 

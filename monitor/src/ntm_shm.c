@@ -77,9 +77,12 @@ int ntm_shm_recv(ntm_shm_context_t shm_ctx, ntm_msg *buf) {
 int ntm_shm_close(ntm_shm_context_t shm_ctx) {
 	assert(shm_ctx);
 
-	ntm_shmring_free(shm_ctx->ns_handle, 1);
+	if (shm_ctx->ns_handle)
+		ntm_shmring_free(shm_ctx->ns_handle, 1);
 	shm_ctx->shm_stat = NTM_SHM_UNLINK;
-	free(shm_ctx->shm_addr);
+	if (shm_ctx->shm_addr) 
+		free(shm_ctx->shm_addr);
+	shm_ctx->shm_addr = NULL;
 
 	DEBUG("ntm_shm_close pass ");
 	return 0;
@@ -88,9 +91,12 @@ int ntm_shm_close(ntm_shm_context_t shm_ctx) {
 int ntm_shm_nts_close(ntm_shm_context_t shm_ctx) {
 	assert(shm_ctx);
 
-	ntm_shmring_free(shm_ctx->ns_handle, 0);
+	if (shm_ctx->ns_handle)
+		ntm_shmring_free(shm_ctx->ns_handle, 0);
 	shm_ctx->shm_stat = NTM_SHM_CLOSE;
-	free(shm_ctx->shm_addr);
+	if (shm_ctx->shm_addr) 
+		free(shm_ctx->shm_addr);
+	shm_ctx->shm_addr = NULL;
 
 	DEBUG("ntm_shm_nts_close pass ");
 	return 0;

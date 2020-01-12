@@ -64,6 +64,7 @@ nt_socket_t allocate_socket(nt_sock_context_t ntsock_ctx, int socktype, int need
 		pthread_mutex_unlock(&ntsock_ctx->socket_lock);
 
 	socket->socktype = socktype;
+	socket->state = CLOSED;
 	socket->opts = 0;
 	memset(&socket->saddr, 0, sizeof(struct sockaddr_in));
 	return socket;
