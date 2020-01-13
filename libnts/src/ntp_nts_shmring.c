@@ -31,8 +31,8 @@
 DEBUG_SET_LEVEL(DEBUG_LEVEL_INFO);
 
 typedef struct ntp_shmring_buf {
-//    char buf[NTS_MAX_BUFS + 1][NTS_BUF_SIZE];
-	ntp_msg buf[NTS_MAX_BUFS + 1];
+//    char buf[NTP_MAX_BUFS + 1][NTS_BUF_SIZE];
+	ntp_msg buf[NTP_MAX_BUFS];
     uint64_t write_index;
     uint64_t read_index;
 } ntp_shmring_buf;
@@ -133,8 +133,8 @@ ntp_shmring_handle_t ntp_shmring_init(char *shm_addr, size_t addrlen) {
     shmring_handle->opposite_read_index = 0;
     DEBUG("mmap pass");
 
-    shmring_handle->MASK = NTS_MAX_BUFS - 1;
-    shmring_handle->max_size = NTS_MAX_BUFS;
+    shmring_handle->MASK = NTP_MAX_BUFS - 1;
+    shmring_handle->max_size = NTP_MAX_BUFS;
     DEBUG("nts shmring init successfully!");
 
 
@@ -182,8 +182,8 @@ ntp_shmring_handle_t ntp_get_shmring(char *shm_addr, size_t addrlen) {
     }
     DEBUG("mmap pass");
     
-    shmring_handle->MASK = NTS_MAX_BUFS - 1;
-    shmring_handle->max_size = NTS_MAX_BUFS;
+    shmring_handle->MASK = NTP_MAX_BUFS - 1;
+    shmring_handle->max_size = NTP_MAX_BUFS;
     shmring_handle->opposite_read_index = 0;
     DEBUG("nts get shmring successfully!");
 

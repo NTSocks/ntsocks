@@ -87,7 +87,7 @@ int backlog_push(nt_backlog_context_t backlog_ctx, nt_socket_t socket) {
     bool ret;
     ret = nt_spsc_shmring_push(backlog_ctx->shmring_handle, (char *) socket, NT_SOCK_SIZE);
 
-    DEBUG("backlog push pass");
+    // DEBUG("backlog push pass");
     return ret ? 0 : -1;
 }
 
@@ -100,7 +100,7 @@ int backlog_pop(nt_backlog_context_t backlog_ctx, nt_socket_t socket) {
     bool ret;
     ret = nt_spsc_shmring_pop(backlog_ctx->shmring_handle, (char *) socket, NT_SOCK_SIZE);
 
-    DEBUG("backlog pop pass");
+    // DEBUG("backlog pop pass");
     return ret ? 0 : -1;
 }
 

@@ -1,5 +1,5 @@
 /*
- * <p>Title: hello-nts.c</p>
+ * <p>Title: hello-nts-client.c</p>
  * <p>Description: </p>
  * <p>Copyright: Copyright (c) 2019 </p>
  *
@@ -13,6 +13,7 @@
 
 #include <sys/socket.h>
 #include <stdio.h>
+#include <string.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 // #include <unistd.h>
@@ -33,44 +34,27 @@ int main(int argc, char * argv[]) {
 		printf("socket() success\n");
 	} else {
 		printf("socket() failed.\n");
+        return -1;
 	}
 
 
 	int retval;
-	socklen_t saddrlen;
-	struct sockaddr_in saddr;
-	saddr.sin_family = AF_INET;
-	saddr.sin_port = htons(PORT);
-	saddr.sin_addr.s_addr = inet_addr(SERVER_IP);
-	saddrlen = sizeof(saddr);
-	retval = bind(sockfd, (struct sockaddr*)&saddr, saddrlen);
-	if (retval == -1) {
-		printf("bind() failed.\n");
-		return -1;
-	} else {
-		printf("bind() success\n");
-	}
+	socklen_t server_saddrlen;
+	struct sockaddr_in server_saddr;
+	server_saddr.sin_family = AF_INET;
+	server_saddr.sin_port = htons(PORT);
+	server_saddr.sin_addr.s_addr = inet_addr(SERVER_IP);
+    // bzero(&(server_saddr.sin_zero), sizeof(server_saddr.sin_zero));
+	server_saddrlen = sizeof(server_saddr);
 
-	retval = listen(sockfd, 8);
-	if (retval == -1) {
-		printf("listen() failed\n");
-		return -1;
-	} else {
-		printf("listen() success\n");
-	}
+    retval = connect(sockfd, (struct sockaddr *)&server_saddr, server_saddrlen);
+    if (retval == -1) {
+        printf("connect() failed.\n");
+        return -1;
+    } else {
+        printf("connect() success\n");
+    }
 
-
-	int client_sockfd;
-	socklen_t client_saddrlen;
-	struct sockaddr_in client_saddr;
-	client_sockfd = accept(sockfd, (struct sockaddr*)&client_saddr, &client_saddrlen);
-	if (client_sockfd == -1)
-	{
-		printf("accept() failed\n");
-		return -1;
-	} else {
-		printf("accept() success\n");
-	}
 	
 
     

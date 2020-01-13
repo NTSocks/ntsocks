@@ -135,6 +135,7 @@ int ntm_connect_to_tcp_server(ntm_socket_t ntsock, int port, char *name) {
 
     // connect to server
     ret = connect(ntsock->socket_fd, (const struct sockaddr *) &ntsock->remote, ntsock->rlen);
+    printf("try connect to %s:%d with ret=%d\n", name, port, ret);
     if (ret < 0) {
         close(ntsock->socket_fd);
         return -1;
@@ -151,7 +152,10 @@ int ntm_close_socket(ntm_socket_t ntsock) {
        close(ntsock->socket_fd);
     }
 
-    free(ntsock);
+    // if(ntsock) {
+    //     free(ntsock);
+    // }
+    
 
     return 0;
 }

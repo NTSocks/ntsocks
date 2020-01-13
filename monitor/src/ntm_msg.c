@@ -22,8 +22,9 @@ void ntm_msgcopy(ntm_msg *src_msg, ntm_msg *target_msg) {
 
 	target_msg->msg_id = src_msg->msg_id;
 	target_msg->msg_type = src_msg->msg_type;
+	DEBUG("ntm_msgcopy: sockid=%d, msg_type=%d", src_msg->sockid, src_msg->msg_type);
 
-	if(target_msg->sockid > 0) {
+	if(src_msg->sockid > 0) {
 		target_msg->sockid = src_msg->sockid;
 	}
 
@@ -42,7 +43,7 @@ void ntm_msgcopy(ntm_msg *src_msg, ntm_msg *target_msg) {
 	}
 	else if (target_msg->msg_type & NTM_MSG_BIND) 
 	{
-
+		target_msg->sockid = src_msg->sockid;
 	}
 	else if (target_msg->msg_type & NTM_MSG_LISTEN) 
 	{
@@ -79,7 +80,7 @@ void ntm_msgcopy(ntm_msg *src_msg, ntm_msg *target_msg) {
 		target_msg->addrlen = src_msg->addrlen;
 		target_msg->port = src_msg->port;
 	}
-
+	DEBUG("target_msg - ntm_msgcopy: sockid=%d, msg_type=%d", target_msg->sockid, target_msg->msg_type);
 
 }
 
@@ -89,6 +90,10 @@ void nts_msgcopy(nts_msg *src_msg, nts_msg *target_msg) {
 
 	target_msg->msg_id = src_msg->msg_id;
 	target_msg->msg_type = src_msg->msg_type;
+
+	if (src_msg->sockid > 0) {
+		target_msg->sockid = src_msg->sockid;
+	}
 
 	if (target_msg->msg_type & NTS_MSG_INIT)
 	{
@@ -111,10 +116,16 @@ void nts_msgcopy(nts_msg *src_msg, nts_msg *target_msg) {
 	}
 	else if (target_msg->msg_type & NTS_MSG_ACCEPT)
 	{
-		// target_msg->sockid = src_msg->sockid;
-		// memcpy(target_msg->address, src_msg->address, src_msg->addrlen);
-		// target_msg->addrlen = src_msg->addrlen;
-		// target_msg->port = src_msg->port;
+		target_msg->sockid = src_msg->sockid;
+		memcpy(target_msg->address, src_msg->address, src_msg->addrlen);
+		target_msg->addrlen = src_msg->addrlen;
+		target_msg->port = src_msg->port;
+	}
+	else if (target_msg->msg_type & NTS_MSG_DISPATCHED) {
+		target_msg->retval = src_msg->retval;
+		target_msg->sockid = src_msg->sockid;
+		target_msg->nt_errno = src_msg->nt_errno;
+
 	}
 	else if (target_msg->msg_type & NTS_MSG_CONNECT)
 	{
@@ -125,6 +136,8 @@ void nts_msgcopy(nts_msg *src_msg, nts_msg *target_msg) {
 	else if (target_msg->msg_type & NTS_MSG_ESTABLISH)
 	{
 		target_msg->retval = src_msg->retval;
+		target_msg->sockid = src_msg->sockid;
+		target_msg->msg_type = src_msg->msg_type;
 	}
 	else if (target_msg->msg_type & NTS_MSG_CLOSE)
 	{
@@ -144,16 +157,14 @@ void nts_msgcopy(nts_msg *src_msg, nts_msg *target_msg) {
 		target_msg->retval = src_msg->retval;
 	}
 	
+	
+	// if (src_msg->addrlen > 0) {
+	// 	memcpy(target_msg->address, src_msg->address, src_msg->addrlen);
+	// 	target_msg->addrlen = src_msg->addrlen;
+	// 	target_msg->port = src_msg->port;
+	// }
 
-	if (src_msg->addrlen > 0) {
-		memcpy(target_msg->address, src_msg->address, src_msg->addrlen);
-		target_msg->addrlen = src_msg->addrlen;
-		target_msg->port = src_msg->port;
-	}
-
-	if (src_msg->sockid >= 0) {
-		target_msg->sockid = src_msg->sockid;
-	}
+	
 
 }
 

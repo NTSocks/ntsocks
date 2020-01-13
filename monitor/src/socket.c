@@ -34,7 +34,7 @@ void init_socket_context(nt_sock_context_t ntsock_ctx, int max_concurrency)
 	TAILQ_INIT(&ntsock_ctx->free_ntsock);
 	for (i = 0; i < max_concurrency; ++i)
 	{
-		ntsock_ctx->ntsock[i].sockid = i;
+		ntsock_ctx->ntsock[i].sockid = i + 1;
 		ntsock_ctx->ntsock[i].socktype = NT_SOCK_UNUSED;
 		memset(&ntsock_ctx->ntsock[i].saddr, 0, sizeof(struct sockaddr_in));
 		TAILQ_INSERT_TAIL(&ntsock_ctx->free_ntsock, &ntsock_ctx->ntsock[i], free_ntsock_link);

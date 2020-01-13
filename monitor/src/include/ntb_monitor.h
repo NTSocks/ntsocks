@@ -233,9 +233,9 @@ struct nt_listener_wrapper {
 
 struct nt_listener_context {
 	/**
-	 * hold all nt_listener indexed by service `port`
+	 * hold all nt_listener indexed by service `nt_port`
 	 *
-	 * key: port
+	 * key: port ==> nt_port
 	 * value: nt_listener_wrapper_t
 	 */
 	HashMap listener_map;

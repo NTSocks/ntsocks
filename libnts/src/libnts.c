@@ -138,6 +138,7 @@ void ntsocket_init(void) {
 
 	DEBUG("ntsocket init pass!!!");
 	nts_init(NTS_CONFIG_FILE);
+	inited = 1;
 	// test_ntm_ring();
 	
 	print_conf();
@@ -179,11 +180,13 @@ int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
 		return real_bind(sockfd, addr, addrlen);
 	}
 
-	if (nts_fdisused(sockfd)) {
-		return nts_bind(sockfd, addr, addrlen);
-	} else {
-		return real_bind(sockfd, addr, addrlen);
-	}
+	return nts_bind(sockfd, addr, addrlen);
+
+	// if (nts_fdisused(sockfd)) {
+	// 	return nts_bind(sockfd, addr, addrlen);
+	// } else {
+	// 	return real_bind(sockfd, addr, addrlen);
+	// }
 }
 
 int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
@@ -192,11 +195,13 @@ int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
 		return real_connect(sockfd, addr, addrlen);
 	}
 
-	if (nts_fdisused(sockfd)) {
-		return nts_connect(sockfd, addr, addrlen);
-	} else {
-		return real_connect(sockfd, addr, addrlen);
-	}
+	return nts_connect(sockfd, addr, addrlen);
+
+	// if (nts_fdisused(sockfd)) {
+	// 	return nts_connect(sockfd, addr, addrlen);
+	// } else {
+	// 	return real_connect(sockfd, addr, addrlen);
+	// }
 }
 
 ssize_t send(int sockfd, const void *buf, size_t len, int flags) {
@@ -231,11 +236,13 @@ int listen(int sockfd, int backlog) {
 		return real_listen(sockfd, backlog);
 	}
 
-	if (nts_fdisused(sockfd)) {
-		return nts_listen(sockfd, backlog);
-	} else {
-		return real_listen(sockfd, backlog);
-	}
+	return nts_listen(sockfd, backlog);
+
+	// if (nts_fdisused(sockfd)) {
+	// 	return nts_listen(sockfd, backlog);
+	// } else {
+	// 	return real_listen(sockfd, backlog);
+	// }
 }
 
 int setsockopt(int sockfd, int level, int optname, const void *optval,
@@ -258,11 +265,13 @@ int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen) {
 		return real_accept(sockfd, addr, addrlen);
 	}
 
-	if (nts_fdisused(sockfd)) {
-		return nts_accept(sockfd, addr, addrlen);
-	} else {
-		return real_accept(sockfd, addr, addrlen);
-	}
+	return nts_accept(sockfd, addr, addrlen);
+
+	// if (nts_fdisused(sockfd)) {
+	// 	return nts_accept(sockfd, addr, addrlen);
+	// } else {
+	// 	return real_accept(sockfd, addr, addrlen);
+	// }
 }
 
 //int accept4(int sockfd, struct sockaddr *addr, socklen_t *addrlen, int flags) {
@@ -284,11 +293,13 @@ int close(int sockfd) {
 		return real_close(sockfd);
 	}
 
-	if (nts_fdisused(sockfd)) {
-		return nts_close(sockfd);
-	} else {
-		return real_close(sockfd);
-	}
+	return nts_close(sockfd);
+
+	// if (nts_fdisused(sockfd)) {
+	// 	return nts_close(sockfd);
+	// } else {
+	// 	return real_close(sockfd);
+	// }
 }
 
 ssize_t write(int sockfd, const void *buf, size_t count) {
@@ -297,11 +308,13 @@ ssize_t write(int sockfd, const void *buf, size_t count) {
 		return real_write(sockfd, buf, count);
 	}
 
-	if (nts_fdisused(sockfd)) {
-		return nts_write(sockfd, buf, count);
-	} else {
-		return real_write(sockfd, buf, count);
-	}
+	return nts_write(sockfd, buf, count);
+
+	// if (nts_fdisused(sockfd)) {
+	// 	return nts_write(sockfd, buf, count);
+	// } else {
+	// 	return real_write(sockfd, buf, count);
+	// }
 }
 
 ssize_t writev(int sockfd, const struct iovec *iov, int iovcnt) {
@@ -323,11 +336,13 @@ ssize_t read(int sockfd, void *buf, size_t count) {
 		return real_read(sockfd, buf, count);
 	}
 
-	if (nts_fdisused(sockfd)) {
-		return nts_read(sockfd, buf, count);
-	} else {
-		return real_read(sockfd, buf, count);
-	}
+	return nts_read(sockfd, buf, count);
+
+	// if (nts_fdisused(sockfd)) {
+	// 	return nts_read(sockfd, buf, count);
+	// } else {
+	// 	return real_read(sockfd, buf, count);
+	// }
 }
 
 ssize_t readv(int sockfd, const struct iovec *iov, int iovcnt) {

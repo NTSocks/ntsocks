@@ -284,7 +284,7 @@ int nts_setsockopt(int sockid, int level, int optname, const void *optval,
 	DEBUG("nts_setsockopt() start...");
 	assert(nts_ctx);
 
-	DEBUG("nts_setsockopt() pass");
+	DEBUG("nts_setsockopt() success");
 	return 0;
 }
 
@@ -293,7 +293,7 @@ int nts_getsockopt(int sockid, int level, int optname, void *optval,
 	DEBUG("nts_getsockopt() start...");
 	assert(nts_ctx);
 
-	DEBUG("nts_getsockopt() pass");
+	DEBUG("nts_getsockopt() success");
 	return 0;
 }
 
@@ -363,9 +363,10 @@ int nts_listen(int sockid, int backlog) {
 	sprintf(backlog_shmaddr, "backlog-%d", sockid);
 	backlog_shmlen = strlen(backlog_shmaddr);
 	nt_sock_ctx->backlog_ctx = backlog_nts(nt_sock_ctx->socket, backlog_shmaddr, backlog_shmlen, backlog);
+	DEBUG("setup backlog context with backlog_shmaddr=%s, backlog_shmlen=%d", backlog_shmaddr, backlog_shmlen);
 
 	nt_sock_ctx->ntm_msg_id++;
-	DEBUG("nts_listen() pass");
+	DEBUG("nts_listen() success");
 	return 0;
 
 	FAIL:
@@ -388,8 +389,11 @@ int nts_bind(int sockid, const struct sockaddr *addr, socklen_t addrlen){
 	int retval;
 
 	nt_sock_context_t nt_sock_ctx = (nt_sock_context_t) Get(nts_ctx->nt_sock_map, &sockid);
-	if(!nt_sock_ctx)
+	if(!nt_sock_ctx) {
+		ERR("sockid [%d] has no coresponding nt_sock_context_t.", sockid);
 		goto FAIL;
+	}
+		
 
 	// check whether the socket state is valid or not
 	if(!nt_sock_ctx->socket || nt_sock_ctx->socket->state != CLOSED) {
@@ -398,22 +402,26 @@ int nts_bind(int sockid, const struct sockaddr *addr, socklen_t addrlen){
 	}
 	
 	// pack the `NTM_MSG_BIND` ntm_msg and `ntm_shm_send()` the message into ntm
-	struct sockaddr_in *sock = (struct sockaddr_in*)&addr;
+	struct sockaddr_in *sock = (struct sockaddr_in*) addr;
 	ntm_msg outgoing_msg;
 	outgoing_msg.msg_id = nt_sock_ctx->ntm_msg_id;
 	outgoing_msg.msg_type = NTM_MSG_BIND;
 	outgoing_msg.sockid = sockid;
 	outgoing_msg.port = ntohs(sock->sin_port);
 	struct in_addr in = sock->sin_addr;
-	outgoing_msg.addrlen = strlen(outgoing_msg.address);
+	// outgoing_msg.addrlen = strlen(outgoing_msg.address); //TODO:bug-delete
 	inet_ntop(AF_INET, &in, outgoing_msg.address, sizeof(outgoing_msg.address));
+	outgoing_msg.addrlen = strlen(outgoing_msg.address);
+	DEBUG("the bind ip:port = %s:%d, with addrlen=%d", outgoing_msg.address, outgoing_msg.port, outgoing_msg.addrlen);
+	
 
-	retval = ip_is_vaild(outgoing_msg.address);
-	if(retval){
-		ERR("the ip addr is not vaild. the current ip is %s, while the vaild ip is %s", outgoing_msg.address, NTS_CONFIG.nt_host);
-		goto FAIL;
-	}
-
+	//TODO:delete
+	// retval = ip_is_vaild(outgoing_msg.address);
+	// if(retval){
+	// 	ERR("the ip addr is not vaild. the current ip is %s, while the vaild ip is %s", outgoing_msg.address, NTS_CONFIG.nt_host);
+	// 	goto FAIL;
+	// }
+	DEBUG("ntm_shm_send: msg_id=%d, msg_type=%d, sockid=%d", outgoing_msg.msg_id, outgoing_msg.msg_type, outgoing_msg.sockid);
 	retval = ntm_shm_send(nts_ctx->ntm_ctx->shm_send_ctx, &outgoing_msg);
 	if(retval){
 		ERR("ntm_shm_send NTM_MSG_BIND message failed");
@@ -441,7 +449,7 @@ int nts_bind(int sockid, const struct sockaddr *addr, socklen_t addrlen){
 	// if the response message is valid, update the socket state
 	nt_sock_ctx->socket->state = BOUND;
 	nt_sock_ctx->ntm_msg_id++;
-	DEBUG("nts_bind() pass");
+	DEBUG("nts_bind() success");
 	return 0;
 
 	FAIL:
@@ -544,11 +552,11 @@ int nts_accept(int sockid, const struct sockaddr *addr, socklen_t *addrlen) {
 	sprintf(recv_shmaddr, "%d-%d-r", listener_port, client_port);
 	sprintf(send_shmaddr, "%d-%d-s", listener_port, client_port);
 
-	// init/create ntp_send_ctx/ntp_recv_ctx
-	client_sock_ctx->ntp_recv_ctx = ntp_shm();
-	client_sock_ctx->ntp_send_ctx = ntp_shm();
-	ntp_shm_connect(client_sock_ctx->ntp_recv_ctx, recv_shmaddr, strlen(recv_shmaddr));
-	ntp_shm_connect(client_sock_ctx->ntp_send_ctx, send_shmaddr, strlen(send_shmaddr));
+	// TODO:init/create ntp_send_ctx/ntp_recv_ctx
+	// client_sock_ctx->ntp_recv_ctx = ntp_shm();
+	// client_sock_ctx->ntp_send_ctx = ntp_shm();
+	// ntp_shm_connect(client_sock_ctx->ntp_recv_ctx, recv_shmaddr, strlen(recv_shmaddr));
+	// ntp_shm_connect(client_sock_ctx->ntp_send_ctx, send_shmaddr, strlen(send_shmaddr));
 	
 
 
@@ -581,7 +589,7 @@ int nts_accept(int sockid, const struct sockaddr *addr, socklen_t *addrlen) {
 	}
 
 
-	DEBUG("nts_accept pass");
+	DEBUG("nts_accept success");
 	return client_socket->sockid;
 
 	FAIL: 
@@ -636,22 +644,24 @@ int nts_connect(int sockid, const struct sockaddr *name, socklen_t namelen) {
 	}
 
 	// parse the sockaddr to get ip and port
-	struct sockaddr_in *sock = (struct sockaddr_in*)&name;
+	struct sockaddr_in *sock = (struct sockaddr_in*) name;// TODO:delete change `&name` to `name`
 	ntm_msg outgoing_msg;
 	outgoing_msg.msg_id = nt_sock_ctx->ntm_msg_id;
 	outgoing_msg.msg_type = NTM_MSG_CONNECT;
 	outgoing_msg.sockid = sockid;
 	outgoing_msg.port = ntohs(sock->sin_port);
 	struct in_addr in = sock->sin_addr;
-	outgoing_msg.addrlen = strlen(outgoing_msg.address);
 	inet_ntop(AF_INET, &in, outgoing_msg.address, sizeof(outgoing_msg.address));
+	outgoing_msg.addrlen = strlen(outgoing_msg.address);
+	DEBUG("nt_connect: %s:%d with sockid=%d, addrlen=%d", outgoing_msg.address, outgoing_msg.port, sockid, outgoing_msg.addrlen);
+
 
 	// check whether the ip addr is valid or not
-	retval = ip_is_vaild(outgoing_msg.address);
-	if(retval){
-		ERR("the ip addr is not vaild. the current ip is %s, while the vaild ip is %s", outgoing_msg.address, NTS_CONFIG.nt_host);
-		goto FAIL;
-	}
+	// retval = ip_is_vaild(outgoing_msg.address);
+	// if(retval){
+	// 	ERR("the ip addr is not vaild. the current ip is %s, while the vaild ip is %s", outgoing_msg.address, NTS_CONFIG.nt_host);
+	// 	goto FAIL;
+	// }
 
 	retval = ntm_shm_send(nts_ctx->ntm_ctx->shm_send_ctx, &outgoing_msg);
 	if(retval){
@@ -667,6 +677,7 @@ int nts_connect(int sockid, const struct sockaddr *name, socklen_t namelen) {
 		retval = nts_shm_recv(nt_sock_ctx->nts_shm_ctx, &incoming_msg);
 	}
 
+	DEBUG("incoming_msg: msg_id=%d, retval=%d, msg_type=%d", incoming_msg.msg_id, incoming_msg.retval, incoming_msg.msg_type);
 	// parse the response nts_msg with nt_socket_id
 	if(incoming_msg.msg_id != outgoing_msg.msg_id){
 		ERR("invalid message id for CONNECT response");
@@ -680,6 +691,7 @@ int nts_connect(int sockid, const struct sockaddr *name, socklen_t namelen) {
 		ERR("invalid message type for CONNECT response. the current msg type is %d, expect msg type is %d", incoming_msg.msg_type, NTS_MSG_DISPATCHED);
 		goto FAIL;
 	}
+	DEBUG("incoming_msg: msg_id=%d, retval=%d, msg_type=%d", incoming_msg.msg_id, incoming_msg.retval, incoming_msg.msg_type);
 	DEBUG("socket[%d] receive NTS_MSG_DISPATCHED message, wait for NTS_MSG_ESTABLISH message.", sockid);
 
 	retval = nts_shm_recv(nt_sock_ctx->nts_shm_ctx, &incoming_msg);
@@ -699,7 +711,7 @@ int nts_connect(int sockid, const struct sockaddr *name, socklen_t namelen) {
 	}
 
 	nt_sock_ctx->socket->state = ESTABLISHED;
-	DEBUG("nts_connect pass");
+	DEBUG("nts_connect success");
 	return 0;
 
 	FAIL:
@@ -852,7 +864,7 @@ int nts_close(int sockid) {
 
 	free(nt_sock_ctx->socket);
 
-	DEBUG("nts_close pass");
+	DEBUG("nts_close success");
 	return 0;
 
 	FAIL: 
@@ -864,7 +876,7 @@ int nts_shutdown(int sockid, int how) {
 	DEBUG("nts_shutdown start...");
 	assert(nts_ctx);
 
-	DEBUG("nts_shutdown pass");
+	DEBUG("nts_shutdown success");
 	return 0;
 }
 
@@ -1099,7 +1111,7 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 
 	}
 
-	DEBUG("nts_read pass");
+	DEBUG("nts_read success");
 	return bytes_read;
 
 	FAIL: 
@@ -1110,7 +1122,7 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 ssize_t nts_readv(int fd, const struct iovec *iov, int iovcnt) {
 	DEBUG("nts_readv start...");
 
-	DEBUG("nts_readv pass");
+	DEBUG("nts_readv success");
 	return 0;
 }
 
@@ -1179,7 +1191,7 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 		goto FAIL;
 	}
 
-	DEBUG("nts_write pass");
+	DEBUG("nts_write success");
 	return write_bytes;
 
 	FAIL:
@@ -1189,7 +1201,7 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 ssize_t nts_writev(int fd, const struct iovec *iov, int iovcnt) {
 	DEBUG("nts_writev start...");
 
-	DEBUG("nts_writev pass");
+	DEBUG("nts_writev success");
 	return 0;
 }
 
@@ -1198,7 +1210,7 @@ ssize_t nts_writev(int fd, const struct iovec *iov, int iovcnt) {
 ssize_t nts_send(int sockid, const void *buf, size_t len, int flags) {
 	DEBUG("nts_send start...");
 
-	DEBUG("nts_send pass");
+	DEBUG("nts_send success");
 	return 0;
 }
 
@@ -1206,14 +1218,14 @@ ssize_t nts_sendto(int sockid, const void *buf, size_t len, int flags,
     const struct sockaddr *to, socklen_t tolen) {
 	DEBUG("nts_sendto start...");
 
-	DEBUG("nts_sendto pass");
+	DEBUG("nts_sendto success");
 	return 0;
 }
 
 ssize_t nts_sendmsg(int sockid, const struct msghdr *msg, int flags) {
 	DEBUG("nts_sendmsg start...");
 
-	DEBUG("nts_sendmsg pass");
+	DEBUG("nts_sendmsg success");
 	return 0;
 }
 
@@ -1222,7 +1234,7 @@ ssize_t nts_sendmsg(int sockid, const struct msghdr *msg, int flags) {
 ssize_t nts_recv(int sockid, void *buf, size_t len, int flags) {
 	DEBUG("nts_recv start...");
 
-	DEBUG("nts_recv pass");
+	DEBUG("nts_recv success");
 	return 0;
 }
 
@@ -1230,14 +1242,14 @@ ssize_t nts_recvfrom(int sockid, void *buf, size_t len, int flags,
     struct sockaddr *from, socklen_t *fromlen) {
 	DEBUG("nts_recvfrom start...");
 
-	DEBUG("nts_recvfrom pass");
+	DEBUG("nts_recvfrom success");
 	return 0;
 }
 
 ssize_t nts_recvmsg(int sockid, struct msghdr *msg, int flags) {
 	DEBUG("nts_recvmsg start...");
 
-	DEBUG("nts_recvmsg pass");
+	DEBUG("nts_recvmsg success");
 	return 0;
 }
 

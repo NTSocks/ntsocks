@@ -25,6 +25,7 @@
 #include "nt_spsc_shm_queue.h"
 #include "nt_atomic.h"
 
+
 // the address index of read_index and write_index
 #define RD_IDX_ADDR_IDX             0
 #define WR_IDX_ADDR_IDX             (1 * sizeof(uint64_t))
@@ -286,14 +287,16 @@ bool nt_spsc_shmring_is_full(nt_spsc_shmring_handle_t self) {
 
     const uint64_t w_idx = nt_atomic_load64_explicit(
             self->write_index, ATOMIC_MEMORY_ORDER_RELAXED);
+    const uint64_t r_idx = nt_atomic_load64_explicit(
+            self->read_index, ATOMIC_MEMORY_ORDER_ACQUIRE);
 
     /// Assuming we write, where will move next ?
     const uint64_t w_next_idx = mask_increment(w_idx, self->MASK);
+    printf("w_idx=%ld, r_idx=%ld, w_next_idx=%ld\n", w_idx, r_idx, w_next_idx);
 
     /// The two pointers colliding means we would have exceeded the
     /// ring buffer size and create an ambiguous state with being empty.
-    if (w_next_idx == nt_atomic_load64_explicit(
-            self->read_index, ATOMIC_MEMORY_ORDER_ACQUIRE))
+    if (w_next_idx == r_idx)
         return true;
 
     return false;

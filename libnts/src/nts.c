@@ -159,8 +159,17 @@ void nts_context_destroy() {
     Clear(nts_ctx->nt_sock_map);
     DEBUG("destroy nt_sock_map pass");
     
-    free(nts_ctx->ntp_ctx);
-    free(nts_ctx->ntm_ctx);
+    if(nts_ctx->ntp_ctx) {
+         free(nts_ctx->ntp_ctx);
+         nts_ctx->ntp_ctx = NULL;
+         DEBUG("free nts_ctx->ntp_ctx pass");
+    }
+    if (nts_ctx->ntm_ctx) {
+        free(nts_ctx->ntm_ctx);
+        nts_ctx->ntm_ctx = NULL;
+        DEBUG("free nts_ctx->ntm_ctx pass");
+    }
+    DEBUG("free(nts_ctx);");
     free(nts_ctx);
 
     /**
