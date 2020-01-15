@@ -20,7 +20,7 @@
 extern "C" {
 #endif
 
-#define NTS_MAX_BUFS 1024 // define NTS_MAX_BUFS as [(a power of 2) -1] (65535 in our case)
+#define NTS_MAX_BUFS 8 // define NTS_MAX_BUFS as [(a power of 2) -1] (65535 in our case)
 #define NTS_BUF_SIZE 256
 
 #define NTS_SHM_NAME "/nts-shm-ring"
@@ -32,14 +32,12 @@ typedef struct _nts_shmring nts_shmring_t;
 typedef nts_shmring_t* nts_shmring_handle_t;
 
 
-nts_shmring_handle_t nts_shmring_init();
+nts_shmring_handle_t nts_shmring_init(char *shm_addr, size_t addrlen);
 
-nts_shmring_handle_t nts_get_shmring();
+nts_shmring_handle_t nts_get_shmring(char *shm_addr, size_t addrlen);
 
-//bool nts_shmring_push(nts_shmring_handle_t self, char *element, size_t len);
 bool nts_shmring_push(nts_shmring_handle_t self, nts_msg *element);
 
-//int nts_shmring_pop(nts_shmring_handle_t self, char *element, size_t len);
 bool nts_shmring_pop(nts_shmring_handle_t self, nts_msg *element);
 
 void nts_shmring_free(nts_shmring_handle_t self, int unlink);

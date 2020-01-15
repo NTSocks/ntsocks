@@ -17,6 +17,7 @@
 #include <netinet/in.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <arpa/inet.h>
 
 #include "nts_event.h"
 #include "nts_errno.h"
@@ -58,22 +59,22 @@ int nts_ioctl(int fd, unsigned long request, ...);
 
 int nts_socket(int domain, int type, int protocol);
 
-int nts_setsockopt(int s, int level, int optname, const void *optval,
+int nts_setsockopt(int sockid, int level, int optname, const void *optval,
     socklen_t optlen);
 
-int nts_getsockopt(int s, int level, int optname, void *optval,
+int nts_getsockopt(int sockid, int level, int optname, void *optval,
     socklen_t *optlen);
 
-int nts_listen(int s, int backlog);
-int nts_bind(int s, const struct sockaddr *addr, socklen_t addrlen);
-int nts_accept(int s, const struct sockaddr *addr, socklen_t *addrlen);
-int nts_connect(int s, const struct sockaddr *name, socklen_t namelen);
-int nts_close(int fd);
-int nts_shutdown(int s, int how);
+int nts_listen(int sockid, int backlog);
+int nts_bind(int sockid, const struct sockaddr *addr, socklen_t addrlen);
+int nts_accept(int sockid, const struct sockaddr *addr, socklen_t *addrlen);
+int nts_connect(int sockid, const struct sockaddr *name, socklen_t namelen);
+int nts_close(int sockid);
+int nts_shutdown(int sockid, int how);
 
-int nts_getpeername(int s, struct sockaddr *name,
+int nts_getpeername(int sockid, struct sockaddr *name,
     socklen_t *namelen);
-int nts_getsockname(int s, struct sockaddr *name,
+int nts_getsockname(int sockid, struct sockaddr *name,
     socklen_t *namelen);
 
 ssize_t nts_read(int d, void *buf, size_t nbytes);
@@ -82,15 +83,15 @@ ssize_t nts_readv(int fd, const struct iovec *iov, int iovcnt);
 ssize_t nts_write(int fd, const void *buf, size_t nbytes);
 ssize_t nts_writev(int fd, const struct iovec *iov, int iovcnt);
 
-ssize_t nts_send(int s, const void *buf, size_t len, int flags);
-ssize_t nts_sendto(int s, const void *buf, size_t len, int flags,
+ssize_t nts_send(int sockid, const void *buf, size_t len, int flags);
+ssize_t nts_sendto(int sockid, const void *buf, size_t len, int flags,
     const struct sockaddr *to, socklen_t tolen);
-ssize_t nts_sendmsg(int s, const struct msghdr *msg, int flags);
+ssize_t nts_sendmsg(int sockid, const struct msghdr *msg, int flags);
 
-ssize_t nts_recv(int s, void *buf, size_t len, int flags);
-ssize_t nts_recvfrom(int s, void *buf, size_t len, int flags,
+ssize_t nts_recv(int sockid, void *buf, size_t len, int flags);
+ssize_t nts_recvfrom(int sockid, void *buf, size_t len, int flags,
     struct sockaddr *from, socklen_t *fromlen);
-ssize_t nts_recvmsg(int s, struct msghdr *msg, int flags);
+ssize_t nts_recvmsg(int sockid, struct msghdr *msg, int flags);
 
 int nts_select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
     struct timeval *timeout);

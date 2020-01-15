@@ -23,6 +23,7 @@ extern int print_socket();
 
 extern int test_ntm_shm();
 
+extern void test_nts_shm();
 
 #ifdef __cplusplus
 };

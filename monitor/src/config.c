@@ -26,7 +26,11 @@ struct ntm_config NTM_CONFIG = {
 		.remote_ntm_tcp_timeout = 1000,
 		.listen_ip = NTM_LISTEN_IP,
 		.listen_port = NTM_LISTEN_PORT,
-		.ipaddr_len = sizeof(NTM_LISTEN_IP)
+		.ipaddr_len = sizeof(NTM_LISTEN_IP),
+		.max_concurrency = 1024,
+		.max_port = 1024,
+		.nt_max_conn_num = 1024,
+		.nt_max_port_num = 65536
 
 };
 
@@ -103,7 +107,7 @@ int load_conf(const char *fname)
 		}
 		if (strcmp(_paramk, "") == 0 || strcmp(_paramv, "") == 0)
 			continue;
-		// DEBUG("ntb monitor configuration %s=%s", _paramk, _paramv);
+		DEBUG("ntb monitor configuration %s=%s", _paramk, _paramv);
 		if (strcmp(_paramk, "listen_ip") == 0) {
 			NTM_CONFIG.listen_ip = calloc(_vlen, sizeof(char));
 			memcpy(NTM_CONFIG.listen_ip, _paramv, _vlen);
@@ -113,6 +117,10 @@ int load_conf(const char *fname)
 			NTM_CONFIG.remote_ntm_tcp_timeout = atoi(_paramv);
 		}else if(strcmp(_paramk, "remote_ntm_tcp_timewait") == 0){
 			NTM_CONFIG.remote_ntm_tcp_timewait = atoi(_paramv);
+		}else if(strcmp(_paramk, "max_concurrency") == 0){
+			NTM_CONFIG.max_concurrency = atoi(_paramv);
+		}else if(strcmp(_paramk, "max_port") == 0){
+			NTM_CONFIG.max_port = atoi(_paramv);
 		}else {
 			return 1;
 		}
@@ -120,7 +128,24 @@ int load_conf(const char *fname)
 	return 0;
 }
 
+void free_conf(){
+	if(NTM_CONFIG.listen_ip)
+		free(NTM_CONFIG.listen_ip);
+	
+	NTM_CONFIG.listen_ip = NULL;
+}
+
 void print_conf() {
-	printf("ntm configuration: remote_ntm_tcp_timewait=%d, remote_ntm_tcp_timeout=%d, listen_ip=%s, listen_port=%d\n",
-		NTM_CONFIG.remote_ntm_tcp_timewait, NTM_CONFIG.remote_ntm_tcp_timeout, NTM_CONFIG.listen_ip, NTM_CONFIG.listen_port);
+	printf("ntm configuration: remote_ntm_tcp_timewait=%d, " 
+			"remote_ntm_tcp_timeout=%d;\n ",
+			NTM_CONFIG.remote_ntm_tcp_timewait, 
+			NTM_CONFIG.remote_ntm_tcp_timeout);
+
+	printf("listen_ip=%s, listen_port=%d;\n", 
+			NTM_CONFIG.listen_ip, 
+			NTM_CONFIG.listen_port);
+
+	printf("max_concurrency=%d, max_port=%d.\n", 
+			NTM_CONFIG.max_concurrency, 
+			NTM_CONFIG.max_port);
 }

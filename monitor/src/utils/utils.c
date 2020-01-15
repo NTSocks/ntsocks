@@ -8,6 +8,8 @@
  * @version 1.0
  */
 
+#include <arpa/inet.h>
+
 #include "utils.h"
 
 char * createUUID() {
@@ -36,4 +38,24 @@ char * createUUID() {
     }
     *p = 0;
     return buf;
+}
+
+char * generate_uuid() {
+    uuid_t uuid;
+    char * str;
+
+    str = (char *)calloc(UUID_LEN, sizeof(char));
+    uuid_generate(uuid);
+    uuid_unparse(uuid, str);
+
+    return str;
+}
+
+int parse_sockaddr_port(struct sockaddr_in* saddr) {
+    assert(saddr);
+
+    int port;
+    port = ntohs(saddr->sin_port);
+
+    return port;
 }

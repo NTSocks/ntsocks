@@ -16,6 +16,11 @@
 #include "ntm_msg.h"
 #include "socket.h"
 #include "ntm_socket.h"
+#include "nt_port.h"
+#include "nt_backlog.h"
+
+#include "ntm_ntp_shm.h"
+#include "ntp_ntm_shm.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,6 +28,8 @@ extern "C" {
 
 
 #define NTM_SHMRING_NAME "/ntm-shm-ring"
+#define NTP_NTM_SHM_NAME "/ntp-ntm"
+#define NTM_NTP_SHM_NAME "/ntm-ntp"
 
 
 /*----------------------------------------------------------------------------*/
@@ -36,30 +43,50 @@ struct ntm_config {
 	int listen_port;
 	int ipaddr_len;
 
+	int max_concurrency;	// the maximum number of ntb socket id
+	int max_port;			// the maximum number of ntb port
+	int nt_max_conn_num;    // max number of ntb-based socket connections
+	int nt_max_port_num;	// max number of ntb-based port
+
 };
 
 typedef struct ntm_conn * ntm_conn_t;
+typedef struct nt_listener_wrapper * nt_listener_wrapper_t;
 
 
 /*----------------------------------------------------------------------------*/
 /**
  * Definitions for the shm communication between nt-monitor and nts app.
  */
-#define SHM_NAME_LEN 256
 
 struct nts_shm_conn {
 	nt_sock_id sockid;
 	nt_socket_t socket;
+	int domain;
+    int protocol;
+
+	/**
+	 * set `peer_sin_port` and `peer_sin_addr` 
+	 * when `handle_nt_syn_msg` or `handle_nt_syn_ack_msg`
+	 */
+	unsigned int peer_sin_port;		// peer remote nt_port for `ESTABLISHED` nt_socket
+	unsigned int peer_sin_addr;		// peer remote nt sin_addr for `ESTABLISHED` nt_socket
 
 	int sock_status;
 	bool is_listen;
-	bool stop_signal;
+	bool running_signal; // if 1, running; else stop
 
 	int port;
+	int addrlen;
 	char ip[16];
 
+	int shm_addrlen;
 	char nts_shm_name[SHM_NAME_LEN];
 	nts_shm_context_t nts_shm_ctx;
+
+	//if nt_socket type is created by `accept()`, point to coresponding `nt_listener_wrapper_t`
+	// of if socktype is `NT_SOCK_PIPE`
+	nt_listener_wrapper_t listener;
 
 	ntm_conn_t ntm_conn;
 };
@@ -93,7 +120,6 @@ struct ntm_nts_context {
 	pthread_t shm_send_thr;
 	int shm_send_signal;
 
-
 };
 
 typedef struct ntm_nts_context* ntm_nts_context_t;
@@ -104,6 +130,16 @@ typedef struct ntm_nts_context* ntm_nts_context_t;
  * Definitions for the shm communication between nt-monitor and ntb-proxy.
  */
 struct ntm_ntp_context {
+
+	/**
+	 * for ntp ==> ntm shm recv queue
+	 */
+	ntp_ntm_shm_context_t shm_recv_ctx;
+
+	/**
+	 * for ntm ==> ntp shm send queue
+	 */
+	ntm_ntp_shm_context_t shm_send_ctx;
 
 };
 
@@ -121,7 +157,7 @@ struct ntm_conn {
     int addrlen;
     int sockfd;
     int port;
-    bool stop_signal;
+    bool running_signal; // if 1, running; else stop
     ntm_socket_t client_sock;
     pthread_t recv_thr;
 };
@@ -139,7 +175,7 @@ struct ntm_conn_context {
 
 	ntm_socket_t server_sock;
 	pthread_t ntm_sock_listen_thr;
-	int stop_signal;
+	int running_signal; // if 1, running; else stop
 	int addrlen;
 	int listen_port;
 	char *listen_ip;
@@ -159,43 +195,47 @@ typedef struct ntm_conn_context *ntm_conn_ctx_t;
  *	4. forward the accepted remote connection requests to corresponding nt_listener
  *
  */
-struct nt_accepted_conn {
-	nt_sock_id sockid;
-	nt_socket_t client_sock;
 
-	ntm_conn_t ntm_conn;
-
-	nt_listener_t listener;  // point the corresponding nt_listener pointer
-
-};
-typedef struct nt_accepted_conn * nt_accepted_conn_t;
-
-
+#define BACKLOG_SHMLEN 30
 struct nt_listener_wrapper {
 
 	nt_listener_t listener;
 	int port;
+	int addrlen;
 	char ip[16];
+
+	/**
+	 * backlog context:
+	 * 	hold the established client nt_socket list.
+	 * 	the max capacity of backlog is determined by the backlog in nt_listener.
+	 * 
+	 * when received established client nt_socket, push it into backlog queue.
+	 * Meanwhile, the listening nts endpoint consumes the established client nt_socket
+	 * 	by invoking `accept()`.
+	 */
+	nt_backlog_context_t backlog_ctx;
+	char backlog_shmaddr[BACKLOG_SHMLEN];	// backlog shm name, default rule: backlog-{sock_id}
+	size_t backlog_shmlen;
 
 	/**
 	 * hold the client socket accepted by current listener
 	 *
 	 * key: & client socket id (memory address)
-	 * value: nt_accepted_conn_t
+	 * value:  nt_socket_t
 	 */
 	HashMap accepted_conn_map;
 
 	nts_shm_conn_t nts_shm_conn;  // point the related nts shm context pointer
 
 };
-typedef struct nt_listener_wrapper * nt_listener_wrapper_t;
+
 
 
 struct nt_listener_context {
 	/**
-	 * hold all nt_listener indexed by service `port`
+	 * hold all nt_listener indexed by service `nt_port`
 	 *
-	 * key: port
+	 * key: port ==> nt_port
 	 * value: nt_listener_wrapper_t
 	 */
 	HashMap listener_map;
@@ -215,6 +255,24 @@ struct ntm_manager {
 	ntm_conn_ctx_t ntm_conn_ctx;
 
 	nt_listener_context_t nt_listener_ctx;
+
+	/**
+	 * manage the global nt_socket resource
+	 */
+	nt_sock_context_t nt_sock_ctx;
+
+	/**
+	 * manage the global nt_port resource
+	 */
+	nt_port_context_t nt_port_ctx;
+
+	/**
+	 * hold all (connect/accepted) client nt_socket indexed by client `port`
+	 * 
+	 * key: port
+	 * value: nt_socket_t
+	 */
+	HashMap port_sock_map;
 
 };
 
@@ -301,12 +359,6 @@ void * nts_shm_recv_thread(void *args);
  * receiver: ntb-monitor
  */
 void nts_shm_handle_msg(ntm_manager_t ntm_mgr, ntm_msg msg);
-
-
-
-
-
-
 
 
 int print_monitor();

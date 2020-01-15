@@ -26,24 +26,31 @@
 #include "nt_atomic.h"
 #include "nt_log.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_INFO);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
+
+// #define NTS_SHM_TEST "nts-test-shm"
 
 typedef struct nts_shmring_buf {
 //    char buf[NTS_MAX_BUFS + 1][NTS_BUF_SIZE];
-	nts_msg buf[NTS_MAX_BUFS + 1];
+	// nts_msg buf[NTS_MAX_BUFS + 1];
     uint64_t write_index;
     uint64_t read_index;
+    nts_msg buf[NTS_MAX_BUFS];
+    
 } nts_shmring_buf;
 
 typedef struct _nts_shmring {
     int shm_fd;
     unsigned long MASK;
+    int addrlen;
+    char *shm_addr;
+
     struct nts_shmring_buf *shmring;
     uint64_t max_size;
 } _nts_shmring;
 
 
-static void error(char *msg);
+static void error(const char *msg);
 
 
 static inline uint64_t increment(uint64_t current_idx, uint64_t max_size) {
@@ -78,17 +85,22 @@ static inline bool empty(uint64_t write_index, uint64_t read_index) {
  *  3. init the read and write index for shm-based data buffer.
  * @return
  */
-nts_shmring_handle_t nts_shmring_init() {
+nts_shmring_handle_t nts_shmring_init(char *shm_addr, size_t addrlen) {
+	assert(shm_addr);
+	assert(addrlen > 0);
+
     nts_shmring_handle_t shmring_handle;
 
     shmring_handle = (nts_shmring_handle_t) malloc(sizeof(nts_shmring_t));
-    DEBUG("init nts_shmring");
+    DEBUG("init nts_shmring with shm_addr=%s", shm_addr);
+    shmring_handle->addrlen = addrlen;
+    shmring_handle->shm_addr = shm_addr;
 
     // get shared memory for nts_shmring
-    shmring_handle->shm_fd = shm_open(NTS_SHM_NAME, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
     if (shmring_handle->shm_fd == -1) {
         if (errno == ENOENT) {
-            shmring_handle->shm_fd = shm_open(NTS_SHM_NAME, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+            shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
             if (shmring_handle->shm_fd == -1) {
                 error("shm_open");
                 goto FAIL;
@@ -98,7 +110,7 @@ nts_shmring_handle_t nts_shmring_init() {
             goto FAIL;
         }
     }
-    DEBUG("shm_open pass");
+    DEBUG("shm_open pass with fd - %d", shmring_handle->shm_fd);
 
     int ret;
     ret = ftruncate(shmring_handle->shm_fd, sizeof(struct nts_shmring_buf));
@@ -118,8 +130,8 @@ nts_shmring_handle_t nts_shmring_init() {
         goto FAIL;
     }
     // init the shared memory
-    shmring_handle->shmring->read_index = shmring_handle->shmring->write_index = 0;
-    DEBUG("mmap pass");
+    // shmring_handle->shmring->read_index = shmring_handle->shmring->write_index = 0;
+    DEBUG("mmap pass with read_index=%d, write_index=%d", shmring_handle->shmring->read_index,  shmring_handle->shmring->write_index);
 
     shmring_handle->MASK = NTS_MAX_BUFS - 1;
     shmring_handle->max_size = NTS_MAX_BUFS;
@@ -131,7 +143,7 @@ nts_shmring_handle_t nts_shmring_init() {
     FAIL:
     if (shmring_handle->shm_fd != -1) {
         close(shmring_handle->shm_fd);
-        shm_unlink(NTS_SHM_NAME);
+        shm_unlink(shmring_handle->shm_addr);
     }
 
     free(shmring_handle);
@@ -139,14 +151,20 @@ nts_shmring_handle_t nts_shmring_init() {
 }
 
 
-nts_shmring_handle_t nts_get_shmring() {
+nts_shmring_handle_t nts_get_shmring(char *shm_addr, size_t addrlen) {
+	assert(shm_addr);
+	assert(addrlen > 0);
+
     nts_shmring_handle_t shmring_handle;
-    DEBUG("nts get shmring start");
+    DEBUG("nts get shmring start with shm_addr=%s", shm_addr);
 
     shmring_handle = (nts_shmring_handle_t) malloc(sizeof(nts_shmring_t));
+    memset(shmring_handle, 0, sizeof(nts_shmring_t));
+    shmring_handle->addrlen = addrlen;
+    shmring_handle->shm_addr = shm_addr;
 
     // get shared memory with specified SHM NAME
-    shmring_handle->shm_fd = shm_open(NTS_SHM_NAME, O_RDWR, 0);
+    shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR, 0);
     if (shmring_handle->shm_fd == -1) {
         error("shm_open");
         goto FAIL;
@@ -163,6 +181,7 @@ nts_shmring_handle_t nts_get_shmring() {
         goto FAIL;
     }
     DEBUG("mmap pass");
+    DEBUG("mmap pass with read_index=%d, write_index=%d", shmring_handle->shmring->read_index,  shmring_handle->shmring->write_index);
 
     shmring_handle->MASK = NTS_MAX_BUFS - 1;
     shmring_handle->max_size = NTS_MAX_BUFS;
@@ -188,14 +207,18 @@ nts_shmring_handle_t nts_get_shmring() {
  */
 bool nts_shmring_push(nts_shmring_handle_t self, nts_msg *element) {
     assert(self);
-    assert(element);
+
+    /* Critical Section */
+    /*const uint64_t r_idx = nt_atomic_load64_explicit(
+            &self->shmring->read_index, ATOMIC_MEMORY_ORDER_CONSUME);*/
+//    const uint64_t w_idx = nt_atomic_load64_explicit(
+//            &self->shmring->write_index, ATOMIC_MEMORY_ORDER_CONSUME);
 
     const uint64_t w_idx = nt_atomic_load64_explicit(
             &self->shmring->write_index, ATOMIC_MEMORY_ORDER_RELAXED);
 
     /// Assuming we write, where will move next ?
     const uint64_t w_next_idx = mask_increment(w_idx, self->MASK);
-    DEBUG("\t[nts_shmring] w_next_idx : %d", w_next_idx);
 
     /// The two pointers colliding means we would have exceeded the
     /// ring buffer size and create an ambiguous state with being empty.
@@ -210,20 +233,27 @@ bool nts_shmring_push(nts_shmring_handle_t self, nts_msg *element) {
     DEBUG("push nts shmring successfully!");
 
     return true;
+
 }
 
 bool nts_shmring_pop(nts_shmring_handle_t self, nts_msg *element) {
     assert(self);
-    assert(element);
 
-    uint64_t w_idx = nt_atomic_load64_explicit(&self->shmring->write_index, ATOMIC_MEMORY_ORDER_ACQUIRE);
-    uint64_t r_idx = nt_atomic_load64_explicit(&self->shmring->read_index, ATOMIC_MEMORY_ORDER_RELAXED);
 
-    /// Queue is empty (or was empty when we checked)
-    if (empty(w_idx, r_idx))
-        return -1;
+//   uint64_t r_idx = nt_atomic_load64_explicit(
+//           &self->shmring->read_index, ATOMIC_MEMORY_ORDER_CONSUME);
+//   uint64_t w_idx = nt_atomic_load64_explicit(
+//           &self->shmring->write_index, ATOMIC_MEMORY_ORDER_CONSUME);
+
+   uint64_t w_idx = nt_atomic_load64_explicit(&self->shmring->write_index, ATOMIC_MEMORY_ORDER_ACQUIRE);
+   uint64_t r_idx = nt_atomic_load64_explicit(&self->shmring->read_index, ATOMIC_MEMORY_ORDER_RELAXED);
+
+   /// Queue is empty (or was empty when we checked)
+   if (empty(w_idx, r_idx))
+       return false;
 
     nts_msgcopy(&(self->shmring->buf[self->shmring->read_index]), element);
+
     nt_atomic_store64_explicit(&self->shmring->read_index,
                                mask_increment(r_idx, self->MASK), ATOMIC_MEMORY_ORDER_RELEASE);
 
@@ -246,7 +276,7 @@ void nts_shmring_free(nts_shmring_handle_t self, int unlink) {
     DEBUG("munmap close pass");
 
     if (unlink) {
-        shm_unlink(NTS_SHM_NAME);
+        shm_unlink(self->shm_addr);
     }
 
     free(self);
@@ -257,6 +287,6 @@ void nts_shmring_free(nts_shmring_handle_t self, int unlink) {
  * Print system error and exit
  * @param msg
  */
-void error(char *msg) {
+void error(const char* msg) {
     perror(msg);
 }

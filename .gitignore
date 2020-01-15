@@ -50,7 +50,5 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
-ntb-samples/ntb-throughput/ntb_custom.h
-ntb-samples/ntb-throughput/ntb_custom.h
-ntb-samples/ntb-throughput/ntb_fwd.c
-ntb-samples/ntb-throughput/ntb_custom.h
+
+.vscode/
