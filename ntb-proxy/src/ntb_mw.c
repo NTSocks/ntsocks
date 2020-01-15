@@ -39,15 +39,15 @@
 #include "config.h"
 #include "nt_log.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_INFO);
 
-static int trans_data_link_cur_index(struct ntb_data_link *data_link)
+int trans_data_link_cur_index(struct ntb_data_link *data_link)
 {
     *data_link->remote_cum_ptr = data_link->local_ring->cur_index;
     return 0;
 }
 
-static int trans_ctrl_link_cur_index(struct ntb_link *ntb_link)
+int trans_ctrl_link_cur_index(struct ntb_link *ntb_link)
 {
     *ntb_link->ctrl_link->remote_cum_ptr = ntb_link->ctrl_link->local_ring->cur_index;
     return 0;
@@ -62,15 +62,15 @@ int ntb_data_msg_add_header(struct ntb_data_msg *msg, uint16_t src_port, uint16_
     //End of Memnode
     if (msg_type == SINGLE_PKG) // 001 == single packet: only one packet to send one msg
     {
-        msg->header.msg_len |= 1 << 12;
+        msg->header.msg_len |= (1 << 12);
     }
     else if (msg_type == MULTI_PKG) // 010 == multi packets: need multi-packets to send one msg
     {
-        msg->header.msg_len |= 1 << 13;
+        msg->header.msg_len |= (1 << 13);
     }
     else if (msg_type == ENF_MULTI) // 011 == ENF_MULTI: indicate the end/tail packet for one multi-packets msg
     {
-        msg->header.msg_len |= 3 << 12;
+        msg->header.msg_len |= (3 << 12);
     }
     else if (msg_type == DETECT_PKG) // 000 == DETECT_PKG: sync local (send buffer) read_index with remote (recv buffer) read_index
     {                                //	request the read_index of recv buffer on the peer node(ntb endpoint)
@@ -78,7 +78,7 @@ int ntb_data_msg_add_header(struct ntb_data_msg *msg, uint16_t src_port, uint16_
     }
     else if (msg_type == FIN_PKG) // 100 == FIN_PKG: indicate the NTB FIN between two ntb endpoints
     {
-        msg->header.msg_len |= 1 << 14;
+        msg->header.msg_len |= (1 << 14);
     }
     else
     {
@@ -94,20 +94,19 @@ int parser_data_len_get_type(struct ntb_data_link *data_link, uint16_t msg_len)
     {
         trans_data_link_cur_index(data_link);
     }
-    msg_len = msg_len >> 12;
+    msg_len = (msg_len >> 12);
     msg_len &= 0x07;
     return msg_len;
 }
 
 int parser_ctrl_msg_header(struct ntb_link *ntb_link, uint16_t msg_len)
 {
-    if (msg_len & 1 << 15)
+    if (msg_len & (1 << 15))
     {
         trans_ctrl_link_cur_index(ntb_link);
     }
     return 0;
 }
-
 
 int ntb_ctrl_msg_enqueue(struct ntb_link *ntlink, struct ntb_ctrl_msg *msg)
 {
@@ -122,7 +121,7 @@ int ntb_ctrl_msg_enqueue(struct ntb_link *ntlink, struct ntb_ctrl_msg *msg)
     if ((next_index - *ntlink->ctrl_link->local_cum_ptr) & 0x3ff == 0)
     {
         //PSH = 1
-        msg->header.msg_len |= 1 << 15;
+        msg->header.msg_len |= (1 << 15);
     }
     //ptr = r->start_addr + r->cur_index * NTB_CTRL_MSG_TL ,NTB_CTRL_MSG_TL = 16
     uint8_t *ptr = r->start_addr + (r->cur_index << 4);
@@ -130,7 +129,6 @@ int ntb_ctrl_msg_enqueue(struct ntb_link *ntlink, struct ntb_ctrl_msg *msg)
     r->cur_index = next_index;
     return 0;
 }
-
 
 int ntb_pure_data_msg_enqueue(struct ntb_data_link *data_link, uint8_t *msg, int data_len)
 {
@@ -140,7 +138,6 @@ int ntb_pure_data_msg_enqueue(struct ntb_data_link *data_link, uint8_t *msg, int
     //looping send
     while (next_index == *data_link->local_cum_ptr)
     {
-        INFO("ntb_pure_data_msg_enqueue looping");
     }
     //ptr = r->start_addr + r->cur_index * NTB_DATA_MSG_TL ,NTB_DATA_MSG_TL = 128
     uint8_t *ptr = r->start_addr + (r->cur_index << 7);
@@ -148,7 +145,6 @@ int ntb_pure_data_msg_enqueue(struct ntb_data_link *data_link, uint8_t *msg, int
     r->cur_index = next_index;
     return 0;
 }
-
 
 int ntb_data_msg_enqueue(struct ntb_data_link *data_link, struct ntb_data_msg *msg)
 {
@@ -168,7 +164,7 @@ int ntb_data_msg_enqueue(struct ntb_data_link *data_link, struct ntb_data_msg *m
         if (((next_index - *data_link->local_cum_ptr) & 0x3ff) == 0)
         {
             //PSH
-            msg->header.msg_len |= 1 << 15;
+            msg->header.msg_len |= (1 << 15);
         }
         rte_memcpy(ptr, msg, msg_len);
     }
@@ -176,14 +172,13 @@ int ntb_data_msg_enqueue(struct ntb_data_link *data_link, struct ntb_data_msg *m
     {
         if (((next_index + (msg_len >> 7)) & 0xfc00) != (r->cur_index & 0xfc00))
         {
-            msg->header.msg_len |= 1 << 15;
+            msg->header.msg_len |= (1 << 15);
         }
         rte_memcpy(ptr, msg, NTB_DATA_MSG_TL);
     }
     r->cur_index = next_index;
     return 0;
 }
-
 
 static struct ntb_ring_buffer *
 ntb_ring_create(uint8_t *ptr, uint64_t ring_size, uint64_t msg_len)
@@ -196,7 +191,6 @@ ntb_ring_create(uint8_t *ptr, uint64_t ring_size, uint64_t msg_len)
     DEBUG("ring_capacity == %ld.", r->capacity);
     return r;
 }
-
 
 static int ntb_mem_formatting(struct ntb_link *ntb_link, uint8_t *local_ptr, uint8_t *remote_ptr)
 {
@@ -220,7 +214,6 @@ static int ntb_mem_formatting(struct ntb_link *ntb_link, uint8_t *local_ptr, uin
     DEBUG("ntb_mem_formatting pass");
     return 0;
 }
-
 
 struct ntb_link *
 ntb_start(uint16_t dev_id)

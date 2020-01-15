@@ -102,7 +102,7 @@ ntb_send_thread(__attribute__((unused)) void *arg)
 		}
 		// INFO("send conn name = %s",curr_node->conn->name);
 		// counter: is used to DEBUG/test
-		ntp_send_buff_data(ntb_link->data_link, curr_node->conn->nts_send_ring, ntb_link,&counter);
+		ntp_send_buff_data(ntb_link->data_link, curr_node->conn->nts_send_ring,curr_node->conn);
 		pre_node = curr_node;	// move the current point to next ntb conn
 	}
 	return 0;
@@ -128,12 +128,12 @@ ntm_ntp_receive_thread(__attribute__((unused)) void *arg)
 	ntm_ntp_msg recv_msg;
 
 	//test mode
-	recv_msg.dst_port = 80;
-	recv_msg.src_port = 80;
-	recv_msg.msg_type = 1;
-	recv_msg.dst_ip = 1000020;
-	recv_msg.src_ip = 1000020;
-	ntp_create_conn_handler(ntb_link, &recv_msg);
+	// recv_msg.dst_port = 80;
+	// recv_msg.src_port = 80;
+	// recv_msg.msg_type = 1;
+	// recv_msg.dst_ip = 1000020;
+	// recv_msg.src_ip = 1000020;
+	// ntp_create_conn_handler(ntb_link, &recv_msg);
 
 	//test mode end
 	while (1)

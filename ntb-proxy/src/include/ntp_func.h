@@ -29,7 +29,7 @@
 
 int ntp_create_conn_handler(struct ntb_link *ntb_link, ntm_ntp_msg *msg);
 
-int ntp_send_buff_data(struct ntb_data_link *data_link, ntp_shm_context_t ring, ntb_conn *conn, struct ntb_link *ntlink);
+int ntp_send_buff_data(struct ntb_data_link *data_link, ntp_shm_context_t ring, ntb_conn *conn);
 
 int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link *ntb_link);
 
