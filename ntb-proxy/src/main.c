@@ -117,7 +117,7 @@ ntb_receive_thread(__attribute__((unused)) void *arg)
 static int
 ntb_ctrl_receive_thread(__attribute__((unused)) void *arg)
 {
-	ntp_ctrl_msctrlg_receive(ntb_link);
+	ntp_ctrl_msg_receive(ntb_link);
 	return 0;
 }
 
