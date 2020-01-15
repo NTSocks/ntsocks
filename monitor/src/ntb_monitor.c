@@ -70,7 +70,7 @@ static inline void test_ntm_ring()
 		retval = ntm_shmring_pop(ns_handle, &incoming_msg);
 		printf("retval=%d\n", retval);
 
-		printf("pop an element: msg_id-%d, msg_type=%d, sockid=%d, domain=%d, protocol=%d, sock_type=%d shmaddr=%s, nts_shm_addrlen=%d \n",
+		printf("pop an element: msg_id-%ld, msg_type=%d, sockid=%d, domain=%d, protocol=%d, sock_type=%d shmaddr=%s, nts_shm_addrlen=%d \n",
 			   incoming_msg.msg_id, incoming_msg.msg_type,
 			   incoming_msg.sockid, incoming_msg.domain,
 			   incoming_msg.protocol, incoming_msg.sock_type,
@@ -705,7 +705,13 @@ inline void handle_nt_syn_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 	// push the new `client_socket` into coresponding `listener_wrapper->accepted_conn_map`
 	Put(listener_wrapper->accepted_conn_map, &client_socket->sockid, client_socket);
 
-	backlog_push(listener_wrapper->backlog_ctx, client_socket);
+	DEBUG("backlog_push one client nt_socket with sockid=%d", client_socket->sockid);
+	int retval;
+	retval = backlog_push(listener_wrapper->backlog_ctx, client_socket);
+	if(retval == -1) {
+		ERR("backlog_push one client nt_socket failed");
+		goto FAIL;
+	}
 
 
 	// set the allocated nt_port sin_port of accepted nt_socket as source port in `outgoing_msg.sport`
@@ -1835,11 +1841,11 @@ inline void handle_msg_nts_listen(ntm_manager_t ntm_mgr, ntm_msg msg)
 	// setup backlog context
 	sprintf(new_listener_wrapper->backlog_shmaddr, "backlog-%d", new_listener->sockid);
 	new_listener_wrapper->backlog_shmlen = strlen(new_listener_wrapper->backlog_shmaddr);
-	new_listener_wrapper->backlog_ctx = backlog_ntm(&new_listener, 
+	new_listener_wrapper->backlog_ctx = backlog_ntm(new_listener, 
 							new_listener_wrapper->backlog_shmaddr, 
 							new_listener_wrapper->backlog_shmlen, 
 							new_listener->backlog);
-	DEBUG("setup backlog context with backlog_shmaddr=%s, backlog_shmlen=%d", 
+	DEBUG("setup backlog context with backlog_shmaddr=%s, backlog_shmlen=%ld", 
 			new_listener_wrapper->backlog_shmaddr, new_listener_wrapper->backlog_shmlen);  
 	
 	Put(ntm_mgr->nt_listener_ctx->listener_map, &new_listener_wrapper->port, new_listener_wrapper);
@@ -2124,7 +2130,7 @@ void nts_shm_handle_msg(ntm_manager_t ntm_mgr, ntm_msg msg)
 	}
 	else if (msg.msg_type & NTM_MSG_ACCEPT_ACK)
 	{
-		DEBUG("handle NTM_MSG_ACCEPT");
+		DEBUG("handle NTM_MSG_ACCEPT_ACK");
 
 		handle_msg_nts_accept_ack(ntm_mgr, msg);
 	}

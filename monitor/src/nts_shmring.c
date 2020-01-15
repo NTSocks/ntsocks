@@ -131,7 +131,7 @@ nts_shmring_handle_t nts_shmring_init(char *shm_addr, size_t addrlen) {
     }
     // init the shared memory
     // shmring_handle->shmring->read_index = shmring_handle->shmring->write_index = 0;
-    DEBUG("mmap pass with read_index=%d, write_index=%d", shmring_handle->shmring->read_index,  shmring_handle->shmring->write_index);
+    DEBUG("mmap pass with read_index=%ld, write_index=%ld", shmring_handle->shmring->read_index,  shmring_handle->shmring->write_index);
 
     shmring_handle->MASK = NTS_MAX_BUFS - 1;
     shmring_handle->max_size = NTS_MAX_BUFS;
@@ -181,7 +181,7 @@ nts_shmring_handle_t nts_get_shmring(char *shm_addr, size_t addrlen) {
         goto FAIL;
     }
     DEBUG("mmap pass");
-    DEBUG("mmap pass with read_index=%d, write_index=%d", shmring_handle->shmring->read_index,  shmring_handle->shmring->write_index);
+    DEBUG("mmap pass with read_index=%ld, write_index=%ld", shmring_handle->shmring->read_index,  shmring_handle->shmring->write_index);
 
     shmring_handle->MASK = NTS_MAX_BUFS - 1;
     shmring_handle->max_size = NTS_MAX_BUFS;
@@ -215,7 +215,7 @@ bool nts_shmring_push(nts_shmring_handle_t self, nts_msg *element) {
 //    const uint64_t w_idx = nt_atomic_load64_explicit(
 //            &self->shmring->write_index, ATOMIC_MEMORY_ORDER_CONSUME);
 
-    DEBUG("self->shmring->write_index=%d, self->shmring->read_index=%d", 
+    DEBUG("self->shmring->write_index=%ld, self->shmring->read_index=%ld", 
                     self->shmring->write_index, self->shmring->read_index);
     const uint64_t w_idx = nt_atomic_load64_explicit(
             &self->shmring->write_index, ATOMIC_MEMORY_ORDER_RELAXED);

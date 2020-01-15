@@ -55,8 +55,6 @@ int main(int argc, char * argv[]) {
         printf("connect() success\n");
     }
 
-	
-
     
 	getchar();
 

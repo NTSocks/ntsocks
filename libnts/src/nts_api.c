@@ -409,7 +409,6 @@ int nts_bind(int sockid, const struct sockaddr *addr, socklen_t addrlen){
 	outgoing_msg.sockid = sockid;
 	outgoing_msg.port = ntohs(sock->sin_port);
 	struct in_addr in = sock->sin_addr;
-	// outgoing_msg.addrlen = strlen(outgoing_msg.address); //TODO:bug-delete
 	inet_ntop(AF_INET, &in, outgoing_msg.address, sizeof(outgoing_msg.address));
 	outgoing_msg.addrlen = strlen(outgoing_msg.address);
 	DEBUG("the bind ip:port = %s:%d, with addrlen=%d", outgoing_msg.address, outgoing_msg.port, outgoing_msg.addrlen);
@@ -512,6 +511,7 @@ int nts_accept(int sockid, const struct sockaddr *addr, socklen_t *addrlen) {
 		sched_yield();
 		retval = backlog_pop(nt_sock_ctx->backlog_ctx, client_socket);
 	}
+	DEBUG("accept one client nt_socket with sockid=%d", client_socket->sockid);
 
 
 	// 5. create coresponding nt_sock_context, init/create the nts shm queue, 
@@ -568,6 +568,7 @@ int nts_accept(int sockid, const struct sockaddr *addr, socklen_t *addrlen) {
 	outgoing_msg.msg_type = NTM_MSG_ACCEPT_ACK;
 	outgoing_msg.nts_shm_addrlen = client_sock_ctx->nts_shmlen;
 	memcpy(outgoing_msg.nts_shm_name, client_sock_ctx->nts_shmaddr, client_sock_ctx->nts_shmlen);
+	DEBUG("ntm_shm_send NTM_MSG_ACCEPT_ACK with sockid=%d", client_socket->sockid);
 	retval = ntm_shm_send(nts_ctx->ntm_ctx->shm_send_ctx, &outgoing_msg);
 	if(retval) {
 		ERR("ntm_shm_send NTM_MSG_ACCEPT_ACK message failed");

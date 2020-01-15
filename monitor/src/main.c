@@ -10,6 +10,7 @@
 
 #include <getopt.h>
 #include <string.h>
+
 #include "ntb_monitor.h"
 #include "nt_log.h"
 #include "config.h"
@@ -84,13 +85,13 @@ int main(int argc, char **argv) {
 			usage(argv[0]);
 			return 1;
 		case 's':
-			NTM_CONFIG.listen_ip = strdup(optarg);
+			NTM_CONFIG.listen_ip = (char *)strdup(optarg);
 			break;
 		case 'p':
 			NTM_CONFIG.listen_port = strtoul(optarg, NULL, 0);
 			break;
 		case 'c':
-			conf_file = strdup(optarg);
+			conf_file = (char *) strdup(optarg);
 			break;
 		default:
 			usage(argv[0]);

@@ -7,6 +7,8 @@
  * @date Nov 12, 2019 
  * @version 1.0
  */
+  
+#include <string.h>
 
 #include "ntm_shm.h"
 #include "socket.h"

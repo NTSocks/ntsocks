@@ -81,6 +81,25 @@ struct nt_listener {
 
 typedef struct nt_listener * nt_listener_t;
 
+
+/**
+ * structure for in-flight nt_socket_t in backlog.
+ * the carrier on nt_backlog of nt_socket_t
+ */
+struct nt_backlog_sock {
+	nt_sock_id sockid;
+	int socktype;
+	uint32_t opts;
+	socket_state state;
+	in_port_t sin_port;		// the nt_port in network order
+	in_addr_t sin_addr;		// the ip address in network order
+	sa_family_t sin_family;
+} nt_backlog_sock;
+
+typedef struct nt_backlog_sock* nt_backlog_sock_t;
+
+
+
 #ifdef __cplusplus
 };
 #endif

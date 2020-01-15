@@ -25,7 +25,7 @@
 extern "C" {
 #endif
 
-#define NT_SOCK_SIZE    (1 * sizeof(struct nt_socket))
+#define NT_SOCK_SIZE    (1 * sizeof(struct nt_backlog_sock))
 #define BACKLOG_SIZE    128
 
 typedef enum nt_backlog_stat {

@@ -63,14 +63,20 @@ int main(int argc, char * argv[]) {
 	int client_sockfd;
 	socklen_t client_saddrlen;
 	struct sockaddr_in client_saddr;
-	client_sockfd = accept(sockfd, (struct sockaddr*)&client_saddr, &client_saddrlen);
-	if (client_sockfd == -1)
+	while (1)
 	{
-		printf("accept() failed\n");
-		return -1;
-	} else {
-		printf("accept() success\n");
+		client_sockfd = accept(sockfd, (struct sockaddr*)&client_saddr, &client_saddrlen);
+		if (client_sockfd == -1)
+		{
+			printf("accept() failed\n");
+			return -1;
+		} else {
+			printf("accept() success with client nt_socket sockfd=%d\n", client_sockfd);
+		}
+	
 	}
+	
+
 	
 
     

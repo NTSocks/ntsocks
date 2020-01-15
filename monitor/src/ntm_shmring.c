@@ -314,7 +314,7 @@ bool ntm_shmring_pop(ntm_shmring_handle_t self, ntm_msg *element) {
     if(!element) {
         DEBUG("element not existing.");
     }
-    DEBUG("ntm_write_index=%d, ntm_read_index=%d", self->shmring->write_index, self->shmring->read_index);
+    DEBUG("ntm_write_index=%ld, ntm_read_index=%ld", self->shmring->write_index, self->shmring->read_index);
 	ntm_msgcopy(&(self->shmring->buf[self->shmring->read_index]), element);
 
     /**

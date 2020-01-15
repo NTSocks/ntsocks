@@ -14,13 +14,14 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "socket.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 typedef uint64_t ntm_msg_id;
 typedef uint64_t nts_msg_id;
-typedef uint64_t ntsock_id;
 
 
 
@@ -70,13 +71,6 @@ typedef struct {
     int leg_length;
     int head_diameter;
 } human_data;
-
-// typedef struct {
-//     ntm_msg_id msg_id;
-//     ntsock_id sockid; 
-
-
-// } nt_syn;
 
 
 
@@ -159,7 +153,7 @@ typedef struct {
      * output: client socket id, (if req_client_sockaddr is 1, 
      *      return client ip address and port)
      */
-    // ntsock_id sockid;
+    // int sockid;
     // uint8_t req_client_sockaddr; // if 1, return client addr:port; else, not
 
     // if req_client_sockaddr == 1
@@ -277,8 +271,8 @@ typedef struct {
      /**
      * For NTS_MSG_ACCEPT
      */
-    // client socket id = ntsock_id sockid;
-    // ntsock_id client_sockid;
+    // client socket id = int sockid;
+    // int client_sockid;
 
     // if req_client_sockaddr == 1
     // char address[16];

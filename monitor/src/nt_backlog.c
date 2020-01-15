@@ -84,10 +84,20 @@ int backlog_push(nt_backlog_context_t backlog_ctx, nt_socket_t socket) {
     assert(socket);
     assert(backlog_ctx->backlog_stat == BACKLOG_READY);
 
-    bool ret;
-    ret = nt_spsc_shmring_push(backlog_ctx->shmring_handle, (char *) socket, NT_SOCK_SIZE);
+    // copy the nt_socket into the backlog carrier (nt_backlog_sock_t)
+    struct nt_backlog_sock backlog_sock;
+    backlog_sock.sockid = socket->sockid;
+    backlog_sock.socktype = socket->socktype;
+    backlog_sock.state = socket->state;
+    backlog_sock.opts = socket->opts;
+    backlog_sock.sin_port = socket->saddr.sin_port;
+    backlog_sock.sin_addr = socket->saddr.sin_addr.s_addr;
+    backlog_sock.sin_family = socket->saddr.sin_family;
 
-    DEBUG("backlog push pass");
+    bool ret;
+    ret = nt_spsc_shmring_push(backlog_ctx->shmring_handle, (char *) &backlog_sock, NT_SOCK_SIZE);
+
+    DEBUG("backlog push success");
     return ret ? 0 : -1;
 }
 
@@ -97,10 +107,21 @@ int backlog_pop(nt_backlog_context_t backlog_ctx, nt_socket_t socket) {
     assert(socket);
     assert(backlog_ctx->backlog_stat == BACKLOG_READY);
 
-    bool ret;
-    ret = nt_spsc_shmring_pop(backlog_ctx->shmring_handle, (char *) socket, NT_SOCK_SIZE);
+    struct nt_backlog_sock backlog_sock;
 
-    DEBUG("backlog pop pass");
+    bool ret;
+    ret = nt_spsc_shmring_pop(backlog_ctx->shmring_handle, (char *) &backlog_sock, NT_SOCK_SIZE);
+    if (ret) {
+        socket->sockid = backlog_sock.sockid;
+        socket->socktype = backlog_sock.socktype;
+        socket->state = backlog_sock.state;
+        socket->opts = backlog_sock.opts;
+        socket->saddr.sin_family = backlog_sock.sin_family;
+        socket->saddr.sin_port = backlog_sock.sin_port;
+        socket->saddr.sin_addr.s_addr = backlog_sock.sin_addr;
+    }
+
+    // DEBUG("backlog pop success");
     return ret ? 0 : -1;
 }
 
