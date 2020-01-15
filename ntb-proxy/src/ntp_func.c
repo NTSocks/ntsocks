@@ -356,7 +356,7 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link *n
     return 0;
 }
 
-int ntp_ctrl_msctrlg_receive(struct ntb_link *ntb_link)
+int ntp_ctrl_msg_receive(struct ntb_link *ntb_link)
 {
     struct ntb_ring_buffer *r = ntb_link->ctrl_link->local_ring;
     volatile struct ntb_ctrl_msg *msg;
