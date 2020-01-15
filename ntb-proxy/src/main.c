@@ -43,14 +43,14 @@
 #include <rte_mbuf.h>
 #include <rte_cycles.h>
 
-#include "ntb_mem.h"
+#include "ntb_mw.h"
+#include "ntp_func.h"
 #include "ntb.h"
 #include "ntb_hw_intel.h"
-#include "ntlink_parser.h"
+#include "ntm_msg.h"
 #include "ntp_nts_shm.h"
 #include "ntm_ntp_shm.h"
 #include "ntp_ntm_shm.h"
-#include "ntm_msg.h"
 #include "nt_log.h"
 
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
@@ -72,46 +72,52 @@ static int
 ntb_send_thread(__attribute__((unused)) void *arg)
 {
 	assert(ntb_link);
-	ntp_ring_list_node *pre_node = ntb_link->ring_head;
-	ntp_ring_list_node *curr_node = NULL;
+	ntp_send_list_node *pre_node = ntb_link->send_list.ring_head;
+	ntp_send_list_node *curr_node = NULL;
 	uint64_t counter = 0;
 	while (1)
 	{
-		__asm__("mfence");
 		curr_node = pre_node->next_node;
-		if (curr_node == ntb_link->ring_head)
+		if (curr_node == ntb_link->send_list.ring_head)	// indicate non-existing ntb connection when head node in ntb-conn list is EMPTY.
 		{
 			pre_node = curr_node;
 			continue;
 		}
+		// when the ntb connection state is `PASSIVE CLOSE` or `ACTIVE CLOSE`, remove/clear current ntb connection
 		if (curr_node->conn->state == PASSIVE_CLOSE || curr_node->conn->state == ACTIVE_CLOSE)
 		{
 			DEBUG("conn close,remove and free node");
 			// conn->state 不为READY，队列均已Close，移除map、list并free就可
-			Remove(ntb_link->map, curr_node->conn->name);
+			Remove(ntb_link->port2conn, curr_node->conn->conn_id);		// remove ntb conn from hash map
 			// destory_conn_ack(ntb_link, next_node->conn->name);
-			pre_node->next_node = curr_node->next_node;
-			free(curr_node);
+			pre_node->next_node = curr_node->next_node;	// remove ntb conn from traseval list
+			ntp_shm_ntm_close(curr_node->conn->nts_recv_ring);
+			ntp_shm_destroy(curr_node->conn->nts_recv_ring);
+			ntp_shm_ntm_close(curr_node->conn->nts_send_ring);
+			ntp_shm_destroy(curr_node->conn->nts_send_ring);
+			ntb_conn *conn;
+			free(curr_node->conn);
+			free(curr_node);	
 			continue;
 		}
 		// INFO("send conn name = %s",curr_node->conn->name);
-		ntb_data_send(ntb_link->sublink, curr_node->conn->send_ring, ntb_link,&counter);
-		pre_node = curr_node;
+		// counter: is used to DEBUG/test
+		ntp_send_buff_data(ntb_link->data_link, curr_node->conn->nts_send_ring, ntb_link,&counter);
+		pre_node = curr_node;	// move the current point to next ntb conn
 	}
 	return 0;
 }
 static int
 ntb_receive_thread(__attribute__((unused)) void *arg)
 {
-	uint64_t counter = 0;
-	ntb_data_receive(ntb_link->sublink, ntb_link,&counter);
+	ntp_receive_data_to_buff(ntb_link->data_link, ntb_link);
 	return 0;
 }
 
 static int
 ntb_ctrl_receive_thread(__attribute__((unused)) void *arg)
 {
-	ctrl_msg_receive(ntb_link);
+	ntp_ctrl_msctrlg_receive(ntb_link);
 	return 0;
 }
 
@@ -119,7 +125,6 @@ static int
 ntm_ntp_receive_thread(__attribute__((unused)) void *arg)
 {
 	ntm_ntp_shm_context_t recv_shm = ntb_link->ntm_ntp;
-	// ntm_ntp_msg *recv_msg = malloc(sizeof(*recv_msg));
 	ntm_ntp_msg recv_msg;
 
 	//test mode
@@ -133,7 +138,6 @@ ntm_ntp_receive_thread(__attribute__((unused)) void *arg)
 	//test mode end
 	while (1)
 	{
-		__asm__("mfence");
 		if (ntm_ntp_shm_recv(recv_shm, &recv_msg) == -1)
 		{
 			continue;

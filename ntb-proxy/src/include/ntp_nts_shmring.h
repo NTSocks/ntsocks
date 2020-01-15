@@ -31,6 +31,11 @@ extern "C" {
 typedef struct _ntp_shmring ntp_shmring_t;
 typedef ntp_shmring_t* ntp_shmring_handle_t;
 
+uint64_t ntp_get_read_index(ntp_shmring_handle_t shmring_handle);
+
+uint64_t ntp_get_peer_read_index(ntp_shmring_handle_t shmring_handle);
+
+int ntp_set_peer_read_index(ntp_shmring_handle_t shmring_handle,uint64_t read_index);
 
 ntp_shmring_handle_t ntp_shmring_init(char *shm_addr, size_t addrlen);
 

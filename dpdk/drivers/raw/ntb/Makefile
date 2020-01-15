@@ -26,7 +26,7 @@ SRCS-$(CONFIG_RTE_LIBRTE_PMD_NTB_RAWDEV) += ntb.c
 SRCS-$(CONFIG_RTE_LIBRTE_PMD_NTB_RAWDEV) += ntb_hw_intel.c
 
 # export include files
-SYMLINK-y-include += ntb.h
-SYMLINK-y-include += ntb_hw_intel.h
+# SYMLINK-y-include += ntb.h
+# SYMLINK-y-include += ntb_hw_intel.h
 
 include $(RTE_SDK)/mk/rte.lib.mk

@@ -58,7 +58,7 @@ enum ntb_topo {
 	NTB_TOPO_B2B_DSD,
 };
 
-enum ntb_link {
+enum ntb_link_state {
 	NTB_LINK_DOWN = 0,
 	NTB_LINK_UP,
 };
@@ -138,7 +138,7 @@ struct ntb_hw {
 
 	enum ntb_topo topo;
 
-	enum ntb_link link_status;
+	enum ntb_link_state link_status;
 	enum ntb_speed link_speed;
 	enum ntb_width link_width;
 

@@ -44,7 +44,7 @@ extern "C"
 	/**
  * used by libnts app or nt-monitor to create ntp_shm_context
  */
-	ntp_shm_context_t ntp_shm();
+	ntp_shm_context_t ntp_shm(void);
 
 	/**
  * used by nts shm server (consumer)

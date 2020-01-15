@@ -42,6 +42,8 @@
         "rte_os.h": "c",
         "ntb_hw_intel.h": "c",
         "nt_atomic.h": "c",
-        "ntp_ntm_shmring.h": "c"
+        "ntp_ntm_shmring.h": "c",
+        "assert.h": "c",
+        "vector": "c"
     }
 }

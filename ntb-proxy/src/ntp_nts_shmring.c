@@ -43,10 +43,8 @@ typedef struct _ntp_shmring
     unsigned long MASK;
     int addrlen;
     char *shm_addr;
-    //DETECT_PKG has been sent
-    uint32_t detect_sent;
     //read_index of opposite recv buffer
-    uint64_t opposite_read_index;
+    uint64_t peer_read_index;
     struct ntp_shmring_buf *shmring;
     uint64_t max_size;
 } _ntp_shmring;
@@ -96,31 +94,17 @@ uint64_t ntp_get_read_index(ntp_shmring_handle_t shmring_handle)
     return r_idx;
 }
 
-uint64_t ntp_get_opposide_readindex(ntp_shmring_handle_t shmring_handle)
+uint64_t ntp_get_peer_read_index(ntp_shmring_handle_t shmring_handle)
 {
     const uint64_t op_idx = nt_atomic_load64_explicit(
-        &shmring_handle->opposite_read_index, ATOMIC_MEMORY_ORDER_RELAXED);
+        &shmring_handle->peer_read_index, ATOMIC_MEMORY_ORDER_RELAXED);
     return op_idx;
 }
 
-int ntp_set_opposide_readindex(ntp_shmring_handle_t shmring_handle, uint64_t read_index)
+int ntp_set_peer_read_index(ntp_shmring_handle_t shmring_handle, uint64_t read_index)
 {
-    nt_atomic_store64_explicit(&shmring_handle->opposite_read_index,
-                               read_index, ATOMIC_MEMORY_ORDER_RELEASE);
-    return 0;
-}
-
-uint32_t ntp_get_detect_pkg_state(ntp_shmring_handle_t shmring_handle)
-{
-    const uint32_t sent = nt_atomic_load32_explicit(
-        &shmring_handle->detect_sent, ATOMIC_MEMORY_ORDER_ACQUIRE);
-    return sent;
-}
-
-int ntp_set_detect_pkg_state(ntp_shmring_handle_t shmring_handle, uint32_t val)
-{
-    nt_atomic_store32_explicit(&shmring_handle->detect_sent,
-                               val, ATOMIC_MEMORY_ORDER_SEQ_CST);
+    nt_atomic_store64_explicit(&shmring_handle->peer_read_index,
+                               read_index, ATOMIC_MEMORY_ORDER_RELAXED);
     return 0;
 }
 
@@ -178,9 +162,8 @@ ntp_shmring_handle_t ntp_shmring_init(char *shm_addr, size_t addrlen)
     }
     // init the shared memory
     shmring_handle->shmring->read_index = shmring_handle->shmring->write_index = 0;
-    // init opposite_read_index
-    shmring_handle->opposite_read_index = 0;
-    shmring_handle->detect_sent = 0;
+    // init peer_read_index
+    shmring_handle->peer_read_index = 0;
     DEBUG("mmap pass");
 
     shmring_handle->MASK = NTS_MAX_BUFS - 1;
