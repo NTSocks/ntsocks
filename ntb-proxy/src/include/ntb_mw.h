@@ -115,7 +115,7 @@ struct ntp_send_list
     ntp_send_list_node *ring_tail; // tail node of list for ntb connection ==> for send/recv buffer
 };
 
-struct ntb_link
+struct ntb_link_custom
 {
     struct rte_rawdev *dev; // the abstract of ntb raw device
     struct ntb_hw *hw;      // the operation methods about ntb device
@@ -136,15 +136,15 @@ int ntb_data_msg_add_header(struct ntb_data_msg *msg, uint16_t src_port, uint16_
 
 int parser_data_len_get_type(struct ntb_data_link *data_link, uint16_t msg_len);
 
-int parser_ctrl_msg_header(struct ntb_link *ntb_link, uint16_t msg_len);
+int parser_ctrl_msg_header(struct ntb_link_custom *ntb_link, uint16_t msg_len);
 
-int ntb_ctrl_msg_enqueue(struct ntb_link *ntlink, struct ntb_ctrl_msg *msg);
+int ntb_ctrl_msg_enqueue(struct ntb_link_custom *ntb_link, struct ntb_ctrl_msg *msg);
 
 int ntb_pure_data_msg_enqueue(struct ntb_data_link *data_link, uint8_t *msg, int data_len);
 
 int ntb_data_msg_enqueue(struct ntb_data_link *data_link, struct ntb_data_msg *msg);
 
 //start the ntb device,and return a ntb_link
-struct ntb_link *ntb_start(uint16_t dev_id);
+struct ntb_link_custom *ntb_start(uint16_t dev_id);
 
 #endif /* NTB_MW_H_ */

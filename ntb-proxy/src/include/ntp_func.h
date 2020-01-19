@@ -27,12 +27,12 @@
 
 #define RTE_GET_TIMER_HZ 25000000000
 
-int ntp_create_conn_handler(struct ntb_link *ntb_link, ntm_ntp_msg *msg);
+int ntp_create_conn_handler(struct ntb_link_custom *ntb_link, ntm_ntp_msg *msg);
 
 int ntp_send_buff_data(struct ntb_data_link *data_link, ntp_shm_context_t ring, ntb_conn *conn);
 
-int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link *ntb_link);
+int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_custom *ntb_link);
 
-int ntp_ctrl_msg_receive(struct ntb_link *ntb_link);
+int ntp_ctrl_msg_receive(struct ntb_link_custom *ntb_link);
 
 #endif /* NTP_FUNC_H_ */

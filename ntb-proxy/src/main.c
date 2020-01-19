@@ -64,7 +64,7 @@ DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 static uint16_t dev_id;
 
-struct ntb_link *ntb_link;
+struct ntb_link_custom *ntb_link;
 
 unsigned lcore_id;
 

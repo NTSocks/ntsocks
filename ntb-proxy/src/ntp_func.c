@@ -76,7 +76,7 @@ static char **create_nts_ring_name(uint16_t src_port, uint16_t dst_port)
     return result;
 }
 
-static int add_conn_to_ntb_send_list(struct ntb_link *ntb_link, ntb_conn *conn)
+static int add_conn_to_ntb_send_list(struct ntb_link_custom *ntb_link, ntb_conn *conn)
 {
     ntp_send_list_node *list_node = malloc(sizeof(*list_node));
     list_node->conn = conn;
@@ -94,7 +94,7 @@ static uint32_t create_conn_id(uint16_t src_port, uint16_t dst_port)
 }
 
 // send `SYN_ACK` back to ntb monitor
-static int ntp_create_conn_ack(struct ntb_link *ntb_link, ntm_ntp_msg *msg)
+static int ntp_create_conn_ack(struct ntb_link_custom *ntb_link, ntm_ntp_msg *msg)
 {
     ntp_ntm_msg reply_msg;
     reply_msg.src_ip = msg->src_ip;
@@ -109,7 +109,7 @@ static int ntp_create_conn_ack(struct ntb_link *ntb_link, ntm_ntp_msg *msg)
     return 0;
 }
 
-int ntp_create_conn_handler(struct ntb_link *ntb_link, ntm_ntp_msg *msg)
+int ntp_create_conn_handler(struct ntb_link_custom *ntb_link, ntm_ntp_msg *msg)
 {
     ntb_conn *conn = malloc(sizeof(*conn));
     conn->state = READY_CONN; // update the ntb connection to `READY_DOWN`
@@ -149,7 +149,7 @@ int ntp_create_conn_handler(struct ntb_link *ntb_link, ntm_ntp_msg *msg)
     return 0;
 }
 
-static int detect_pkg_handler(struct ntb_link *ntb_link, uint16_t src_port, uint16_t dst_port, ntb_conn *conn)
+static int detect_pkg_handler(struct ntb_link_custom *ntb_link, uint16_t src_port, uint16_t dst_port, ntb_conn *conn)
 {
     struct ntb_ctrl_msg reply_msg;
     uint64_t read_index = ntp_get_read_index(conn->nts_recv_ring->ntsring_handle);
@@ -233,7 +233,7 @@ int ntp_send_buff_data(struct ntb_data_link *data_link, ntp_shm_context_t ring, 
     return 0;
 }
 
-int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link *ntb_link)
+int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_custom *ntb_link)
 {
     struct ntb_ring_buffer *r = data_link->local_ring;
     volatile struct ntb_data_msg *msg, *fin_msg;
@@ -358,7 +358,7 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link *n
     return 0;
 }
 
-int ntp_ctrl_msg_receive(struct ntb_link *ntb_link)
+int ntp_ctrl_msg_receive(struct ntb_link_custom *ntb_link)
 {
     struct ntb_ring_buffer *r = ntb_link->ctrl_link->local_ring;
     volatile struct ntb_ctrl_msg *msg;

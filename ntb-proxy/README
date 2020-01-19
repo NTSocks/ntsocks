@@ -1,5 +1,4 @@
-Quick_Start
-
-$cd ./src
-$make
-$./build/ntb_proxy
+Quick_Start:
+    $cd ./src
+    $make
+    $./build/ntb_proxy

@@ -47,7 +47,7 @@ int trans_data_link_cur_index(struct ntb_data_link *data_link)
     return 0;
 }
 
-int trans_ctrl_link_cur_index(struct ntb_link *ntb_link)
+int trans_ctrl_link_cur_index(struct ntb_link_custom *ntb_link)
 {
     *ntb_link->ctrl_link->remote_cum_ptr = ntb_link->ctrl_link->local_ring->cur_index;
     return 0;
@@ -99,7 +99,7 @@ int parser_data_len_get_type(struct ntb_data_link *data_link, uint16_t msg_len)
     return msg_len;
 }
 
-int parser_ctrl_msg_header(struct ntb_link *ntb_link, uint16_t msg_len)
+int parser_ctrl_msg_header(struct ntb_link_custom *ntb_link, uint16_t msg_len)
 {
     if (msg_len & (1 << 15))
     {
@@ -108,7 +108,7 @@ int parser_ctrl_msg_header(struct ntb_link *ntb_link, uint16_t msg_len)
     return 0;
 }
 
-int ntb_ctrl_msg_enqueue(struct ntb_link *ntlink, struct ntb_ctrl_msg *msg)
+int ntb_ctrl_msg_enqueue(struct ntb_link_custom *ntlink, struct ntb_ctrl_msg *msg)
 {
     struct ntb_ring_buffer *r = ntlink->ctrl_link->remote_ring;
 
@@ -192,7 +192,7 @@ ntb_ring_create(uint8_t *ptr, uint64_t ring_size, uint64_t msg_len)
     return r;
 }
 
-static int ntb_mem_formatting(struct ntb_link *ntb_link, uint8_t *local_ptr, uint8_t *remote_ptr)
+static int ntb_mem_formatting(struct ntb_link_custom *ntb_link, uint8_t *local_ptr, uint8_t *remote_ptr)
 {
     ntb_link->ctrl_link->local_cum_ptr = (uint64_t *)local_ptr;
     ntb_link->ctrl_link->remote_cum_ptr = (uint64_t *)remote_ptr;
@@ -215,7 +215,7 @@ static int ntb_mem_formatting(struct ntb_link *ntb_link, uint8_t *local_ptr, uin
     return 0;
 }
 
-struct ntb_link *
+struct ntb_link_custom *
 ntb_start(uint16_t dev_id)
 {
     struct rte_rawdev *dev;
@@ -225,7 +225,7 @@ ntb_start(uint16_t dev_id)
 
     load_conf(CONFIG_FILE);
 
-    struct ntb_link *ntb_link = malloc(sizeof(*ntb_link));
+    struct ntb_link_custom *ntb_link = malloc(sizeof(*ntb_link));
     ntb_link->dev = dev;
     ntb_link->hw = dev->dev_private;
     ntb_link->ctrl_link = malloc(sizeof(struct ntb_ctrl_link));
