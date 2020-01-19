@@ -107,6 +107,7 @@ ntb_send_thread(__attribute__((unused)) void *arg)
 	}
 	return 0;
 }
+
 static int
 ntb_receive_thread(__attribute__((unused)) void *arg)
 {
