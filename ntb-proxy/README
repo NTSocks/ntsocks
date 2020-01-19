@@ -1,7 +1,5 @@
-AC_OUTPUT(Makefile include/Makefile src/Makefile examples/Makefile)
+Quick_Start
 
-TODO:断开连接过程
-
-各消息队列命名规则。
-
-ACCEPT 创建libnts与monitor之间通信队列的流程
+$cd ./src
+$make
+$./build/ntb_proxy
