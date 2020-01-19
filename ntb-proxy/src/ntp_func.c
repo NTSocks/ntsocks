@@ -140,7 +140,7 @@ int ntp_create_conn_handler(struct ntb_link_custom *ntb_link, ntm_ntp_msg *msg)
     // hold/save the new ntb connection into hash map
     Put(ntb_link->port2conn, &conn->conn_id, conn);
 
-    INFO("conn_id = %ld",conn->conn_id);
+    INFO("conn_id = %d",conn->conn_id);
     add_conn_to_ntb_send_list(ntb_link, conn);
 
     ntp_create_conn_ack(ntb_link, msg);

@@ -88,7 +88,7 @@ ntb_send_thread(__attribute__((unused)) void *arg)
 		{
 			DEBUG("conn close,remove and free node");
 			// conn->state 不为READY，队列均已Close，移除map、list并free就可
-			Remove(ntb_link->port2conn, curr_node->conn->conn_id);		// remove ntb conn from hash map
+			Remove(ntb_link->port2conn, &curr_node->conn->conn_id);		// remove ntb conn from hash map
 			// destory_conn_ack(ntb_link, next_node->conn->name);
 			pre_node->next_node = curr_node->next_node;	// remove ntb conn from traseval list
 			ntp_shm_ntm_close(curr_node->conn->nts_recv_ring);
