@@ -242,20 +242,15 @@ l3fwd_simple_forward(struct rte_mbuf *m, struct lcore_queue_conf *qconf,
 {
 	struct rx_queue *rxq;
 	uint32_t i, len, next_hop;
-	uint16_t port_out, ether_type;
+	uint8_t ipv6;
+	uint16_t port_out;
 	int32_t len2;
-	uint64_t ol_flags;
-	const struct rte_ether_hdr *eth;
 
-	ol_flags = 0;
+	ipv6 = 0;
 	rxq = &qconf->rx_queue_list[queueid];
 
 	/* by default, send everything back to the source port */
 	port_out = port_in;
-
-	/* save ether type of the incoming packet */
-	eth = rte_pktmbuf_mtod(m, const struct rte_ether_hdr *);
-	ether_type = eth->ether_type;
 
 	/* Remove the Ethernet header and trailer from the input packet */
 	rte_pktmbuf_adj(m, (uint16_t)sizeof(struct rte_ether_hdr));
@@ -294,9 +289,6 @@ l3fwd_simple_forward(struct rte_mbuf *m, struct lcore_queue_conf *qconf,
 			/* Free input packet */
 			rte_pktmbuf_free(m);
 
-			/* request HW to regenerate IPv4 cksum */
-			ol_flags |= (PKT_TX_IPV4 | PKT_TX_IP_CKSUM);
-
 			/* If we fail to fragment the packet */
 			if (unlikely (len2 < 0))
 				return;
@@ -304,6 +296,8 @@ l3fwd_simple_forward(struct rte_mbuf *m, struct lcore_queue_conf *qconf,
 	} else if (RTE_ETH_IS_IPV6_HDR(m->packet_type)) {
 		/* if this is an IPv6 packet */
 		struct rte_ipv6_hdr *ip_hdr;
+
+		ipv6 = 1;
 
 		/* Read the lookup key (i.e. ip_dst) from the input packet */
 		ip_hdr = rte_pktmbuf_mtod(m, struct rte_ipv6_hdr *);
@@ -354,18 +348,23 @@ l3fwd_simple_forward(struct rte_mbuf *m, struct lcore_queue_conf *qconf,
 			rte_panic("No headroom in mbuf.\n");
 		}
 
-		m->ol_flags |= ol_flags;
 		m->l2_len = sizeof(struct rte_ether_hdr);
 
 		/* 02:00:00:00:00:xx */
 		d_addr_bytes = &eth_hdr->d_addr.addr_bytes[0];
-		*((uint64_t *)d_addr_bytes) = 0x000000000002 +
-			((uint64_t)port_out << 40);
+		*((uint64_t *)d_addr_bytes) = 0x000000000002 + ((uint64_t)port_out << 40);
 
 		/* src addr */
 		rte_ether_addr_copy(&ports_eth_addr[port_out],
 				&eth_hdr->s_addr);
-		eth_hdr->ether_type = ether_type;
+		if (ipv6) {
+			eth_hdr->ether_type =
+				rte_be_to_cpu_16(RTE_ETHER_TYPE_IPV6);
+		} else {
+			eth_hdr->ether_type =
+				rte_be_to_cpu_16(RTE_ETHER_TYPE_IPV4);
+			m->ol_flags |= (PKT_TX_IPV4 | PKT_TX_IP_CKSUM);
+		}
 	}
 
 	len += len2;
@@ -992,7 +991,7 @@ main(int argc, char **argv)
 			if (rte_lcore_is_enabled(lcore_id) == 0)
 				continue;
 
-			if (queueid >= dev_info.nb_tx_queues)
+			if (queueid >= rte_eth_devices[portid].data->nb_tx_queues)
 				break;
 
 			socket = (int) rte_lcore_to_socket_id(lcore_id);

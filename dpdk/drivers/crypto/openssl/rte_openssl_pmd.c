@@ -92,14 +92,14 @@ openssl_get_chain_order(const struct rte_crypto_sym_xform *xform)
 
 /** Get session cipher key from input cipher key */
 static void
-get_cipher_key(const uint8_t *input_key, int keylen, uint8_t *session_key)
+get_cipher_key(uint8_t *input_key, int keylen, uint8_t *session_key)
 {
 	memcpy(session_key, input_key, keylen);
 }
 
 /** Get key ede 24 bytes standard from input key */
 static int
-get_cipher_key_ede(const uint8_t *key, int keylen, uint8_t *key_ede)
+get_cipher_key_ede(uint8_t *key, int keylen, uint8_t *key_ede)
 {
 	int res = 0;
 
@@ -292,7 +292,7 @@ get_aead_algo(enum rte_crypto_aead_algorithm sess_algo, size_t keylen,
 static int
 openssl_set_sess_aead_enc_param(struct openssl_session *sess,
 		enum rte_crypto_aead_algorithm algo,
-		uint8_t tag_len, const uint8_t *key)
+		uint8_t tag_len, uint8_t *key)
 {
 	int iv_type = 0;
 	unsigned int do_ccm;
@@ -352,7 +352,7 @@ openssl_set_sess_aead_enc_param(struct openssl_session *sess,
 static int
 openssl_set_sess_aead_dec_param(struct openssl_session *sess,
 		enum rte_crypto_aead_algorithm algo,
-		uint8_t tag_len, const uint8_t *key)
+		uint8_t tag_len, uint8_t *key)
 {
 	int iv_type = 0;
 	unsigned int do_ccm = 0;
@@ -1848,7 +1848,9 @@ process_openssl_rsa_op(struct rte_crypto_op *cop,
 	cop->status = RTE_CRYPTO_OP_STATUS_SUCCESS;
 
 	switch (pad) {
-	case RTE_CRYPTO_RSA_PADDING_PKCS1_5:
+	case RTE_CRYPTO_RSA_PKCS1_V1_5_BT0:
+	case RTE_CRYPTO_RSA_PKCS1_V1_5_BT1:
+	case RTE_CRYPTO_RSA_PKCS1_V1_5_BT2:
 		pad = RSA_PKCS1_PADDING;
 		break;
 	case RTE_CRYPTO_RSA_PADDING_NONE:
@@ -1865,19 +1867,19 @@ process_openssl_rsa_op(struct rte_crypto_op *cop,
 	case RTE_CRYPTO_ASYM_OP_ENCRYPT:
 		ret = RSA_public_encrypt(op->rsa.message.length,
 				op->rsa.message.data,
-				op->rsa.cipher.data,
+				op->rsa.message.data,
 				rsa,
 				pad);
 
 		if (ret > 0)
-			op->rsa.cipher.length = ret;
+			op->rsa.message.length = ret;
 		OPENSSL_LOG(DEBUG,
 				"length of encrypted text %d\n", ret);
 		break;
 
 	case RTE_CRYPTO_ASYM_OP_DECRYPT:
-		ret = RSA_private_decrypt(op->rsa.cipher.length,
-				op->rsa.cipher.data,
+		ret = RSA_private_decrypt(op->rsa.message.length,
+				op->rsa.message.data,
 				op->rsa.message.data,
 				rsa,
 				pad);

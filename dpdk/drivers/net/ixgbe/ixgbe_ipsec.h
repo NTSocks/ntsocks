@@ -62,8 +62,7 @@ struct ipaddr {
 /** inline crypto crypto private session structure */
 struct ixgbe_crypto_session {
 	enum ixgbe_operation op;
-	const uint8_t *key;
-	uint32_t key_len;
+	uint8_t *key;
 	uint32_t salt;
 	uint32_t sa_index;
 	uint32_t spi;

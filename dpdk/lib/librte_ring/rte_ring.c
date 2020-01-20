@@ -63,13 +63,6 @@ rte_ring_get_memsize(unsigned count)
 	return sz;
 }
 
-void
-rte_ring_reset(struct rte_ring *r)
-{
-	r->prod.head = r->cons.head = 0;
-	r->prod.tail = r->cons.tail = 0;
-}
-
 int
 rte_ring_init(struct rte_ring *r, const char *name, unsigned count,
 	unsigned flags)

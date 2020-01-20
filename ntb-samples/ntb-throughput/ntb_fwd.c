@@ -142,7 +142,7 @@ lcore_ntb_daemon(__attribute__((unused)) void *arg)
 
 	dev_id = i;
 
-	ntb_link = ntb_custom_start(dev_id);
+	ntb_link = ntb_start(dev_id);
 	NTB_LOG(DEBUG, "mem addr == %ld ,len == %ld", ntb_link->hw->pci_dev->mem_resource[2].phys_addr, ntb_link->hw->pci_dev->mem_resource[2].len);
 	NTB_LOG(DEBUG, "link_speed == %d,link_width == %d", ntb_link->hw->link_speed, ntb_link->hw->link_width);
 	NTB_LOG(DEBUG, "I'm daemon!");

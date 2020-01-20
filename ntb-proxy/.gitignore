@@ -55,7 +55,7 @@
 # files created by ./configure
 #
 
-/config.h
+#/config.h
 /config.status
 /config.log
 /Makefile
@@ -80,7 +80,6 @@ config.h
 .libs
 .deps
 libmlx4.spec
-Makefile
 config.status
 stamp-h1
 libtool

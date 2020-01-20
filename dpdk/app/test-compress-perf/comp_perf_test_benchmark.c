@@ -10,46 +10,11 @@
 
 #include "comp_perf_test_benchmark.h"
 
-void
-cperf_benchmark_test_destructor(void *arg)
-{
-	if (arg) {
-		comp_perf_free_memory(
-				&((struct cperf_benchmark_ctx *)arg)->ver.mem);
-		rte_free(arg);
-	}
-}
-
-void *
-cperf_benchmark_test_constructor(uint8_t dev_id, uint16_t qp_id,
-		struct comp_test_data *options)
-{
-	struct cperf_benchmark_ctx *ctx = NULL;
-
-	ctx = rte_malloc(NULL, sizeof(struct cperf_benchmark_ctx), 0);
-
-	if (ctx == NULL)
-		return NULL;
-
-	ctx->ver.mem.dev_id = dev_id;
-	ctx->ver.mem.qp_id = qp_id;
-	ctx->ver.options = options;
-	ctx->ver.silent = 1; /* ver. part will be silent */
-
-	if (!comp_perf_allocate_memory(ctx->ver.options, &ctx->ver.mem)
-			&& !prepare_bufs(ctx->ver.options, &ctx->ver.mem))
-		return ctx;
-
-	cperf_benchmark_test_destructor(ctx);
-	return NULL;
-}
-
 static int
-main_loop(struct cperf_benchmark_ctx *ctx, enum rte_comp_xform_type type)
+main_loop(struct comp_test_data *test_data, uint8_t level,
+			enum rte_comp_xform_type type)
 {
-	struct comp_test_data *test_data = ctx->ver.options;
-	struct cperf_mem_resources *mem = &ctx->ver.mem;
-	uint8_t dev_id = mem->dev_id;
+	uint8_t dev_id = test_data->cdev_id;
 	uint32_t i, iter, num_iter;
 	struct rte_comp_op **ops, **deq_ops;
 	void *priv_xform = NULL;
@@ -66,7 +31,7 @@ main_loop(struct cperf_benchmark_ctx *ctx, enum rte_comp_xform_type type)
 	}
 
 	ops = rte_zmalloc_socket(NULL,
-		2 * mem->total_bufs * sizeof(struct rte_comp_op *),
+		2 * test_data->total_bufs * sizeof(struct rte_comp_op *),
 		0, rte_socket_id());
 
 	if (ops == NULL) {
@@ -75,7 +40,7 @@ main_loop(struct cperf_benchmark_ctx *ctx, enum rte_comp_xform_type type)
 		return -1;
 	}
 
-	deq_ops = &ops[mem->total_bufs];
+	deq_ops = &ops[test_data->total_bufs];
 
 	if (type == RTE_COMP_COMPRESS) {
 		xform = (struct rte_comp_xform) {
@@ -83,14 +48,14 @@ main_loop(struct cperf_benchmark_ctx *ctx, enum rte_comp_xform_type type)
 			.compress = {
 				.algo = RTE_COMP_ALGO_DEFLATE,
 				.deflate.huffman = test_data->huffman_enc,
-				.level = test_data->level,
+				.level = level,
 				.window_size = test_data->window_sz,
 				.chksum = RTE_COMP_CHECKSUM_NONE,
 				.hash_algo = RTE_COMP_HASH_ALGO_NONE
 			}
 		};
-		input_bufs = mem->decomp_bufs;
-		output_bufs = mem->comp_bufs;
+		input_bufs = test_data->decomp_bufs;
+		output_bufs = test_data->comp_bufs;
 		out_seg_sz = test_data->out_seg_sz;
 	} else {
 		xform = (struct rte_comp_xform) {
@@ -102,8 +67,8 @@ main_loop(struct cperf_benchmark_ctx *ctx, enum rte_comp_xform_type type)
 				.hash_algo = RTE_COMP_HASH_ALGO_NONE
 			}
 		};
-		input_bufs = mem->comp_bufs;
-		output_bufs = mem->decomp_bufs;
+		input_bufs = test_data->comp_bufs;
+		output_bufs = test_data->decomp_bufs;
 		out_seg_sz = test_data->seg_sz;
 	}
 
@@ -117,13 +82,13 @@ main_loop(struct cperf_benchmark_ctx *ctx, enum rte_comp_xform_type type)
 
 	uint64_t tsc_start, tsc_end, tsc_duration;
 
-	num_iter = test_data->num_iter;
 	tsc_start = tsc_end = tsc_duration = 0;
-	tsc_start = rte_rdtsc_precise();
+	tsc_start = rte_rdtsc();
+	num_iter = test_data->num_iter;
 
 	for (iter = 0; iter < num_iter; iter++) {
-		uint32_t total_ops = mem->total_bufs;
-		uint32_t remaining_ops = mem->total_bufs;
+		uint32_t total_ops = test_data->total_bufs;
+		uint32_t remaining_ops = test_data->total_bufs;
 		uint32_t total_deq_ops = 0;
 		uint32_t total_enq_ops = 0;
 		uint16_t ops_unused = 0;
@@ -148,7 +113,7 @@ main_loop(struct cperf_benchmark_ctx *ctx, enum rte_comp_xform_type type)
 
 			/* Allocate compression operations */
 			if (ops_needed && !rte_comp_op_bulk_alloc(
-						mem->op_pool,
+						test_data->op_pool,
 						&ops[ops_unused],
 						ops_needed)) {
 				RTE_LOG(ERR, USER1,
@@ -184,11 +149,7 @@ main_loop(struct cperf_benchmark_ctx *ctx, enum rte_comp_xform_type type)
 				ops[op_id]->private_xform = priv_xform;
 			}
 
-			if (unlikely(test_data->perf_comp_force_stop))
-				goto end;
-
-			num_enq = rte_compressdev_enqueue_burst(dev_id,
-								mem->qp_id, ops,
+			num_enq = rte_compressdev_enqueue_burst(dev_id, 0, ops,
 								num_ops);
 			if (num_enq == 0) {
 				struct rte_compressdev_stats stats;
@@ -204,8 +165,7 @@ main_loop(struct cperf_benchmark_ctx *ctx, enum rte_comp_xform_type type)
 			remaining_ops -= num_enq;
 			total_enq_ops += num_enq;
 
-			num_deq = rte_compressdev_dequeue_burst(dev_id,
-							   mem->qp_id,
+			num_deq = rte_compressdev_dequeue_burst(dev_id, 0,
 							   deq_ops,
 							   test_data->burst_sz);
 			total_deq_ops += num_deq;
@@ -217,7 +177,7 @@ main_loop(struct cperf_benchmark_ctx *ctx, enum rte_comp_xform_type type)
 					if (op->status !=
 						RTE_COMP_OP_STATUS_SUCCESS) {
 						RTE_LOG(ERR, USER1,
-				       "Some operations were not successful\n");
+							"Some operations were not successful\n");
 						goto end;
 					}
 
@@ -238,20 +198,15 @@ main_loop(struct cperf_benchmark_ctx *ctx, enum rte_comp_xform_type type)
 					}
 				}
 			}
-			rte_mempool_put_bulk(mem->op_pool,
+			rte_mempool_put_bulk(test_data->op_pool,
 					     (void **)deq_ops, num_deq);
 			allocated -= num_deq;
 		}
 
 		/* Dequeue the last operations */
 		while (total_deq_ops < total_ops) {
-			if (unlikely(test_data->perf_comp_force_stop))
-				goto end;
-
-			num_deq = rte_compressdev_dequeue_burst(dev_id,
-							   mem->qp_id,
-							   deq_ops,
-							   test_data->burst_sz);
+			num_deq = rte_compressdev_dequeue_burst(dev_id, 0,
+						deq_ops, test_data->burst_sz);
 			if (num_deq == 0) {
 				struct rte_compressdev_stats stats;
 
@@ -271,7 +226,7 @@ main_loop(struct cperf_benchmark_ctx *ctx, enum rte_comp_xform_type type)
 					if (op->status !=
 						RTE_COMP_OP_STATUS_SUCCESS) {
 						RTE_LOG(ERR, USER1,
-				       "Some operations were not successful\n");
+							"Some operations were not successful\n");
 						goto end;
 					}
 
@@ -292,99 +247,65 @@ main_loop(struct cperf_benchmark_ctx *ctx, enum rte_comp_xform_type type)
 					}
 				}
 			}
-			rte_mempool_put_bulk(mem->op_pool,
+			rte_mempool_put_bulk(test_data->op_pool,
 					     (void **)deq_ops, num_deq);
 			allocated -= num_deq;
 		}
 	}
 
-	tsc_end = rte_rdtsc_precise();
+	tsc_end = rte_rdtsc();
 	tsc_duration = tsc_end - tsc_start;
 
 	if (type == RTE_COMP_COMPRESS)
-		ctx->comp_tsc_duration[test_data->level] =
+		test_data->comp_tsc_duration[level] =
 				tsc_duration / num_iter;
 	else
-		ctx->decomp_tsc_duration[test_data->level] =
+		test_data->decomp_tsc_duration[level] =
 				tsc_duration / num_iter;
 
 end:
-	rte_mempool_put_bulk(mem->op_pool, (void **)ops, allocated);
+	rte_mempool_put_bulk(test_data->op_pool, (void **)ops, allocated);
 	rte_compressdev_private_xform_free(dev_id, priv_xform);
 	rte_free(ops);
-
-	if (test_data->perf_comp_force_stop) {
-		RTE_LOG(ERR, USER1,
-		      "lcore: %d Perf. test has been aborted by user\n",
-			mem->lcore_id);
-		res = -1;
-	}
 	return res;
 }
 
 int
-cperf_benchmark_test_runner(void *test_ctx)
+cperf_benchmark(struct comp_test_data *test_data, uint8_t level)
 {
-	struct cperf_benchmark_ctx *ctx = test_ctx;
-	struct comp_test_data *test_data = ctx->ver.options;
-	uint32_t lcore = rte_lcore_id();
-	static rte_atomic16_t display_once = RTE_ATOMIC16_INIT(0);
-
-	ctx->ver.mem.lcore_id = lcore;
 	int i, ret = EXIT_SUCCESS;
-
-	/*
-	 * First the verification part is needed
-	 */
-	if (cperf_verify_test_runner(&ctx->ver)) {
-		ret =  EXIT_FAILURE;
-		goto end;
-	}
 
 	/*
 	 * Run the tests twice, discarding the first performance
 	 * results, before the cache is warmed up
 	 */
 	for (i = 0; i < 2; i++) {
-		if (main_loop(ctx, RTE_COMP_COMPRESS) < 0) {
+		if (main_loop(test_data, level, RTE_COMP_COMPRESS) < 0) {
 			ret = EXIT_FAILURE;
 			goto end;
 		}
 	}
 
 	for (i = 0; i < 2; i++) {
-		if (main_loop(ctx, RTE_COMP_DECOMPRESS) < 0) {
+		if (main_loop(test_data, level, RTE_COMP_DECOMPRESS) < 0) {
 			ret = EXIT_FAILURE;
 			goto end;
 		}
 	}
 
-	ctx->comp_tsc_byte =
-			(double)(ctx->comp_tsc_duration[test_data->level]) /
+	test_data->comp_tsc_byte =
+			(double)(test_data->comp_tsc_duration[level]) /
 					test_data->input_data_sz;
 
-	ctx->decomp_tsc_byte =
-			(double)(ctx->decomp_tsc_duration[test_data->level]) /
+	test_data->decomp_tsc_byte =
+			(double)(test_data->decomp_tsc_duration[level]) /
 					test_data->input_data_sz;
 
-	ctx->comp_gbps = rte_get_tsc_hz() / ctx->comp_tsc_byte * 8 /
+	test_data->comp_gbps = rte_get_tsc_hz() / test_data->comp_tsc_byte * 8 /
 			1000000000;
 
-	ctx->decomp_gbps = rte_get_tsc_hz() / ctx->decomp_tsc_byte * 8 /
-			1000000000;
-
-	if (rte_atomic16_test_and_set(&display_once)) {
-		printf("%12s%6s%12s%17s%15s%16s\n",
-			"lcore id", "Level", "Comp size", "Comp ratio [%]",
-			"Comp [Gbps]", "Decomp [Gbps]");
-	}
-
-	printf("%12u%6u%12zu%17.2f%15.2f%16.2f\n",
-		ctx->ver.mem.lcore_id,
-		test_data->level, ctx->ver.comp_data_sz, ctx->ver.ratio,
-		ctx->comp_gbps,
-		ctx->decomp_gbps);
-
+	test_data->decomp_gbps = rte_get_tsc_hz() / test_data->decomp_tsc_byte
+			* 8 / 1000000000;
 end:
 	return ret;
 }

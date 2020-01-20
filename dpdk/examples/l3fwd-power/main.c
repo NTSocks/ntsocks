@@ -184,8 +184,8 @@ enum busy_rate {
  * reference CYCLES to be used to
  * measure core busyness based on poll count
  */
-#define MIN_CYCLES  1500000ULL
-#define MAX_CYCLES 22000000ULL
+#define MIN_CYCLES 1500000ULL
+#define MAX_CYCLES 2500000ULL
 
 /* (500ms) */
 #define TELEMETRY_INTERVALS_PER_SEC 2
@@ -1034,7 +1034,7 @@ main_telemetry_loop(__attribute__((unused)) void *dummy)
 				br = FULL;
 			} else if (diff_tsc > MIN_CYCLES &&
 					diff_tsc < MAX_CYCLES) {
-				br = (diff_tsc * 100) / MAX_CYCLES;
+				br = PARTIAL;
 			} else {
 				br = ZERO;
 			}
@@ -2385,9 +2385,13 @@ main(int argc, char **argv)
 		/* init RX queues */
 		for(queue = 0; queue < qconf->n_rx_queue; ++queue) {
 			struct rte_eth_rxconf rxq_conf;
+			struct rte_eth_dev *dev;
+			struct rte_eth_conf *conf;
 
 			portid = qconf->rx_queue_list[queue].port_id;
 			queueid = qconf->rx_queue_list[queue].queue_id;
+			dev = &rte_eth_devices[portid];
+			conf = &dev->data->dev_conf;
 
 			if (numa_on)
 				socketid = \
@@ -2400,7 +2404,7 @@ main(int argc, char **argv)
 
 			rte_eth_dev_info_get(portid, &dev_info);
 			rxq_conf = dev_info.default_rxconf;
-			rxq_conf.offloads = port_conf.rxmode.offloads;
+			rxq_conf.offloads = conf->rxmode.offloads;
 			ret = rte_eth_rx_queue_setup(portid, queueid, nb_rxd,
 				socketid, &rxq_conf,
 				pktmbuf_pool[socketid]);

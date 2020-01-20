@@ -7,11 +7,10 @@
  * @date Dec 16, 2019 
  * @version 1.0
  */
-
-#include "ntb-proxy.h"
 #include "config.h"
 #include "nt_log.h"
 #include <unistd.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define MAX_BUF_LEN 1024
@@ -22,8 +21,10 @@ DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 struct ntp_config NTP_CONFIG = {
 		/* set default configuration */
-		.remote_ntp_tcp_timewait = 0,
-		.remote_ntp_tcp_timeout = 1000
+		.sublink_number = 1,
+		.sublink_data_ring_size = 8388608,
+		.sublink_ctrl_ring_size = 262144,
+		.nts_buff_size = 8388608
 };
 
 static int trim(char s[])
@@ -98,34 +99,19 @@ int load_conf(const char *fname)
 		if (strcmp(_paramk, "") == 0 || strcmp(_paramv, "") == 0)
 			continue;
 		// DEBUG("ntb proxy configuration %s=%s", _paramk, _paramv);
-		if (strcmp(_paramk, "remote_ntp_tcp_timeout") == 0){
-			NTP_CONFIG.remote_ntp_tcp_timeout = atoi(_paramv);
-		}else if(strcmp(_paramk, "remote_ntp_tcp_timewait") == 0){
-			NTP_CONFIG.remote_ntp_tcp_timewait = atoi(_paramv);
+		if (strcmp(_paramk, "sublink_number") == 0){
+			NTP_CONFIG.sublink_number = atoi(_paramv);
+		}else if(strcmp(_paramk, "sublink_data_ring_size") == 0){
+			NTP_CONFIG.sublink_data_ring_size = atoi(_paramv);
+		}else if(strcmp(_paramk, "sublink_ctrl_ring_size") == 0){
+			NTP_CONFIG.sublink_ctrl_ring_size = atoi(_paramv);
+		}else if(strcmp(_paramk, "sublink_data_ring_size") == 0){
+			NTP_CONFIG.sublink_data_ring_size = atoi(_paramv);
 		}else {
 			fclose(file);
 			return 1;
 		}
 	}
 	fclose(file);
-	return 0;
-}
-
-void print_conf() {
-	printf("ntp configuration: remote_ntp_tcp_timewait=%d, remote_ntp_tcp_timeout=%d\n",
-		NTP_CONFIG.remote_ntp_tcp_timewait, NTP_CONFIG.remote_ntp_tcp_timeout);
-}
-
-#define CONFIG_FILE "/etc/ntp.cfg"
-
-int main(int argc, char **argv) {
-	// print_monitor();
-	DEBUG("before load conf");
-	print_conf();
-
-	load_conf(CONFIG_FILE);
-	DEBUG("after load conf");
-	print_conf();
-
 	return 0;
 }

@@ -33,6 +33,11 @@ aead "rfc4106\(gcm\(aes\)\)" \
 
 	ssh ${REMOTE_HOST} ip xfrm policy list
 	ssh ${REMOTE_HOST} ip xfrm state list
+
+	# to overcome problem with ipsec-secgw for inline mode,
+	# when first packet(s) will be always dropped.
+	# note that ping will fail here
+	ssh ${REMOTE_HOST} ping -c 1 ${LOCAL_IPV4}
 }
 
 config6_remote_xfrm()
@@ -63,4 +68,9 @@ aead "rfc4106\(gcm\(aes\)\)" \
 
 	ssh ${REMOTE_HOST} ip xfrm policy list
 	ssh ${REMOTE_HOST} ip xfrm state list
+
+	# to overcome problem with ipsec-secgw for inline mode,
+	# when first packet(s) will be always dropped.
+	# note that ping will fail here
+	ssh ${REMOTE_HOST} ping -c 1 ${LOCAL_IPV6}
 }
