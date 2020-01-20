@@ -80,3 +80,4 @@ libmlx4.spec
 config.status
 stamp-h1
 libtool
+bin
