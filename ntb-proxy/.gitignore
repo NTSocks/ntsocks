@@ -55,7 +55,7 @@
 # files created by ./configure
 #
 
-/config.h
+#/config.h
 /config.status
 /config.log
 /Makefile
