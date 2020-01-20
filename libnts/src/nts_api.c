@@ -553,10 +553,10 @@ int nts_accept(int sockid, const struct sockaddr *addr, socklen_t *addrlen) {
 	sprintf(send_shmaddr, "%d-%d-s", listener_port, client_port);
 
 	// TODO:init/create ntp_send_ctx/ntp_recv_ctx
-	// client_sock_ctx->ntp_recv_ctx = ntp_shm();
-	// client_sock_ctx->ntp_send_ctx = ntp_shm();
-	// ntp_shm_connect(client_sock_ctx->ntp_recv_ctx, recv_shmaddr, strlen(recv_shmaddr));
-	// ntp_shm_connect(client_sock_ctx->ntp_send_ctx, send_shmaddr, strlen(send_shmaddr));
+	client_sock_ctx->ntp_recv_ctx = ntp_shm();
+	client_sock_ctx->ntp_send_ctx = ntp_shm();
+	ntp_shm_connect(client_sock_ctx->ntp_recv_ctx, recv_shmaddr, strlen(recv_shmaddr));
+	ntp_shm_connect(client_sock_ctx->ntp_send_ctx, send_shmaddr, strlen(send_shmaddr));
 	
 
 
