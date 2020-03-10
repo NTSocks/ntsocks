@@ -51,9 +51,9 @@ typedef struct {
     uint64_t src_port;
     uint64_t dst_port;
     
-    uint8_t msg_type;
-    uint16_t msg_len;
-    char msg[13];
+    uint8_t msg_type;       //msg_type==1:create conn
+    uint16_t msg_len;       //It can be any value, it doesn't matter
+    char msg[13];           //It can be any value, it doesn't matter
 } ntm_ntp_msg;
 
 void ntm_ntp_msgcopy(ntm_ntp_msg *src_msg, ntm_ntp_msg *target_msg);
