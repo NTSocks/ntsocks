@@ -126,6 +126,7 @@ int ntb_ctrl_msg_enqueue(struct ntb_link_custom *ntlink, struct ntb_ctrl_msg *ms
     //ptr = r->start_addr + r->cur_index * NTB_CTRL_MSG_TL ,NTB_CTRL_MSG_TL = 16
     uint8_t *ptr = r->start_addr + (r->cur_index << 4);
     rte_memcpy(ptr, msg, NTB_CTRL_MSG_TL);
+    DEBUG("ntb_ctrl_msg_enqueue");
     r->cur_index = next_index;
     return 0;
 }
@@ -142,6 +143,7 @@ int ntb_pure_data_msg_enqueue(struct ntb_data_link *data_link, uint8_t *msg, int
     //ptr = r->start_addr + r->cur_index * NTB_DATA_MSG_TL ,NTB_DATA_MSG_TL = 128
     uint8_t *ptr = r->start_addr + (r->cur_index << 7);
     rte_memcpy(ptr, msg, data_len);
+    DEBUG("ntb_pure_data_msg_enqueue");
     r->cur_index = next_index;
     return 0;
 }

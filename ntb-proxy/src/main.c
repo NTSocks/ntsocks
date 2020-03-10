@@ -97,7 +97,7 @@ ntb_send_thread(__attribute__((unused)) void *arg)
 			ntp_shm_destroy(curr_node->conn->nts_send_ring);
 			ntb_conn *conn;
 			free(curr_node->conn);
-			free(curr_node);	
+			free(curr_node);
 			continue;
 		}
 		// INFO("send conn name = %s",curr_node->conn->name);

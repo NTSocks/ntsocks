@@ -9,6 +9,8 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <string.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
 
 #include <rte_io.h>
 #include <rte_eal.h>
@@ -46,35 +48,42 @@ static char *int_to_char(uint16_t x)
 }
 
 //result[0] is src_port-dst_post-s, result[1] is src_port-des_port-r
-static char **create_nts_ring_name(uint16_t src_port, uint16_t dst_port)
+static int parse_sockaddr_port(struct sockaddr_in *saddr)
 {
-    char **result = 0;
-    result = malloc(sizeof(char *) * 2);
-    result[0] = malloc(sizeof(char) * 14);
-    result[1] = malloc(sizeof(char) * 14);
-    char *bar = "-";
-    char *send_buff = "s";
-    char *recv_buff = "r";
-    char *src_port_str = int_to_char(src_port);
-    char *dst_port_str = int_to_char(dst_port);
-
-    strcpy(result[0], src_port_str);
-    strcat(result[0], bar);
-    strcat(result[0], dst_port_str);
-    strcat(result[0], bar);
-    strcat(result[0], send_buff);
-
-    strcpy(result[1], src_port_str);
-    strcat(result[1], bar);
-    strcat(result[1], dst_port_str);
-    strcat(result[1], bar);
-    strcat(result[1], recv_buff);
-    DEBUG("name1 = %s,name 2 = %s", *result, *(result + 1));
-    free(src_port_str);
-    free(dst_port_str);
-
-    return result;
+    assert(saddr);
+    int port;
+    port = ntohs(saddr->sin_port);
+    return port;
 }
+// static char **create_nts_ring_name(uint16_t src_port, uint16_t dst_port)
+// {
+//     char **result = 0;
+//     result = malloc(sizeof(char *) * 2);
+//     result[0] = malloc(sizeof(char) * 14);
+//     result[1] = malloc(sizeof(char) * 14);
+//     char *bar = "-";
+//     char *send_buff = "s";
+//     char *recv_buff = "r";
+//     char *src_port_str = int_to_char(src_port);
+//     char *dst_port_str = int_to_char(dst_port);
+
+//     strcpy(result[0], src_port_str);
+//     strcat(result[0], bar);
+//     strcat(result[0], dst_port_str);
+//     strcat(result[0], bar);
+//     strcat(result[0], send_buff);
+
+//     strcpy(result[1], src_port_str);
+//     strcat(result[1], bar);
+//     strcat(result[1], dst_port_str);
+//     strcat(result[1], bar);
+//     strcat(result[1], recv_buff);
+//     DEBUG("name 1 = %s,name 2 = %s", *result, *(result + 1));
+//     free(src_port_str);
+//     free(dst_port_str);
+
+//     return result;
+// }
 
 static int add_conn_to_ntb_send_list(struct ntb_link_custom *ntb_link, ntb_conn *conn)
 {
@@ -105,7 +114,7 @@ static int ntp_create_conn_ack(struct ntb_link_custom *ntb_link, ntm_ntp_msg *ms
     reply_msg.msg_len = 14;
 
     ntp_ntm_shm_send(ntb_link->ntp_ntm, &reply_msg);
-
+    DEBUG("msg_type=%d", reply_msg.msg_type);
     return 0;
 }
 
@@ -119,20 +128,29 @@ int ntp_create_conn_handler(struct ntb_link_custom *ntb_link, ntm_ntp_msg *msg)
     ntp_shm_context_t recv_ring = ntp_shm();
     DEBUG("start create ring name");
 
-    char **nts_ring_name = create_nts_ring_name(msg->src_port, msg->dst_port);
+    // char **nts_ring_name = create_nts_ring_name(msg->src_port, msg->dst_port);
+    int src_port, dst_port;
+    char recv_shmaddr[SHM_NAME_LEN], send_shmaddr[SHM_NAME_LEN];
+    src_port = ntohs(msg->src_port);
+    dst_port = ntohs(msg->dst_port);
+    sprintf(recv_shmaddr, "%d-%d-r", src_port, dst_port);
+    sprintf(send_shmaddr, "%d-%d-s", src_port, dst_port);
+    DEBUG("ntp recv_shmaddr=%s, send_shmaddr=%s", recv_shmaddr, send_shmaddr);
 
     // create the send/recv buffer for ntb connection
-    if (ntp_shm_accept(send_ring, nts_ring_name[0], sizeof(nts_ring_name[0])) != 0)
+    // if (ntp_shm_accept(send_ring, nts_ring_name[0], sizeof(nts_ring_name[0])) != 0)
+    if (ntp_shm_accept(send_ring, send_shmaddr, strlen(send_shmaddr)) != 0)
     {
         DEBUG("create ntm_ntp_ring failed\n");
     }
-    if (ntp_shm_accept(recv_ring, nts_ring_name[1], sizeof(nts_ring_name[1])) != 0)
+    // if (ntp_shm_accept(recv_ring, nts_ring_name[1], sizeof(nts_ring_name[1])) != 0)
+    if (ntp_shm_accept(recv_ring, recv_shmaddr, strlen(recv_shmaddr)) != 0)
     {
         DEBUG("create ntm_ntp_ring failed\n");
     }
-    free(nts_ring_name[0]);
-    free(nts_ring_name[1]);
-    free(nts_ring_name);
+    // free(nts_ring_name[0]);
+    // free(nts_ring_name[1]);
+    // free(nts_ring_name);
 
     conn->nts_send_ring = send_ring;
     conn->nts_recv_ring = recv_ring;
@@ -140,7 +158,7 @@ int ntp_create_conn_handler(struct ntb_link_custom *ntb_link, ntm_ntp_msg *msg)
     // hold/save the new ntb connection into hash map
     Put(ntb_link->port2conn, &conn->conn_id, conn);
 
-    INFO("conn_id = %d",conn->conn_id);
+    INFO("conn_id = %d", conn->conn_id);
     add_conn_to_ntb_send_list(ntb_link, conn);
 
     ntp_create_conn_ack(ntb_link, msg);
@@ -261,7 +279,7 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
         //如果当前包端口号与上次比有所改变，需要重新Get conn
         if (src_port != msg->header.dst_port || dst_port != msg->header.src_port)
         {
-            
+
             //解析接收的包时将src和dst port交换
             src_port = msg->header.dst_port;
             dst_port = msg->header.src_port;
