@@ -39,7 +39,7 @@
 #include "config.h"
 #include "nt_log.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_INFO);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 int trans_data_link_cur_index(struct ntb_data_link *data_link)
 {
@@ -250,6 +250,7 @@ ntb_start(uint16_t dev_id)
     //get the NTB local&remote memory ptr,then formats them
     uint8_t *local_ptr = (uint8_t *)ntb_link->hw->mz[0]->addr;
     uint8_t *remote_ptr = (uint8_t *)ntb_link->hw->pci_dev->mem_resource[2].addr;
+    DEBUG("mem formatting start");
     ntb_mem_formatting(ntb_link, local_ptr, remote_ptr);
 
     //create the list to be send,add ring_head

@@ -38,7 +38,7 @@
 
 #include "nt_log.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_INFO);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 static char *int_to_char(uint16_t x)
 {

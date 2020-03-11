@@ -10,8 +10,10 @@
 
 #include <string.h>
 #include <assert.h>
-
 #include "ntm_msg.h"
+#include "nt_log.h"
+
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 void ntm_ntp_msgcopy(ntm_ntp_msg *src_msg, ntm_ntp_msg *target_msg)
 {
