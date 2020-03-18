@@ -25,6 +25,8 @@
 
 #define DETECT_INTERVAL 4   //Unit : US
 
+#define SHM_NAME_LEN 50
+
 #define RTE_GET_TIMER_HZ 25000000000
 
 int ntp_create_conn_handler(struct ntb_link_custom *ntb_link, ntm_ntp_msg *msg);

@@ -27,7 +27,7 @@
 #include "nt_atomic.h"
 #include "nt_log.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_INFO);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 typedef struct ntp_shmring_buf
 {
@@ -121,12 +121,12 @@ ntp_shmring_handle_t ntp_shmring_init(char *shm_addr, size_t addrlen)
     shmring_handle->shm_addr = shm_addr;
 
     // get shared memory for ntp_shmring
-    shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, 0666);
     if (shmring_handle->shm_fd == -1)
     {
-        if (errno == ENOENT)
+        if (errno == ENOENT || errno == EEXIST)
         {
-            shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+            shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, 0666);
             if (shmring_handle->shm_fd == -1)
             {
                 error("shm_open");
@@ -139,6 +139,7 @@ ntp_shmring_handle_t ntp_shmring_init(char *shm_addr, size_t addrlen)
             goto FAIL;
         }
     }
+    fchmod(shmring_handle->shm_fd, 0666);
     DEBUG("shm_open pass");
 
     int ret;
@@ -203,6 +204,7 @@ ntp_shmring_handle_t ntp_get_shmring(char *shm_addr, size_t addrlen)
         error("shm_open");
         goto FAIL;
     }
+    fchmod(shmring_handle->shm_fd, 0666);
     DEBUG("shm_open pass with fd - %d", shmring_handle->shm_fd);
 
     // mmap the allocated shared memory to ntp_shmring
@@ -282,7 +284,7 @@ bool ntp_shmring_pop(ntp_shmring_handle_t self, ntp_msg *element)
 
     uint64_t w_idx = nt_atomic_load64_explicit(&self->shmring->write_index, ATOMIC_MEMORY_ORDER_ACQUIRE);
     uint64_t r_idx = nt_atomic_load64_explicit(&self->shmring->read_index, ATOMIC_MEMORY_ORDER_RELAXED);
-
+    // DEBUG("w_idx = %ld,r_idx = %ld", self->shmring->write_index, self->shmring->read_index);
     /// Queue is empty (or was empty when we checked)
     if (empty(w_idx, r_idx))
         return false;
@@ -292,7 +294,7 @@ bool ntp_shmring_pop(ntp_shmring_handle_t self, ntp_msg *element)
     nt_atomic_store64_explicit(&self->shmring->read_index,
                                mask_increment(r_idx, self->MASK), ATOMIC_MEMORY_ORDER_RELEASE);
 
-    DEBUG("pop nts shmring successfully!");
+    // DEBUG("pop nts shmring successfully!");
 
     return true;
 }

@@ -50,5 +50,5 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
-
+dpdk/x86_64-native-linuxapp-gcc/
 .vscode/

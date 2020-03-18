@@ -9,6 +9,8 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <string.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
 
 #include <rte_io.h>
 #include <rte_eal.h>
@@ -36,7 +38,7 @@
 
 #include "nt_log.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_INFO);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 static char *int_to_char(uint16_t x)
 {
@@ -46,35 +48,42 @@ static char *int_to_char(uint16_t x)
 }
 
 //result[0] is src_port-dst_post-s, result[1] is src_port-des_port-r
-static char **create_nts_ring_name(uint16_t src_port, uint16_t dst_port)
+static int parse_sockaddr_port(struct sockaddr_in *saddr)
 {
-    char **result = 0;
-    result = malloc(sizeof(char *) * 2);
-    result[0] = malloc(sizeof(char) * 14);
-    result[1] = malloc(sizeof(char) * 14);
-    char *bar = "-";
-    char *send_buff = "s";
-    char *recv_buff = "r";
-    char *src_port_str = int_to_char(src_port);
-    char *dst_port_str = int_to_char(dst_port);
-
-    strcpy(result[0], src_port_str);
-    strcat(result[0], bar);
-    strcat(result[0], dst_port_str);
-    strcat(result[0], bar);
-    strcat(result[0], send_buff);
-
-    strcpy(result[1], src_port_str);
-    strcat(result[1], bar);
-    strcat(result[1], dst_port_str);
-    strcat(result[1], bar);
-    strcat(result[1], recv_buff);
-    DEBUG("name1 = %s,name 2 = %s", *result, *(result + 1));
-    free(src_port_str);
-    free(dst_port_str);
-
-    return result;
+    assert(saddr);
+    int port;
+    port = ntohs(saddr->sin_port);
+    return port;
 }
+// static char **create_nts_ring_name(uint16_t src_port, uint16_t dst_port)
+// {
+//     char **result = 0;
+//     result = malloc(sizeof(char *) * 2);
+//     result[0] = malloc(sizeof(char) * 14);
+//     result[1] = malloc(sizeof(char) * 14);
+//     char *bar = "-";
+//     char *send_buff = "s";
+//     char *recv_buff = "r";
+//     char *src_port_str = int_to_char(src_port);
+//     char *dst_port_str = int_to_char(dst_port);
+
+//     strcpy(result[0], src_port_str);
+//     strcat(result[0], bar);
+//     strcat(result[0], dst_port_str);
+//     strcat(result[0], bar);
+//     strcat(result[0], send_buff);
+
+//     strcpy(result[1], src_port_str);
+//     strcat(result[1], bar);
+//     strcat(result[1], dst_port_str);
+//     strcat(result[1], bar);
+//     strcat(result[1], recv_buff);
+//     DEBUG("name 1 = %s,name 2 = %s", *result, *(result + 1));
+//     free(src_port_str);
+//     free(dst_port_str);
+
+//     return result;
+// }
 
 static int add_conn_to_ntb_send_list(struct ntb_link_custom *ntb_link, ntb_conn *conn)
 {
@@ -96,16 +105,19 @@ static uint32_t create_conn_id(uint16_t src_port, uint16_t dst_port)
 // send `SYN_ACK` back to ntb monitor
 static int ntp_create_conn_ack(struct ntb_link_custom *ntb_link, ntm_ntp_msg *msg)
 {
+    char *test_name = "test";
     ntp_ntm_msg reply_msg;
     reply_msg.src_ip = msg->src_ip;
     reply_msg.dst_ip = msg->dst_ip;
     reply_msg.src_port = msg->src_port;
     reply_msg.dst_port = msg->dst_port;
     reply_msg.msg_type = CREATE_CONN_ACK;
-    reply_msg.msg_len = 14;
+    reply_msg.msg_len = 48;
+
+    memcpy(reply_msg.msg, test_name, 4);
 
     ntp_ntm_shm_send(ntb_link->ntp_ntm, &reply_msg);
-
+    DEBUG("msg_type=%d", reply_msg.msg_type);
     return 0;
 }
 
@@ -114,38 +126,54 @@ int ntp_create_conn_handler(struct ntb_link_custom *ntb_link, ntm_ntp_msg *msg)
     ntb_conn *conn = malloc(sizeof(*conn));
     conn->state = READY_CONN; // update the ntb connection to `READY_DOWN`
 
-    conn->conn_id = create_conn_id(msg->src_port, msg->dst_port); // generate ntb connection name
-    ntp_shm_context_t send_ring = ntp_shm();                      // create shm ring
+    ntp_shm_context_t send_ring = ntp_shm(); // create shm ring
     ntp_shm_context_t recv_ring = ntp_shm();
-    DEBUG("start create ring name");
 
-    char **nts_ring_name = create_nts_ring_name(msg->src_port, msg->dst_port);
+    // char **nts_ring_name = create_nts_ring_name(msg->src_port, msg->dst_port);
+    int src_port, dst_port;
+    char recv_shmaddr[SHM_NAME_LEN], send_shmaddr[SHM_NAME_LEN];
+    src_port = ntohs(msg->src_port);
+    dst_port = ntohs(msg->dst_port);
+    sprintf(recv_shmaddr, "%d-%d-r", src_port, dst_port);
+    sprintf(send_shmaddr, "%d-%d-s", src_port, dst_port);
+    DEBUG("ntp recv_shmaddr=%s, send_shmaddr=%s", recv_shmaddr, send_shmaddr);
 
+    conn->conn_id = create_conn_id(src_port, dst_port); // generate ntb connection name
     // create the send/recv buffer for ntb connection
-    if (ntp_shm_accept(send_ring, nts_ring_name[0], sizeof(nts_ring_name[0])) != 0)
+    // if (ntp_shm_accept(send_ring, nts_ring_name[0], sizeof(nts_ring_name[0])) != 0)
+    if (ntp_shm_accept(send_ring, send_shmaddr, strlen(send_shmaddr)) != 0)
     {
         DEBUG("create ntm_ntp_ring failed\n");
     }
-    if (ntp_shm_accept(recv_ring, nts_ring_name[1], sizeof(nts_ring_name[1])) != 0)
+    // if (ntp_shm_accept(recv_ring, nts_ring_name[1], sizeof(nts_ring_name[1])) != 0)
+    if (ntp_shm_accept(recv_ring, recv_shmaddr, strlen(recv_shmaddr)) != 0)
     {
         DEBUG("create ntm_ntp_ring failed\n");
     }
-    free(nts_ring_name[0]);
-    free(nts_ring_name[1]);
-    free(nts_ring_name);
+    // free(nts_ring_name[0]);
+    // free(nts_ring_name[1]);
+    // free(nts_ring_name);
 
     conn->nts_send_ring = send_ring;
     conn->nts_recv_ring = recv_ring;
 
     // hold/save the new ntb connection into hash map
     Put(ntb_link->port2conn, &conn->conn_id, conn);
+    HashMapIterator iter = createHashMapIterator(ntb_link->port2conn);
+    while (hasNextHashMapIterator(iter))
+    {
+        iter = nextHashMapIterator(iter);
+        struct ntb_conn *tmp_conn = (ntb_conn *)iter->entry->value;
+        DEBUG("{ key = %d }", *(int *)iter->entry->key);
+    }
+    freeHashMapIterator(&iter);
 
-    INFO("conn_id = %d",conn->conn_id);
     add_conn_to_ntb_send_list(ntb_link, conn);
 
     ntp_create_conn_ack(ntb_link, msg);
 
     DEBUG("create conn success,conn name is %d", conn->conn_id);
+
     return 0;
 }
 
@@ -185,6 +213,7 @@ int ntp_send_buff_data(struct ntb_data_link *data_link, ntp_shm_context_t ring, 
     {
         if (ntp_shm_recv(ring, &send_msg) < 0)
         {
+            // DEBUG("send buff is empty");
             break;
         }
         if (send_msg.msg_type == NTP_FIN) // when NTP_FIN packet/msg, update ntb-conn state as `ACTIVE_CLOSE`
@@ -194,6 +223,7 @@ int ntp_send_buff_data(struct ntb_data_link *data_link, ntp_shm_context_t ring, 
             ntb_data_msg_add_header(&packaged_msg, src_port, dst_port, 0, FIN_PKG);
             ntb_data_msg_enqueue(data_link, &packaged_msg);
             conn->state = ACTIVE_CLOSE;
+            DEBUG("conn->state change to active_close");
             return 0;
         }
         data_len = send_msg.msg_len;
@@ -207,17 +237,21 @@ int ntp_send_buff_data(struct ntb_data_link *data_link, ntp_shm_context_t ring, 
         {
             rte_memcpy(packaged_msg.msg, (uint8_t *)send_msg.msg, DATA_MSG_LEN);
             ntb_data_msg_add_header(&packaged_msg, src_port, dst_port, data_len, MULTI_PKG);
+            DEBUG("multi pkg header,src_port = %d ,dst_port=%d,msg_len = %d",src_port,dst_port,data_len);
             ntb_data_msg_enqueue(data_link, &packaged_msg);
             uint16_t sent = DATA_MSG_LEN;
             //下面为纯data包，NTB_DATA_MSG_TL不需要减去header长度
             while (data_len - sent > NTB_DATA_MSG_TL)
             {
                 ntb_pure_data_msg_enqueue(data_link, (uint8_t *)(send_msg.msg + sent), NTB_DATA_MSG_TL);
+                DEBUG("add pure_data,sent_len = %d",sent);
                 sent += NTB_DATA_MSG_TL;
             }
             ntb_pure_data_msg_enqueue(data_link, (uint8_t *)(send_msg.msg + sent), data_len - sent);
+            DEBUG("add pure_data,sent_len = %d",sent);
             //发送ENF包表示多个包传输完毕
             ntb_data_msg_add_header(&packaged_msg, src_port, dst_port, 0, ENF_MULTI); // the ENF_MULTI packet: empty data packet
+            DEBUG("ENF_MULTI pkg enqueue");
             ntb_data_msg_enqueue(data_link, &packaged_msg);
         }
     }
@@ -255,22 +289,41 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
         {
             continue;
         }
-
+        DEBUG("msg_len != 0");
         msg_len &= 0x0fff; // compute real msg_len == end 12 bits
         msg_type = parser_data_len_get_type(data_link, msg->header.msg_len);
         //如果当前包端口号与上次比有所改变，需要重新Get conn
         if (src_port != msg->header.dst_port || dst_port != msg->header.src_port)
         {
-            
+            HashMapIterator iter = createHashMapIterator(ntb_link->port2conn);
+            while (hasNextHashMapIterator(iter))
+            {
+                iter = nextHashMapIterator(iter);
+                struct ntb_conn *tmp_conn = (ntb_conn *)iter->entry->value;
+                DEBUG("{ key = %d }", *(int *)iter->entry->key);
+            }
+            freeHashMapIterator(&iter);
+
+            DEBUG("Get conn start");
             //解析接收的包时将src和dst port交换
             src_port = msg->header.dst_port;
             dst_port = msg->header.src_port;
             conn_id = create_conn_id(src_port, dst_port);
             conn = (ntb_conn *)Get(ntb_link->port2conn, &conn_id);
+            DEBUG("search conn_id = %d", conn_id);
+            DEBUG("Get conn end");
         }
         //当前消息的端口号与上一条消息完全相等时，为同一条conn的消息，将不会重复进行get
         if (conn == NULL || conn->state == ACTIVE_CLOSE || conn->state == PASSIVE_CLOSE)
         { // if the ntb conn is close state, then drop current nt_packet
+            if (conn == NULL)
+            {
+                DEBUG("conn = null");
+            }
+            else
+            {
+                DEBUG("conn state = %d", conn->state);
+            }
             count = (msg_len + NTB_DATA_MSG_TL - 1) >> 7;
             temp_index = r->cur_index;
             //会将ENF_MULTI包所在位置也清零
@@ -287,6 +340,7 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
         ntp_msg recv_msg;
         if (msg_type == SINGLE_PKG)
         {
+            DEBUG("receive SINGLE_PKG start");
             recv_msg.msg_type = NTP_DATA;
             recv_msg.msg_len = msg_len - NTB_HEADER_LEN;
             rte_memcpy(recv_msg.msg, msg->msg, recv_msg.msg_len);
@@ -295,19 +349,22 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
             msg->header.msg_len = 0;
             // if(r->cur_index +1 >= max_cap)
             r->cur_index = r->cur_index + 1 < r->capacity ? r->cur_index + 1 : 0;
+            DEBUG("pkg data = %s,msg_len = %d", recv_msg.msg, recv_msg.msg_len);
+            DEBUG("receive SINGLE_PKG end");
         }
         else if (msg_type == MULTI_PKG)
         {
+            DEBUG("receive MULTI_PKG start");
             recv_msg.msg_type = NTP_DATA;
             recv_msg.msg_len = msg_len - NTB_HEADER_LEN;
             temp_index = r->cur_index;
-            next_index = temp_index + ((recv_msg.msg_len + NTB_DATA_MSG_TL - 1) >> 7);
+            next_index = temp_index + ((msg_len + NTB_DATA_MSG_TL - 1) >> 7);//fix recv_msg.msg_len to msg_len
             fin_index = next_index < r->capacity ? next_index : next_index - r->capacity;
             //fin_msg 为ENF_MULTI包应该抵达的位置
             fin_msg = (struct ntb_data_msg *)(r->start_addr + (fin_index << 7));
             while (fin_msg->header.msg_len == 0)
             {
-                INFO("waiting for enf_mulit msg");
+                INFO("waiting for enf_mulit msg,waiting_index = %ld",fin_index);
             }
             if (next_index <= r->capacity)
             {
@@ -329,6 +386,7 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
 
             ntp_shm_send(conn->nts_recv_ring, &recv_msg);
             r->cur_index = next_index + 1 < r->capacity ? next_index + 1 : 0;
+            DEBUG("receive MULTI_PKG end");
         }
         else if (msg_type == DETECT_PKG)
         {
@@ -344,6 +402,7 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
             recv_msg.msg_len = msg_len - NTB_HEADER_LEN;
             ntp_shm_send(conn->nts_recv_ring, &recv_msg);
             conn->state = PASSIVE_CLOSE;
+            DEBUG("conn->state change to passive_close");
             msg->header.msg_len = 0;
             //收到FIN包将state置为CLOSE—CLIENT。遍历ring_list时判断conn->state来close移出node并free
             r->cur_index = r->cur_index + 1 < r->capacity ? r->cur_index + 1 : 0;

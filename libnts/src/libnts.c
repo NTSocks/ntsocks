@@ -181,12 +181,6 @@ int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
 	}
 
 	return nts_bind(sockfd, addr, addrlen);
-
-	// if (nts_fdisused(sockfd)) {
-	// 	return nts_bind(sockfd, addr, addrlen);
-	// } else {
-	// 	return real_bind(sockfd, addr, addrlen);
-	// }
 }
 
 int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
@@ -196,12 +190,6 @@ int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
 	}
 
 	return nts_connect(sockfd, addr, addrlen);
-
-	// if (nts_fdisused(sockfd)) {
-	// 	return nts_connect(sockfd, addr, addrlen);
-	// } else {
-	// 	return real_connect(sockfd, addr, addrlen);
-	// }
 }
 
 ssize_t send(int sockfd, const void *buf, size_t len, int flags) {
