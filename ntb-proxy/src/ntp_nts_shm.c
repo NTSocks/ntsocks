@@ -16,21 +16,24 @@
 #include "ntp_nts_shm.h"
 #include "nt_log.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_INFO);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
-ntp_shm_context_t ntp_shm() {
+ntp_shm_context_t ntp_shm()
+{
 	ntp_shm_context_t shm_ctx;
 
-	shm_ctx = (ntp_shm_context_t) malloc(sizeof(struct ntp_shm_context));
+	shm_ctx = (ntp_shm_context_t)malloc(sizeof(struct ntp_shm_context));
 	shm_ctx->shm_stat = NTP_SHM_UNREADY;
-	if (shm_ctx) {
+	if (shm_ctx)
+	{
 		DEBUG("[ntp_shm] create shm_ctx pass");
 	}
 
 	return shm_ctx;
 }
 
-int ntp_shm_accept(ntp_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
+int ntp_shm_accept(ntp_shm_context_t shm_ctx, char *shm_addr, size_t addrlen)
+{
 	assert(shm_ctx);
 	assert(addrlen > 0);
 
@@ -41,12 +44,12 @@ int ntp_shm_accept(ntp_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
 	shm_ctx->ntsring_handle = ntp_shmring_init(shm_ctx->shm_addr, shm_ctx->addrlen);
 	shm_ctx->shm_stat = NTP_SHM_READY;
 
-	DEBUG("ntp_shm_accept pass");
+	// DEBUG("ntp_shm_accept pass");
 	return 0;
 }
 
-
-int ntp_shm_connect(ntp_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
+int ntp_shm_connect(ntp_shm_context_t shm_ctx, char *shm_addr, size_t addrlen)
+{
 	assert(shm_ctx);
 	assert(addrlen > 0);
 
@@ -57,34 +60,35 @@ int ntp_shm_connect(ntp_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
 	shm_ctx->ntsring_handle = ntp_get_shmring(shm_ctx->shm_addr, shm_ctx->addrlen); /// note: need to improve
 	shm_ctx->shm_stat = NTP_SHM_READY;
 
-	DEBUG("ntp_shm_connect pass");
+	// DEBUG("ntp_shm_connect pass");
 	return 0;
 }
 
-
-int ntp_shm_send(ntp_shm_context_t shm_ctx, ntp_msg *buf) {
+int ntp_shm_send(ntp_shm_context_t shm_ctx, ntp_msg *buf)
+{
 	assert(shm_ctx);
 
 	bool ret;
 	ret = ntp_shmring_push(shm_ctx->ntsring_handle, buf);
-
+	DEBUG("send msg type = %d,msg len = %d",buf->msg_type,buf->msg_len);
 	DEBUG("ntp_shm_send pass");
 	return ret ? 0 : -1;
 }
 
-
-int ntp_shm_recv(ntp_shm_context_t shm_ctx, ntp_msg *buf) {
+int ntp_shm_recv(ntp_shm_context_t shm_ctx, ntp_msg *buf)
+{
 	assert(shm_ctx);
 
 	bool ret;
 	ret = ntp_shmring_pop(shm_ctx->ntsring_handle, buf);
 
-	DEBUG("ntp_shm_recv pass");
+	// DEBUG("ntp_shm_recv pass");
 	return ret ? 0 : -1;
 }
 
 //创建者销毁
-int ntp_shm_close(ntp_shm_context_t shm_ctx) {
+int ntp_shm_close(ntp_shm_context_t shm_ctx)
+{
 	assert(shm_ctx);
 
 	ntp_shmring_free(shm_ctx->ntsring_handle, 1);
@@ -97,7 +101,8 @@ int ntp_shm_close(ntp_shm_context_t shm_ctx) {
 }
 
 //使用者销毁
-int ntp_shm_ntm_close(ntp_shm_context_t shm_ctx) {
+int ntp_shm_ntm_close(ntp_shm_context_t shm_ctx)
+{
 	assert(shm_ctx);
 
 	ntp_shmring_free(shm_ctx->ntsring_handle, 0);
@@ -109,12 +114,11 @@ int ntp_shm_ntm_close(ntp_shm_context_t shm_ctx) {
 	return 0;
 }
 
-
-void ntp_shm_destroy(ntp_shm_context_t shm_ctx) {
+void ntp_shm_destroy(ntp_shm_context_t shm_ctx)
+{
 	assert(shm_ctx);
 
 	free(shm_ctx);
 	shm_ctx = NULL;
 	DEBUG("ntp_shm_destroy pass");
 }
-

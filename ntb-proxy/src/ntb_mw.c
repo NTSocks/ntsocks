@@ -110,6 +110,7 @@ int parser_ctrl_msg_header(struct ntb_link_custom *ntb_link, uint16_t msg_len)
 
 int ntb_ctrl_msg_enqueue(struct ntb_link_custom *ntlink, struct ntb_ctrl_msg *msg)
 {
+    DEBUG("ntb_ctrl_msg_enqueue start");
     struct ntb_ring_buffer *r = ntlink->ctrl_link->remote_ring;
 
     uint64_t next_index = r->cur_index + 1 < r->capacity ? r->cur_index + 1 : 0;
@@ -126,14 +127,14 @@ int ntb_ctrl_msg_enqueue(struct ntb_link_custom *ntlink, struct ntb_ctrl_msg *ms
     //ptr = r->start_addr + r->cur_index * NTB_CTRL_MSG_TL ,NTB_CTRL_MSG_TL = 16
     uint8_t *ptr = r->start_addr + (r->cur_index << 4);
     rte_memcpy(ptr, msg, NTB_CTRL_MSG_TL);
-    DEBUG("ntb_ctrl_msg_enqueue");
+    DEBUG("ntb_ctrl_msg_enqueue end");
     r->cur_index = next_index;
     return 0;
 }
 
 int ntb_pure_data_msg_enqueue(struct ntb_data_link *data_link, uint8_t *msg, int data_len)
 {
-    DEBUG("ntb_pure_data_msg_enqueue");
+    DEBUG("ntb_pure_data_msg_enqueue start");
     struct ntb_ring_buffer *r = data_link->remote_ring;
     uint64_t next_index = r->cur_index + 1 < r->capacity ? r->cur_index + 1 : 0;
     //looping send
@@ -143,14 +144,14 @@ int ntb_pure_data_msg_enqueue(struct ntb_data_link *data_link, uint8_t *msg, int
     //ptr = r->start_addr + r->cur_index * NTB_DATA_MSG_TL ,NTB_DATA_MSG_TL = 128
     uint8_t *ptr = r->start_addr + (r->cur_index << 7);
     rte_memcpy(ptr, msg, data_len);
-    DEBUG("ntb_pure_data_msg_enqueue");
+    DEBUG("ntb_pure_data_msg_enqueue end");
     r->cur_index = next_index;
     return 0;
 }
 
 int ntb_data_msg_enqueue(struct ntb_data_link *data_link, struct ntb_data_msg *msg)
 {
-    DEBUG("ntb_data_msg_enqueue");
+    DEBUG("ntb_data_msg_enqueue start");
     struct ntb_ring_buffer *r = data_link->remote_ring;
     //msg_len 为包含头部的总长度，add_header时已经计算完成
     uint16_t msg_len = msg->header.msg_len;
@@ -178,7 +179,10 @@ int ntb_data_msg_enqueue(struct ntb_data_link *data_link, struct ntb_data_msg *m
         }
         rte_memcpy(ptr, msg, NTB_DATA_MSG_TL);
     }
+    DEBUG("enqueue cur_index = %ld",r->cur_index);
     r->cur_index = next_index;
+    DEBUG("ntb_data_msg_enqueue len = %d,port1 = %d,port 2 = %d,msg = %s",msg->header.msg_len,msg->header.src_port,msg->header.dst_port,msg->msg);
+    DEBUG("ntb_data_msg_enqueue end");
     return 0;
 }
 
