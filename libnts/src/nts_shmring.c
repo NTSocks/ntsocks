@@ -97,10 +97,10 @@ nts_shmring_handle_t nts_shmring_init(char *shm_addr, size_t addrlen) {
     shmring_handle->shm_addr = shm_addr;
 
     // get shared memory for nts_shmring
-    shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, 0666);
     if (shmring_handle->shm_fd == -1) {
-        if (errno == ENOENT) {
-            shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+        if (errno == ENOENT || errno == EEXIST) {
+            shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, 0666);
             if (shmring_handle->shm_fd == -1) {
                 error("shm_open");
                 goto FAIL;
@@ -110,6 +110,8 @@ nts_shmring_handle_t nts_shmring_init(char *shm_addr, size_t addrlen) {
             goto FAIL;
         }
     }
+    // set the permission of shm fd for write/read in non-root users 
+    fchmod(shmring_handle->shm_fd, 0666);
     DEBUG("shm_open pass with fd - %d", shmring_handle->shm_fd);
 
     int ret;
@@ -169,6 +171,8 @@ nts_shmring_handle_t nts_get_shmring(char *shm_addr, size_t addrlen) {
         error("shm_open");
         goto FAIL;
     }
+    // set the permission of shm fd for write/read in non-root users 
+    fchmod(shmring_handle->shm_fd, 0666);
     DEBUG("shm_open pass with fd - %d", shmring_handle->shm_fd);
 
     // mmap the allocated shared memory to nts_shmring

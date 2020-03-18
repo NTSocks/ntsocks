@@ -107,14 +107,14 @@ static inline nt_spsc_shmring_handle_t _nt_spsc_shmring_init(char *shm_addr, siz
 
     // get shared memory for nts_shmring
     if (is_master) {
-        shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+        shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, 0666);
     } else {
         shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR, 0);
     }
 
     if (shmring_handle->shm_fd == -1) {
-        if (is_master && errno == ENOENT) {
-            shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+        if (is_master && (errno == ENOENT || errno == EEXIST)) {
+            shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, 0666);
             if (shmring_handle->shm_fd == -1) {
                 error("shm_open");
                 goto FAIL;
@@ -124,6 +124,9 @@ static inline nt_spsc_shmring_handle_t _nt_spsc_shmring_init(char *shm_addr, siz
             goto FAIL;
         }
     }
+    // set the permission of shm fd for write/read in non-root users 
+    fchmod(shmring_handle->shm_fd, 0666);
+
 
     if (is_master) {
         int ret;

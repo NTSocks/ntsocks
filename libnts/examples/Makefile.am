@@ -27,8 +27,8 @@ client_ntsock_SOURCES = hello-nts-client.c
 #hello_ntsock_LDFLAGS = $(top_builddir)/src/libnts.la
 
 # 通过_LDADD告诉Automake需要链接哪些库
-hello_ntsock_LDADD = $(top_builddir)/src/lib/libnts.la -lrt
-client_ntsock_LDADD = $(top_builddir)/src/lib/libnts.la -lrt
+# hello_ntsock_LDADD = $(top_builddir)/src/lib/libnts.la -lrt
+# client_ntsock_LDADD = $(top_builddir)/src/lib/libnts.la -lrt
 # hello_ntsock_server_LDADD = $(top_builddir)/src/lib/libnts.la -lrt 
 # hello_ntsock_client_LDADD = $(top_builddir)/src/lib/libnts.la -lrt 
 

@@ -36,7 +36,7 @@ typedef enum socket_type {
 } socket_type;
 
 typedef enum socket_state {
-	CLOSED = 1,
+	CLOSED = 1,					
 	BOUND,
 	LISTENING,
 	WAIT_CLIENT,

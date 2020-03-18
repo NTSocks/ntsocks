@@ -50,7 +50,8 @@ typedef enum {
     NT_LISTENER_NOT_READY = 64,
     NT_BACKLOG_IS_FULL = 65,
     NT_FIN = 66,
-    NT_FIN_ACK = 67
+    NT_FIN_ACK = 67,
+    NT_CLIENT_SYN_ACK = 68
 
 
 } ntm_sock_msg_type;
@@ -60,6 +61,7 @@ typedef struct {
     unsigned int dst_addr;          // destination address
     unsigned short sport;           // source port
     unsigned short dport;           // destination port
+    int sockid;                     // client nt_socket id created by server nt_socket
 	ntm_sock_msg_type type;
     char payload[PAYLOAD_SIZE];
 } ntm_sock_msg;
@@ -222,7 +224,8 @@ typedef enum {
     NTS_MSG_CLOSE = 1 << 8,
     NTS_MSG_DISCONNECT = 1 << 11,
     NTS_MSG_SHUTDOWN = 1 << 12,
-    NTS_MSG_ERR = 1 << 13
+    NTS_MSG_ERR = 1 << 13,
+    NTS_MSG_CLIENT_SYN_ACK = 1 << 14
 } nts_msg_type;
 
 typedef enum {

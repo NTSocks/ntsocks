@@ -54,9 +54,9 @@ static void parse_nt_host(char * nt_host){
         memcpy(addr_item->ipaddr, pch, strlen(pch));
         TAILQ_INSERT_TAIL(&nt_host_head, addr_item, entries);
         pch = strtok(NULL, " ,");
+        free(addr_item);
     }
 
-    free(addr_item);
 }
 
 int ip_is_valid(char * addr){

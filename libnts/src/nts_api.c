@@ -81,6 +81,8 @@ inline int handle_ntp_fin_msg(nt_sock_context_t nt_sock_ctx, int sockid) {
 
 	free(nt_sock_ctx->socket);
 
+	DEBUG("handle_ntp_fin_msg success.");
+
 	return 0;
 
 }
@@ -446,8 +448,13 @@ int nts_bind(int sockid, const struct sockaddr *addr, socklen_t addrlen){
 	}
 
 	// if the response message is valid, update the socket state
+	// set the nt_socket->saddr
+	nt_sock_ctx->socket->saddr.sin_family = AF_INET;
+	nt_sock_ctx->socket->saddr.sin_port = sock->sin_port;
+	nt_sock_ctx->socket->saddr.sin_addr = sock->sin_addr;
 	nt_sock_ctx->socket->state = BOUND;
 	nt_sock_ctx->ntm_msg_id++;
+
 	DEBUG("nts_bind() success");
 	return 0;
 
@@ -464,11 +471,12 @@ int nts_accept(int sockid, const struct sockaddr *addr, socklen_t *addrlen) {
 	 * 1. get the coressponding nt_sock_context via nt_socket_id
 	 * 2. check whether the specified sockid is a listener socket via check socket state
 	 * 3. check whether the backlog is ready ?
-	 * 4. pop a `ESTABLISHED` client socket, set socket type as `NT_SOCK_PIPE`,
+	 * 4. pop a `WAIT_ESTABLISHED` client socket, set socket type as `NT_SOCK_PIPE`,
 	 * 		set the listener_socket as current listener socket
 	 * 5. create coresponding nt_sock_context, init/create the nts shm queue, 
 	 * 		set its `listener_socket`, init/create ntp_send_ctx/ntp_recv_ctx,
 	 * 		push the `nt_sock_context` into HashMap `nt_sock_map` in nts_context
+	 * 5.1 wait `NTS_MSG_CLIENT_SYN_ACK` nts_msg from local monitor
 	 * 6. send the nts_shmaddr to ntb monitor via ntm_shm queue
 	 * 7. check whether the listener socket state is `CLOSED`
 	 * 8. return `ESTABLISHED` client socket id, sockaddr
@@ -500,7 +508,7 @@ int nts_accept(int sockid, const struct sockaddr *addr, socklen_t *addrlen) {
 		goto FAIL;
 	}
 
-	// 4. pop a `ESTABLISHED` client socket, set socket type as `NT_SOCK_PIPE`,
+	// 4. pop a `WAIT_ESTABLISHED` client socket, set socket type as `NT_SOCK_PIPE`,
 	// 		set the listener_socket as current listener socket
 	int retval;
 	nt_socket_t client_socket;
@@ -551,6 +559,7 @@ int nts_accept(int sockid, const struct sockaddr *addr, socklen_t *addrlen) {
 	client_port = parse_sockaddr_port(&client_socket->saddr);
 	sprintf(recv_shmaddr, "%d-%d-r", listener_port, client_port);
 	sprintf(send_shmaddr, "%d-%d-s", listener_port, client_port);
+	DEBUG("ntp send shm addr='%s', ntp recv shm addr='%s'", send_shmaddr, recv_shmaddr);
 
 	// TODO:init/create ntp_send_ctx/ntp_recv_ctx
 	client_sock_ctx->ntp_recv_ctx = ntp_shm();
@@ -558,9 +567,37 @@ int nts_accept(int sockid, const struct sockaddr *addr, socklen_t *addrlen) {
 	ntp_shm_connect(client_sock_ctx->ntp_recv_ctx, recv_shmaddr, strlen(recv_shmaddr));
 	ntp_shm_connect(client_sock_ctx->ntp_send_ctx, send_shmaddr, strlen(send_shmaddr));
 	
+	// push the `nt_sock_context` into HashMap `nt_sock_map` in nts_context
+	Put(nts_ctx->nt_sock_map, &client_socket->sockid, client_sock_ctx);
+
+	// 5.1 wait `NTS_MSG_CLIENT_SYN_ACK` nts_msg from local monitor
+	DEBUG("wait `NTS_MSG_CLIENT_SYN_ACK` nts_msg from local monitor");
+	nts_msg syn_ack_msg;
+	retval = nts_shm_recv(nt_sock_ctx->nts_shm_ctx, &syn_ack_msg);
+	while(retval){
+		sched_yield();
+		retval = nts_shm_recv(nt_sock_ctx->nts_shm_ctx, &syn_ack_msg);
+	}
+
+	if(syn_ack_msg.retval == -1){
+		ERR("SOCKET CONNECT failed");
+		goto FAIL;
+	}
+	if(syn_ack_msg.msg_type != NTS_MSG_CLIENT_SYN_ACK) {
+		ERR("expect NTS_MSG_CLIENT_SYN_ACK msg");
+		goto FAIL;
+	}
+	//TODO: maybe disable this judgement
+	if (syn_ack_msg.sockid != client_socket->sockid) {
+		ERR("The NTS_MSG_CLIENT_SYN_ACK msg [sockid=%d] is not client sockid [%d]", syn_ack_msg.sockid, client_socket->sockid);
+		goto FAIL;
+	}
+	// if NTS_MSG_CLIENT_SYN_ACK, update client_socket state from 'WAIT_ESTABLISHED' to `ESTABLISHED`
+	client_socket->state = ESTABLISHED;
+	INFO("recv `NTS_MSG_CLIENT_SYN_ACK` nts_msg success");
 
 
-	// 6. send the nts_shmaddr to ntb monitor via ntm_shm queue
+	// 6. send the nts_shmaddr to local ntb monitor via ntm_shm queue
 	// pack `NTM_MSG_ACCEPT_ACK` ntm_msg and sent it into ntb monitor
 	ntm_msg outgoing_msg;
 	outgoing_msg.msg_id = client_sock_ctx->ntm_msg_id;
@@ -625,14 +662,18 @@ int nts_connect(int sockid, const struct sockaddr *name, socklen_t namelen) {
 	 * 2. parse the sockaddr to get ip and port
 	 * 3. check whether the ip addr is valid or not
 	 * 4. pack the `NTM_MSG_CONNECT` ntm_msg and `ntm_shm_send()` the message into ntm
-	 * 5. poll or wait for the response message from ntm
-	 * 6. parse the response nts_msg with nt_socket_id, if success, change socket state and socket type
-	 * 7. check incoming_msg errno and add errmsg in nts_errno.h
+	 * 5. poll or wait for the response message [NTS_MSG_DISPATCHED msg] from ntm
+	 * 6. poll or wait for the response message [NTS_MSG_ESTABLISH msg] from ntm
+	 * 7. parse the response nts_msg with nt_socket_id, 
+	 * 		if success, change socket state [] and socket type.
+	 * 		init/create ntp_send_ctx/ntp_recv_ctx according to 
+	 * 		[local_src_port]-[remote_dst_port]-[r/s] in corresponding nt_sock_context_t.
+	 * 8. check incoming_msg errno and add errmsg in nts_errno.h
 	 */
 
 	int retval;
 
-	// get `nt_sock_context` from `HashMap nt_sock_map` via sockid. 
+	//1. get `nt_sock_context` from `HashMap nt_sock_map` via sockid. 
 	nt_sock_context_t nt_sock_ctx = (nt_sock_context_t) Get(nts_ctx->nt_sock_map, &sockid);
 	if(!nt_sock_ctx)
 		goto FAIL;
@@ -644,7 +685,8 @@ int nts_connect(int sockid, const struct sockaddr *name, socklen_t namelen) {
 		goto FAIL;
 	}
 
-	// parse the sockaddr to get ip and port
+	//2. parse the sockaddr to get ip and port
+	//4. pack the `NTM_MSG_CONNECT` ntm_msg and `ntm_shm_send()` the message into ntm
 	struct sockaddr_in *sock = (struct sockaddr_in*) name;// TODO:delete change `&name` to `name`
 	ntm_msg outgoing_msg;
 	outgoing_msg.msg_id = nt_sock_ctx->ntm_msg_id;
@@ -670,7 +712,7 @@ int nts_connect(int sockid, const struct sockaddr *name, socklen_t namelen) {
 		goto FAIL;
 	}
 
-	//poll or wait for the response message from ntm
+	//5. poll or wait for the response message [NTS_MSG_DISPATCHED msg] from ntm
 	nts_msg incoming_msg;
 	retval = nts_shm_recv(nt_sock_ctx->nts_shm_ctx, &incoming_msg);
 	while(retval){
@@ -679,7 +721,6 @@ int nts_connect(int sockid, const struct sockaddr *name, socklen_t namelen) {
 	}
 
 	DEBUG("incoming_msg: msg_id=%d, retval=%d, msg_type=%d", incoming_msg.msg_id, incoming_msg.retval, incoming_msg.msg_type);
-	// parse the response nts_msg with nt_socket_id
 	if(incoming_msg.msg_id != outgoing_msg.msg_id){
 		ERR("invalid message id for CONNECT response");
 		goto FAIL;
@@ -692,16 +733,25 @@ int nts_connect(int sockid, const struct sockaddr *name, socklen_t namelen) {
 		ERR("invalid message type for CONNECT response. the current msg type is %d, expect msg type is %d", incoming_msg.msg_type, NTS_MSG_DISPATCHED);
 		goto FAIL;
 	}
-	DEBUG("incoming_msg: msg_id=%d, retval=%d, msg_type=%d", incoming_msg.msg_id, incoming_msg.retval, incoming_msg.msg_type);
+
+	// update the client socket nt_port according to the returned incoming_msg.port
+	nt_sock_ctx->socket->saddr.sin_port = htons(incoming_msg.port);
+
+	DEBUG("incoming_msg: msg_id=%d, retval=%d, msg_type=%d, nt_port=%d", incoming_msg.msg_id, incoming_msg.retval, incoming_msg.msg_type, incoming_msg.port);
 	DEBUG("socket[%d] receive NTS_MSG_DISPATCHED message, wait for NTS_MSG_ESTABLISH message.", sockid);
 
+	//6. poll or wait for the response message [NTS_MSG_ESTABLISH msg] from ntm
 	retval = nts_shm_recv(nt_sock_ctx->nts_shm_ctx, &incoming_msg);
 	while(retval){
 		sched_yield();
 		retval = nts_shm_recv(nt_sock_ctx->nts_shm_ctx, &incoming_msg);
 	}
 
-	// parse the response nts_msg with nt_socket_id
+	// 7. parse the response nts_msg with nt_socket_id, 
+	// 	if success: 
+	// 		init/create ntp_send_ctx/ntp_recv_ctx according to 
+	// 		[local_src_port]-[remote_dst_port]-[r/s] in corresponding nt_sock_context_t.
+	//  	change socket state [ESTABLISHED] and socket type.
 	if(incoming_msg.retval == -1){
 		ERR("SOCKET CONNECT failed");
 		goto FAIL;
@@ -711,6 +761,30 @@ int nts_connect(int sockid, const struct sockaddr *name, socklen_t namelen) {
 		goto FAIL;
 	}
 
+	// init/create ntp_send_ctx/ntp_recv_ctx according to 
+	// [local_src_port]-[remote_dst_port]-[r/s] in corresponding nt_sock_context_t.
+	
+	// get the shm name for ntp_send_ctx/ntp_recv_ctx: 
+	// `[local client src_port]-[remote listen_dst_port]-r` for ntp recv shm name
+	// `[local client src_port]-[remote listen_dst_port]-s` for ntp send shm name
+	char recv_shmaddr[SHM_NAME_LEN], send_shmaddr[SHM_NAME_LEN];
+	int client_src_port, listener_dst_port;
+	listener_dst_port = parse_sockaddr_port((struct sockaddr_in *)name);
+	client_src_port = parse_sockaddr_port(&nt_sock_ctx->socket->saddr);	
+	sprintf(recv_shmaddr, "%d-%d-r", client_src_port, listener_dst_port);
+	sprintf(send_shmaddr, "%d-%d-s", client_src_port, listener_dst_port);
+	DEBUG("ntp send shm addr='%s', ntp recv shm addr='%s'", send_shmaddr, recv_shmaddr);
+
+	// TODO:init/create ntp_send_ctx/ntp_recv_ctx
+	nt_sock_ctx->ntp_recv_ctx = ntp_shm();
+	nt_sock_ctx->ntp_send_ctx = ntp_shm();
+	ntp_shm_connect(nt_sock_ctx->ntp_recv_ctx, recv_shmaddr, strlen(recv_shmaddr));
+	ntp_shm_connect(nt_sock_ctx->ntp_send_ctx, send_shmaddr, strlen(send_shmaddr));
+	
+	// push the `nt_sock_context` into HashMap `nt_sock_map` in nts_context
+	Put(nts_ctx->nt_sock_map, &sockid, nt_sock_ctx);
+
+	// change socket state [ESTABLISHED] and socket type.
 	nt_sock_ctx->socket->state = ESTABLISHED;
 	DEBUG("nts_connect success");
 	return 0;
@@ -745,11 +819,14 @@ int nts_close(int sockid) {
 		goto FAIL;
 	}
 	
-	if (nt_sock_ctx->socket->state == CLOSED)
+	if (nt_sock_ctx->socket->state == CLOSED) {
+		printf("socket state is CLOSED\n\n\n");
 		return 0;
+	}
+		
 	
 	int retval;
-	if (nt_sock_ctx->socket->state != ESTABLISHED) {
+	if (nt_sock_ctx->socket->state != ESTABLISHED || nt_sock_ctx->socket->state == LISTENING) {
 		DEBUG("directly destroy nt_socket related resources.");
 		nt_sock_ctx->socket->state = WAIT_FIN;
 
@@ -762,6 +839,16 @@ int nts_close(int sockid) {
 		if (retval) {
 			ERR("ntm_shm_send NTM_MSG_CLOSE with sockid[%d] failed.", sockid);
 			goto FAIL;
+		}
+
+		// if listener nt_socket, first destroy backlog context
+		if (nt_sock_ctx->socket->socktype == NT_SOCK_LISTENER) {
+			DEBUG("destroy listener socket resources.");
+			if(nt_sock_ctx->backlog_ctx) {
+				backlog_nts_close(nt_sock_ctx->backlog_ctx);
+				backlog_destroy(nt_sock_ctx->backlog_ctx);
+			}
+
 		}
 
 		// poll or wait for the response message from ntm
@@ -787,14 +874,8 @@ int nts_close(int sockid) {
 		}
 		nt_sock_ctx->socket->state = CLOSED;
 
-		if (nt_sock_ctx->socket->socktype == NT_SOCK_LISTENER) {
-			DEBUG("destroy listener socket resources.");
-			if(nt_sock_ctx->backlog_ctx) {
-				backlog_nts_close(nt_sock_ctx->backlog_ctx);
-				backlog_destroy(nt_sock_ctx->backlog_ctx);
-			}
-
-		} else {
+		if (nt_sock_ctx->socket->socktype != NT_SOCK_LISTENER) {
+			
 			if(nt_sock_ctx->ntp_send_ctx) {
 				ntp_shm_close(nt_sock_ctx->ntp_send_ctx);
 				ntp_shm_destroy(nt_sock_ctx->ntp_send_ctx);
@@ -920,6 +1001,14 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 	 */
 
 	// 1. get/pop `nt_sock_context` from `HashMap nt_sock_map` using sockid.
+	HashMapIterator iter = createHashMapIterator(nts_ctx->nt_sock_map);
+	while(hasNextHashMapIterator(iter)) {
+		iter = nextHashMapIterator(iter);
+		nt_sock_context_t tmp_sock_ctx = (nt_sock_context_t)iter->entry->value;
+		DEBUG("{ key = %d }", *(int *) iter->entry->key);
+	}
+	freeHashMapIterator(&iter);
+
 	nt_sock_context_t nt_sock_ctx;
 	nt_sock_ctx = (nt_sock_context_t) Get(nts_ctx->nt_sock_map, &sockid);
 	if(!nt_sock_ctx) {
@@ -961,9 +1050,10 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 	//			nts_shm_close() to unlink nts_shm.
 	// To the end, we determine to use solution 1.
 	if (incoming_data.msg_type == NTP_NTS_MSG_FIN) {
-		
+		DEBUG("Detect NTP_NTS_MSG_FIN msg to close ntb connection");
 		handle_ntp_fin_msg(nt_sock_ctx, sockid);
 		// set errno
+		INFO("handle ntp fin msg success.");
 		goto FAIL;
 	}
 
@@ -1003,7 +1093,7 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 	} 
 	
 
-	int bytes_left;
+	int bytes_left;	// indicate the payload length in each ntp_shm_recv
 	int bytes_read, buf_avail_bytes;
 	char *ptr;
 
@@ -1015,32 +1105,39 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 	while (bytes_left > 0)
 	{
 		if (bytes_left < NTP_PAYLOAD_MAX_SIZE) {
+			
 			if(buf_avail_bytes >= bytes_left) {
-				memcpy(ptr, payload, bytes_left);
-				bytes_read = bytes_left;
+				DEBUG("bytes_left < NTP_PAYLOAD_MAX_SIZE and buf_avail_bytes >= bytes_left with bytes_read=%d", bytes_read);
+				memcpy(ptr + bytes_read, payload, bytes_left);
+				bytes_read += bytes_left;
 
 				if (is_cached) { // if the payload is copied from ntp_buf
 					// memset(nt_sock_ctx->ntp_buf, 0, nt_sock_ctx->ntp_buflen);
 					nt_sock_ctx->ntp_buflen = 0;
 				}	
+
+				DEBUG("bytes_read =%d, bytes_left = %d", bytes_read, bytes_left);
 				
 				break;
 
 			} else {
-				memcpy(ptr, payload, buf_avail_bytes);
+				DEBUG("bytes_left < NTP_PAYLOAD_MAX_SIZE and buf_avail_bytes < bytes_left with bytes_read=%d", bytes_read);
+				memcpy(ptr + bytes_read, payload, bytes_left);
+				memcpy(ptr + bytes_read, payload, buf_avail_bytes);
 				payload += buf_avail_bytes;
 				bytes_left -= buf_avail_bytes;
 				bytes_read += buf_avail_bytes;
 				memcpy(nt_sock_ctx->ntp_buf, payload, bytes_left);
 				nt_sock_ctx->ntp_buflen = bytes_left;
+
 				break;
 
 			}
 		}
 		else {	// msg_len == NTP_PAYLOAD_MAX_SIZE
-
+			DEBUG("buf_avail_bytes < bytes_left with bytes_read=%d", bytes_read);
 			if (buf_avail_bytes < bytes_left) {
-				memcpy(ptr, payload, buf_avail_bytes);
+				memcpy(ptr + bytes_read, payload, buf_avail_bytes);
 				payload += buf_avail_bytes;
 				bytes_left -= buf_avail_bytes;
 				bytes_read += buf_avail_bytes;
@@ -1050,7 +1147,8 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 
 			} 
 			else if(buf_avail_bytes == bytes_left) {
-				memcpy(ptr, payload, bytes_left);
+				DEBUG("buf_avail_bytes == bytes_left with bytes_read=%d", bytes_read);
+				memcpy(ptr + bytes_read, payload, bytes_left);
 				bytes_read += bytes_left;
 
 				if (is_cached) { // if the payload is copied from ntp_buf
@@ -1064,14 +1162,16 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 			else {	// avaliable buf size > msg_len or buf_avail_bytes > bytes_left
 
 				//  copy payload into buf
-				memcpy(ptr, payload, bytes_left);
+				DEBUG("buf_avail_bytes > bytes_left with bytes_read=%d", bytes_read);
+				memcpy(ptr + bytes_read, payload, bytes_left);
 
 				// update avaliable buf size and buf pointer
 				buf_avail_bytes -= bytes_left;
-				ptr += bytes_left;
+				// ptr += bytes_left;
 
 				// update the read bytes and the left bytes to be read
 				bytes_read += bytes_left;
+				DEBUG("bytes_read =%d, bytes_left = %d", bytes_read, bytes_left);
 
 				/**
 				 * ntp_shm_recv()/ntp_shm_front() poll next message
@@ -1112,7 +1212,7 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 
 	}
 
-	DEBUG("nts_read success");
+	DEBUG("nts_read success with bytes_read=%d", bytes_read);
 	return bytes_read;
 
 	FAIL: 
@@ -1130,7 +1230,7 @@ ssize_t nts_readv(int fd, const struct iovec *iov, int iovcnt) {
 
 
 ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
-	DEBUG("nts_write start...");
+	DEBUG("nts_write start with sockid = %d", sockid);
 	if (!buf || nbytes <= 0)
 	{
 		ERR("the specified send buf is NULL or the nbytes is <= 0. ");
@@ -1146,13 +1246,22 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 	 */
 
 	// get/pop `nt_sock_context` from `HashMap nt_sock_map` using sockid.
+	HashMapIterator iter = createHashMapIterator(nts_ctx->nt_sock_map);
+	while(hasNextHashMapIterator(iter)) {
+		iter = nextHashMapIterator(iter);
+		nt_sock_context_t tmp_sock_ctx = (nt_sock_context_t)iter->entry->value;
+		DEBUG("{ key = %d }", *(int *) iter->entry->key);
+	}
+	freeHashMapIterator(&iter);
+
 	int retval;
 	int write_bytes;
 	nt_sock_context_t nt_sock_ctx;
 	nt_sock_ctx = (nt_sock_context_t) Get(nts_ctx->nt_sock_map, &sockid);
 	if(!nt_sock_ctx){
 		ERR("Non-existing sockid");
-		goto FAIL;
+		return -1;
+		// goto FAIL;
 	}
 	// check whether the socket state is `ESTABLISHED`.
 	if(nt_sock_ctx->socket->state != ESTABLISHED){
@@ -1166,14 +1275,30 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 	outgoing_msg.msg_type = NTP_NTS_MSG_DATA;
 	outgoing_msg.msg_len = nbytes < NTP_PAYLOAD_MAX_SIZE ? nbytes : NTP_PAYLOAD_MAX_SIZE;
 	memcpy(outgoing_msg.msg, buf, outgoing_msg.msg_len);
+	DEBUG("ntp_shm_send NTP_NTS_MSG_DATA msg with msg_len=%d, outgoing_msg.msg='%s'",
+		 outgoing_msg.msg_len, outgoing_msg.msg);
 	retval = ntp_shm_send(nt_sock_ctx->ntp_send_ctx, &outgoing_msg);
-	while(retval==0){
+	while(retval == 0){
+		DEBUG("ntp_shm_send NTP_NTS_MSG_DATA msg success");
+
+		ntp_msg tmp_ntp_msg;
+		bool rs_front = ntp_shmring_front(nt_sock_ctx->ntp_send_ctx->ntsring_handle, &tmp_ntp_msg);
+		if (rs_front)
+		{
+			DEBUG("ntp_shmring_front with top ele msg_type=%d, msg_len=%d, msg='%s'", 
+				tmp_ntp_msg.msg_type, tmp_ntp_msg.msg_len, tmp_ntp_msg.msg);
+		} else {
+			ERR("no top ele in ntp send shmring");
+		}
+		
+
 		write_bytes += outgoing_msg.msg_len;
 		if (nbytes - write_bytes < NTP_PAYLOAD_MAX_SIZE)
 			outgoing_msg.msg_len = nbytes - write_bytes;
 		else
 			outgoing_msg.msg_len = NTP_PAYLOAD_MAX_SIZE;
 		if(outgoing_msg.msg_len <= 0){
+			DEBUG("small msg pass");
 			break;
 		}
 		memcpy(outgoing_msg.msg, buf+write_bytes, outgoing_msg.msg_len);
@@ -1181,6 +1306,7 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 	}
 	
 	if(retval == -1){
+		ERR("ntp_shm_send NTP_NTS_MSG_DATA msg failed");
 		if(nt_sock_ctx->socket->state == CLOSED){
 			nt_sock_ctx->err_no = nts_ENETDOWN;
 		}else if(nt_sock_ctx->socket->state == ESTABLISHED){
@@ -1196,6 +1322,8 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 	return write_bytes;
 
 	FAIL:
+
+	ERR("nts_write failed!");
 	return -1;
 }
 

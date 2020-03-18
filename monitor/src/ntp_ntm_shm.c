@@ -80,7 +80,7 @@ int ntp_ntm_shm_recv(ntp_ntm_shm_context_t shm_ctx, ntp_ntm_msg *buf) {
 	bool ret;
 	ret = ntp_ntm_shmring_pop(shm_ctx->ntp_ntmring_handle, buf);
 
-	DEBUG("ntp_ntm_shm_recv pass");
+	// DEBUG("ntp_ntm_shm_recv pass");
 	return ret ? 0 : -1;
 }
 

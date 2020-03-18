@@ -46,6 +46,7 @@ typedef enum socket_state {
 	WAIT_SERVER,
 
 	ESTABLISHED,
+	WAIT_ESTABLISHED,
 
 	WAIT_CLOSE			// WAIT_CLOSE -> CLOSED
 

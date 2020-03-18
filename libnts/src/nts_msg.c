@@ -131,6 +131,7 @@ void nts_msgcopy(nts_msg *src_msg, nts_msg *target_msg) {
 		target_msg->retval = src_msg->retval;
 		target_msg->sockid = src_msg->sockid;
 		target_msg->nt_errno = src_msg->nt_errno;
+		target_msg->port = src_msg->port;
 
 	}	
 	else if (target_msg->msg_type & NTS_MSG_CONNECT)
@@ -139,6 +140,11 @@ void nts_msgcopy(nts_msg *src_msg, nts_msg *target_msg) {
 		target_msg->conn_status = src_msg->conn_status;
 		target_msg->retval = src_msg->retval;
 		target_msg->nt_errno = src_msg->nt_errno;
+	}
+	else if (target_msg->msg_type & NTS_MSG_CLIENT_SYN_ACK) {
+		target_msg->sockid = src_msg->sockid;
+		target_msg->retval = src_msg->retval;
+
 	}
 	else if (target_msg->msg_type & NTS_MSG_ESTABLISH)
 	{

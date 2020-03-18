@@ -1,0 +1,94 @@
+Creating filelist for bin
+Creating filelist for build
+Creating filelist for docs
+Creating filelist for include
+Creating filelist for lib
+Have a non-directory at the top, so creating directory top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//LICENSE to top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//Makefile to top_dir
+Creating filelist for man
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//ntm.cfg to top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//README.md to top_dir
+Creating filelist for tests
+Have a non-directory at the top, so creating directory src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/config.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/config.o to src_top_dir
+Creating filelist for src_include
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/main.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/main.o to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/nt_backlog.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/nt_backlog.o to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/ntb_monitor.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/ntb_monitor.o to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/ntm_msg.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/ntm_msg.o to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/ntm_ntp_msg.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/ntm_ntp_msg.o to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/ntm_ntp_shm.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/ntm_ntp_shm.o to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/ntm_ntp_shmring.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/ntm_ntp_shmring.o to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/ntm_shm.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/ntm_shm.o to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/ntm_shmring.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/ntm_shmring.o to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/ntm_socket.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/ntm_socket.o to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/ntp_ntm_shm.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/ntp_ntm_shm.o to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/ntp_ntm_shmring.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/ntp_ntm_shmring.o to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/nt_port.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/nt_port.o to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/nts_mempool.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/nts_mempool.o to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/nts_shm.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/nts_shm.o to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/nts_shmring.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/nts_shmring.o to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/shared_memory.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/shared_memory.o to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/socket.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/monitor//src/socket.o to src_top_dir
+Creating filelist for src_utils
+Categorizing files.
+Finding a working MD5 command....
+Found a working MD5 command.
+Computing results.
+
+
+SLOC	Directory	SLOC-by-Language (Sorted)
+13816   include         cpp=13779,ansic=37
+3286    src_top_dir     ansic=3286
+1048    src_utils       ansic=1048
+800     src_include     ansic=800
+17      tests           cpp=17
+0       bin             (none)
+0       build           (none)
+0       docs            (none)
+0       lib             (none)
+0       man             (none)
+0       top_dir         (none)
+
+
+Totals grouped by language (dominant language first):
+cpp:          13796 (72.74%)
+ansic:         5171 (27.26%)
+
+
+
+
+Total Physical Source Lines of Code (SLOC)                = 18,967
+Development Effort Estimate, Person-Years (Person-Months) = 4.39 (52.74)
+ (Basic COCOMO model, Person-Months = 2.4 * (KSLOC**1.05))
+Schedule Estimate, Years (Months)                         = 0.94 (11.28)
+ (Basic COCOMO model, Months = 2.5 * (person-months**0.38))
+Estimated Average Number of Developers (Effort/Schedule)  = 4.67
+Total Estimated Cost to Develop                           = $ 593,663
+ (average salary = $56,286/year, overhead = 2.40).
+SLOCCount, Copyright (C) 2001-2004 David A. Wheeler
+SLOCCount is Open Source Software/Free Software, licensed under the GNU GPL.
+SLOCCount comes with ABSOLUTELY NO WARRANTY, and you are welcome to
+redistribute it under certain conditions as specified by the GNU GPL license;
+see the documentation for details.
+Please credit this data as "generated using David A. Wheeler's 'SLOCCount'."

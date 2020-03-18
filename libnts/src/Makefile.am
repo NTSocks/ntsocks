@@ -13,7 +13,7 @@ INC_DIR = include
 UTILS_DIR = utils
 
 # Sources for libTest
-lib_libnts_la_SOURCES = socket.c libnts.c 		        \
+lib_libnts_la_SOURCES = socket.c libnts.c $(INC_DIR)/socket.h		        \
 		nts_config.c $(INC_DIR)/nt_errno.h				\
 		nts_api.c $(INC_DIR)/nts_api.h					\
 		nt_backlog.c $(INC_DIR)/nt_backlog.h 			\

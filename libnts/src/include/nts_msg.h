@@ -173,7 +173,8 @@ typedef enum {
     NTS_MSG_FIN = 1 << 9,               // for actively socket close/FIN
     NTS_MSG_DISCONNECT = 1 << 11,
     NTS_MSG_SHUTDOWN = 1 << 12,
-    NTS_MSG_ERR = 1 << 13
+    NTS_MSG_ERR = 1 << 13,
+    NTS_MSG_CLIENT_SYN_ACK = 1 << 14
     
 } nts_msg_type;
 
@@ -192,7 +193,7 @@ typedef struct {
     int nt_errno;  // conresponding to error type
     nt_conn_status conn_status;
     int addrlen;
-    int port;
+    int port;   
     char address[16];
     
 
@@ -237,6 +238,13 @@ typedef struct {
     // nt_conn_status conn_status;
     // retval
     // nt_errno
+
+    /**
+     * For NTS_MSG_DISPATCHED
+     */ 
+     // retval
+    // nt_errno
+    // port  // client socket nt_port
 
     /**
      * For NTS_MSG_CLOSE

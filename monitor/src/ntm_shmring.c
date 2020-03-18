@@ -62,19 +62,11 @@ ntm_shmring_handle_t ntm_shmring_init(char *shm_addr, size_t addrlen) {
 	shmring_handle->addrlen = addrlen;
 	shmring_handle->shm_addr = shm_addr;
 
-    // mutual exclusion semaphore, mutex_sem with an initial value 0.
-    shmring_handle->mutex_sem = sem_open(NTM_SEM_MUTEX_NAME, O_CREAT, 0660, 0);
-    if (shmring_handle->mutex_sem == SEM_FAILED) {
-        error("sem_open: mutex_sem");
-        goto FAIL;
-    }
-	DEBUG("sem_open mutex_sem pass");
-
     // get shared memory for ntm_shmring
-    shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, 0666);
     if (shmring_handle->shm_fd == -1) {
-        if (errno == ENOENT) {
-            shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+        if (errno == ENOENT || errno == EEXIST) {
+            shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, 0666);
             if (shmring_handle->shm_fd == -1) {
                 error("shm_open");
                 goto FAIL;
@@ -84,6 +76,8 @@ ntm_shmring_handle_t ntm_shmring_init(char *shm_addr, size_t addrlen) {
             goto FAIL;
         }
     }
+    // set the permission of shm fd for write/read in non-root users 
+    fchmod(shmring_handle->shm_fd, 0666);
 	DEBUG("shm_open pass");
 
     int ret;
@@ -107,22 +101,38 @@ ntm_shmring_handle_t ntm_shmring_init(char *shm_addr, size_t addrlen) {
     shmring_handle->shmring->read_index = shmring_handle->shmring->write_index = 0;
 	DEBUG("mmap pass");
 
+    // store old, umask for world-writable access of semaphores (mutex_sem, buf_count_sem, spool_signal_sem)
+    mode_t old_umask = umask(0);
+
+    // mutual exclusion semaphore, mutex_sem with an initial value 0.
+    shmring_handle->mutex_sem = sem_open(NTM_SEM_MUTEX_NAME, O_CREAT, 0666, 0);
+    if (shmring_handle->mutex_sem == SEM_FAILED) {
+        error("sem_open: mutex_sem");
+        goto FAIL;
+    }
+	DEBUG("sem_open mutex_sem pass");
+
     // counting semaphore, indicating the number of available buffers in shm ring.
     // init value = NTM_MAX_BUFS
-    shmring_handle->buf_count_sem = sem_open(NTM_SEM_BUF_COUNT_NAME, O_CREAT, 0660, NTM_MAX_BUFS);
+    shmring_handle->buf_count_sem = sem_open(NTM_SEM_BUF_COUNT_NAME, O_CREAT, 0666, NTM_MAX_BUFS);
     if ((sem_t *)shmring_handle == SEM_FAILED) {
         error("sem_open: buf_count_sem");
         goto FAIL;
     }
 	DEBUG("sem_open buf_count_sem pass");
 
-    // count semaphore, indicating the number of data buffers to be readed. Init value = 0
-    shmring_handle->spool_signal_sem = sem_open(NTM_SEM_SPOOL_SIGNAL_NAME, O_CREAT, 06606, 0);
+    // count semaphore, indicating the number of data buffers to be read. Init value = 0
+    shmring_handle->spool_signal_sem = sem_open(NTM_SEM_SPOOL_SIGNAL_NAME, O_CREAT, 0666, 0);
     if (shmring_handle->spool_signal_sem == SEM_FAILED) {
         error("sem_open: spool_signal_sem");
         goto FAIL;
     }
 	DEBUG("sem_open spool_signal_sem pass");
+
+    // restore old mask
+    umask(old_umask);
+
+    
 
     // init complete; now set mutex semaphore as 1 to
     // indicate the shared memory segment is available
@@ -174,13 +184,6 @@ ntm_shmring_handle_t ntm_get_shmring(char *shm_addr, size_t addrlen) {
     shmring_handle->addrlen = addrlen;
     shmring_handle->shm_addr = shm_addr;
 
-    // mutual exclusion semaphore, mutex_sem
-    shmring_handle->mutex_sem = sem_open(NTM_SEM_MUTEX_NAME, 0, 0, 0);
-    if (shmring_handle->mutex_sem == SEM_FAILED) {
-        error("sem_open: mutex_sem");
-        goto FAIL;
-    }
-	DEBUG("sem_open mutex_sem pass");
 
     // get shared memory with specified SHM NAME
     shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR, 0);
@@ -188,6 +191,8 @@ ntm_shmring_handle_t ntm_get_shmring(char *shm_addr, size_t addrlen) {
         error("shm_open");
         goto FAIL;
     }
+    // set the permission of shm fd for write/read in non-root users 
+    fchmod(shmring_handle->shm_fd, 0666);
 	DEBUG("shm_open pass with fd - %d", shmring_handle->shm_fd);
 
     // mmap the allocated shared memory to ntm_shmring
@@ -201,8 +206,21 @@ ntm_shmring_handle_t ntm_get_shmring(char *shm_addr, size_t addrlen) {
     }
 	DEBUG("mmap pass");
 
+
+
+    // store old, umask for world-writable access of semaphores (mutex_sem, buf_count_sem, spool_signal_sem)
+    mode_t old_umask = umask(0);
+
+    // mutual exclusion semaphore, mutex_sem
+    shmring_handle->mutex_sem = sem_open(NTM_SEM_MUTEX_NAME, O_CREAT, 0666, 0);
+    if (shmring_handle->mutex_sem == SEM_FAILED) {
+        error("sem_open: mutex_sem");
+        goto FAIL;
+    }
+	DEBUG("sem_open mutex_sem pass");
+
     // count semaphore. indicate the number of available shm segments to be written.
-    shmring_handle->buf_count_sem = sem_open(NTM_SEM_BUF_COUNT_NAME, 0, 0, 0);
+    shmring_handle->buf_count_sem = sem_open(NTM_SEM_BUF_COUNT_NAME, O_CREAT, 0666, NTM_MAX_BUFS);
     if (shmring_handle->buf_count_sem == SEM_FAILED) {
         error("sem_open: buf_count_sem");
         goto FAIL;
@@ -210,12 +228,16 @@ ntm_shmring_handle_t ntm_get_shmring(char *shm_addr, size_t addrlen) {
 	DEBUG("sem_open buf count_sem pass");
 
     // count semaphore. indicate the number of shm segments to be read.
-    shmring_handle->spool_signal_sem = sem_open(NTM_SEM_SPOOL_SIGNAL_NAME, 0, 0, 0);
+    shmring_handle->spool_signal_sem = sem_open(NTM_SEM_SPOOL_SIGNAL_NAME, O_CREAT, 0666, 0);
     if (shmring_handle->spool_signal_sem == SEM_FAILED) {
         error("sem_open: spool_signal_sem");
         goto FAIL;
     }
 	DEBUG("sem_open spool_signal_sem pass");
+
+    // restore old mask
+    umask(old_umask);
+
 
     shmring_handle->MASK = NTM_MAX_BUFS - 1;
 	DEBUG("ntm get shmring successfully!");

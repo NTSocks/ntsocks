@@ -1,0 +1,103 @@
+Have a non-directory at the top, so creating directory top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//aclocal.m4 to top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//AUTHORS to top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//autogen.sh to top_dir
+Creating filelist for autom4te.cache
+Creating filelist for build
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//build.sh to top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//ChangeLog to top_dir
+Creating filelist for config
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//config.h.in to top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//config.h.in~ to top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//configure to top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//configure.ac to top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//COPYING to top_dir
+Creating filelist for docs
+Creating filelist for examples
+Creating filelist for include
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//INSTALL to top_dir
+Creating filelist for lib
+Creating filelist for m4
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//Makefile.am to top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//Makefile.in to top_dir
+Creating filelist for man
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//NEWS to top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//nts.cfg to top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//README to top_dir
+Creating filelist for tests
+Have a non-directory at the top, so creating directory src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/clock.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/debug.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/eventpoll.c to src_top_dir
+Creating filelist for src_include
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/libnts.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/logger.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/Makefile.am to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/Makefile.in to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/nt_backlog.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/ntm_shm.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/ntm_shmring.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/ntp_nts_msg.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/ntp_nts_shm.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/ntp_nts_shmring.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/nt_port.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/nts_api.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/nts.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/nts_config.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/nts_epoll.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/nts_errno.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/nts_event.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/nts_ini_parser.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/nts_memory.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/nts_msg.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/nts_shm.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/nts_shmring.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/socket.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/stat.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/libnts//src/timer.c to src_top_dir
+Creating filelist for src_utils
+Categorizing files.
+Finding a working MD5 command....
+Found a working MD5 command.
+Computing results.
+
+
+SLOC	Directory	SLOC-by-Language (Sorted)
+11347   config          sh=11347
+11099   lib             cpp=11099
+2731    src_top_dir     ansic=2731
+1046    src_utils       ansic=1046
+921     src_include     ansic=921
+93      examples        ansic=93
+67      include         ansic=67
+20      build           ansic=20
+11      top_dir         sh=11
+6       tests           cpp=6
+0       autom4te.cache  (none)
+0       docs            (none)
+0       m4              (none)
+0       man             (none)
+
+
+Totals grouped by language (dominant language first):
+sh:           11358 (41.54%)
+cpp:          11105 (40.62%)
+ansic:         4878 (17.84%)
+
+
+
+
+Total Physical Source Lines of Code (SLOC)                = 27,341
+Development Effort Estimate, Person-Years (Person-Months) = 6.45 (77.42)
+ (Basic COCOMO model, Person-Months = 2.4 * (KSLOC**1.05))
+Schedule Estimate, Years (Months)                         = 1.09 (13.05)
+ (Basic COCOMO model, Months = 2.5 * (person-months**0.38))
+Estimated Average Number of Developers (Effort/Schedule)  = 5.93
+Total Estimated Cost to Develop                           = $ 871,559
+ (average salary = $56,286/year, overhead = 2.40).
+SLOCCount, Copyright (C) 2001-2004 David A. Wheeler
+SLOCCount is Open Source Software/Free Software, licensed under the GNU GPL.
+SLOCCount comes with ABSOLUTELY NO WARRANTY, and you are welcome to
+redistribute it under certain conditions as specified by the GNU GPL license;
+see the documentation for details.
+Please credit this data as "generated using David A. Wheeler's 'SLOCCount'."

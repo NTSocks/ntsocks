@@ -66,9 +66,10 @@ int ntp_shm_send(ntp_shm_context_t shm_ctx, ntp_msg *buf) {
 	assert(shm_ctx);
 
 	bool ret;
+	DEBUG("ntp_shmring_push invoked");
 	ret = ntp_shmring_push(shm_ctx->ntsring_handle, buf);
 
-	DEBUG("ntp_shm_send pass");
+	DEBUG("ntp_shm_send pass with ret=%d", ret);
 	return ret ? 0 : -1;
 }
 
@@ -89,7 +90,7 @@ int ntp_shm_front(ntp_shm_context_t shm_ctx, ntp_msg *buf) {
 	bool ret;
 	ret = ntp_shmring_front(shm_ctx->ntsring_handle, buf);
 
-	DEBUG("ntp_shm_recv pass");
+	// DEBUG("ntp_shm_recv pass");
 	return ret ? 0 : -1;
 }
 

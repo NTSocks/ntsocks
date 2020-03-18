@@ -12,6 +12,9 @@
 #include <assert.h>
 
 #include "ntm_ntp_msg.h"
+#include "nt_log.h"
+
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 void ntm_ntp_msgcopy(ntm_ntp_msg *src_msg, ntm_ntp_msg *target_msg)
 {
@@ -28,6 +31,9 @@ void ntm_ntp_msgcopy(ntm_ntp_msg *src_msg, ntm_ntp_msg *target_msg)
 	{
 		memcpy(target_msg->msg, src_msg->msg, src_msg->msg_len);
 	}
+
+	DEBUG("src_msg->msg_type=%d, target_msg->msg_type=%d", src_msg->msg_type, target_msg->msg_type);
+
 }
 
 void ntp_ntm_msgcopy(ntp_ntm_msg *src_msg, ntp_ntm_msg *target_msg)
@@ -45,4 +51,7 @@ void ntp_ntm_msgcopy(ntp_ntm_msg *src_msg, ntp_ntm_msg *target_msg)
 	{
 		memcpy(target_msg->msg, src_msg->msg, src_msg->msg_len);
 	}
+
+	DEBUG("src_msg->msg_type=%d, target_msg->msg_type=%d", src_msg->msg_type, target_msg->msg_type);
+
 }

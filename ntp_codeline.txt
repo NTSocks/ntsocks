@@ -1,0 +1,89 @@
+Have a non-directory at the top, so creating directory top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//aclocal.m4 to top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//AUTHORS to top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//autogen.sh to top_dir
+Creating filelist for autom4te.cache
+Creating filelist for build
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//build.sh to top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//ChangeLog to top_dir
+Creating filelist for config
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//configure to top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//configure.ac to top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//COPYING to top_dir
+Creating filelist for docs
+Creating filelist for examples
+Creating filelist for include
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//INSTALL to top_dir
+Creating filelist for lib
+Creating filelist for m4
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//Makefile.am to top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//Makefile.in to top_dir
+Creating filelist for man
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//NEWS to top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//README to top_dir
+Creating filelist for tests
+Have a non-directory at the top, so creating directory src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//src/config.c to src_top_dir
+Creating filelist for src_include
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//src/main.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//src/Makefile to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//src/Makefile.am to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//src/Makefile.in to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//src/ntb.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//src/ntb_hw_intel.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//src/ntb_mw.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//src/ntm_msg.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//src/ntm_ntp_shm.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//src/ntm_ntp_shmring.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//src/ntp_func.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//src/ntp_ntm_shm.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//src/ntp_ntm_shmring.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//src/ntp_nts_msg.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//src/ntp_nts_shm.c to src_top_dir
+Adding /home/spark2/repos/intel-ntb/projects/NTSock/ntb-proxy//src/ntp_nts_shmring.c to src_top_dir
+Creating filelist for src_utils
+Categorizing files.
+Finding a working MD5 command....
+Found a working MD5 command.
+Computing results.
+
+
+SLOC	Directory	SLOC-by-Language (Sorted)
+11347   config          sh=11347
+11099   lib             cpp=11099
+2594    src_top_dir     ansic=2594
+741     src_include     ansic=741
+683     src_utils       ansic=683
+19      tests           cpp=19
+11      top_dir         sh=11
+6       build           sh=6
+4       include         ansic=4
+0       autom4te.cache  (none)
+0       docs            (none)
+0       examples        (none)
+0       m4              (none)
+0       man             (none)
+
+
+Totals grouped by language (dominant language first):
+sh:           11364 (42.88%)
+cpp:          11118 (41.95%)
+ansic:         4022 (15.18%)
+
+
+
+
+Total Physical Source Lines of Code (SLOC)                = 26,504
+Development Effort Estimate, Person-Years (Person-Months) = 6.24 (74.94)
+ (Basic COCOMO model, Person-Months = 2.4 * (KSLOC**1.05))
+Schedule Estimate, Years (Months)                         = 1.07 (12.89)
+ (Basic COCOMO model, Months = 2.5 * (person-months**0.38))
+Estimated Average Number of Developers (Effort/Schedule)  = 5.81
+Total Estimated Cost to Develop                           = $ 843,565
+ (average salary = $56,286/year, overhead = 2.40).
+SLOCCount, Copyright (C) 2001-2004 David A. Wheeler
+SLOCCount is Open Source Software/Free Software, licensed under the GNU GPL.
+SLOCCount comes with ABSOLUTELY NO WARRANTY, and you are welcome to
+redistribute it under certain conditions as specified by the GNU GPL license;
+see the documentation for details.
+Please credit this data as "generated using David A. Wheeler's 'SLOCCount'."
