@@ -12,11 +12,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <sched.h>
 
 #include "ntp_nts_shm.h"
 #include "nt_log.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
 
 ntp_shm_context_t ntp_shm() {
 	ntp_shm_context_t shm_ctx;
@@ -68,6 +69,11 @@ int ntp_shm_send(ntp_shm_context_t shm_ctx, ntp_msg *buf) {
 	bool ret;
 	DEBUG("ntp_shmring_push invoked");
 	ret = ntp_shmring_push(shm_ctx->ntsring_handle, buf);
+	//TODO: add the timeout limit for retry push times.
+	while(!ret) {
+		sched_yield();
+		ret = ntp_shmring_push(shm_ctx->ntsring_handle, buf);
+	}
 
 	DEBUG("ntp_shm_send pass with ret=%d", ret);
 	return ret ? 0 : -1;
@@ -79,6 +85,11 @@ int ntp_shm_recv(ntp_shm_context_t shm_ctx, ntp_msg *buf) {
 
 	bool ret;
 	ret = ntp_shmring_pop(shm_ctx->ntsring_handle, buf);
+	//TODO: add the timeout limit for retry pop times.
+	while(!ret) {
+		sched_yield();
+		ret = ntp_shmring_pop(shm_ctx->ntsring_handle, buf);
+	}
 
 	DEBUG("ntp_shm_recv pass");
 	return ret ? 0 : -1;

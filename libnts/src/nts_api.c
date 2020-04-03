@@ -18,7 +18,7 @@
 #include "ntm_shm.h"
 #include "nts_shm.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
 
 
 
@@ -1281,15 +1281,15 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 	while(retval == 0){
 		DEBUG("ntp_shm_send NTP_NTS_MSG_DATA msg success");
 
-		ntp_msg tmp_ntp_msg;
-		bool rs_front = ntp_shmring_front(nt_sock_ctx->ntp_send_ctx->ntsring_handle, &tmp_ntp_msg);
-		if (rs_front)
-		{
-			DEBUG("ntp_shmring_front with top ele msg_type=%d, msg_len=%d, msg='%s'", 
-				tmp_ntp_msg.msg_type, tmp_ntp_msg.msg_len, tmp_ntp_msg.msg);
-		} else {
-			ERR("no top ele in ntp send shmring");
-		}
+		// ntp_msg tmp_ntp_msg;
+		// bool rs_front = ntp_shmring_front(nt_sock_ctx->ntp_send_ctx->ntsring_handle, &tmp_ntp_msg);
+		// if (rs_front)
+		// {
+		// 	DEBUG("ntp_shmring_front with top ele msg_type=%d, msg_len=%d, msg='%s'", 
+		// 		tmp_ntp_msg.msg_type, tmp_ntp_msg.msg_len, tmp_ntp_msg.msg);
+		// } else {
+		// 	DEBUG("no top element in ntp send shmring");
+		// }
 		
 
 		write_bytes += outgoing_msg.msg_len;
@@ -1309,7 +1309,7 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 		ERR("ntp_shm_send NTP_NTS_MSG_DATA msg failed");
 		if(nt_sock_ctx->socket->state == CLOSED){
 			nt_sock_ctx->err_no = nts_ENETDOWN;
-		}else if(nt_sock_ctx->socket->state == ESTABLISHED){
+		} else if(nt_sock_ctx->socket->state == ESTABLISHED){
 			/**
 			 * TODO: judge whether the ntb send buffer is full or not.
 			 */

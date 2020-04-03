@@ -28,7 +28,7 @@
 #include "nt_log.h"
 
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
 
 typedef struct ntp_shmring_buf {
 //    char buf[NTP_MAX_BUFS + 1][NTS_BUF_SIZE];

@@ -40,9 +40,9 @@ extern "C" {
 #define NTP_NTS_MSG_FIN         2       
 
 typedef struct {
-    uint8_t msg_type;
-    uint16_t msg_len;
-    char msg[NTP_PAYLOAD_MAX_SIZE];
+    uint8_t msg_type;   // 1 byte
+    uint16_t msg_len;   // 2 bytes
+    char msg[NTP_PAYLOAD_MAX_SIZE]; // 253 bytes
 } ntp_msg;
 
 void ntp_msgcopy(ntp_msg *src_msg, ntp_msg *target_msg);

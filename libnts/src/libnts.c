@@ -28,7 +28,7 @@
 #include "nts_config.h"
 #include "nt_log.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
 
 #define __GNU_SOURCE
 
@@ -291,7 +291,6 @@ int close(int sockfd) {
 }
 
 ssize_t write(int sockfd, const void *buf, size_t count) {
-	DEBUG("write");
 	if (unlikely(inited == 0)) {
 		INIT_FUNCTION(write);
 		return real_write(sockfd, buf, count);

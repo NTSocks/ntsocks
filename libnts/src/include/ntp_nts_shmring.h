@@ -20,6 +20,7 @@
 extern "C" {
 #endif
 
+// max bytes of total bufs: 8 MB, = 256 * 32768 [(32 * 1024) = 32768]
 #define NTP_MAX_BUFS 1024 // define NTP_MAX_BUFS as [(a power of 2) -1] (65535 in our case)
 #define NTS_BUF_SIZE 256
 

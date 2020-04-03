@@ -14,7 +14,7 @@
 #include "ntp_nts_msg.h"
 #include "nt_log.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
 
 
 void ntp_msgcopy(ntp_msg *src_msg, ntp_msg *target_msg) {
@@ -27,11 +27,11 @@ void ntp_msgcopy(ntp_msg *src_msg, ntp_msg *target_msg) {
 		memcpy(target_msg->msg, src_msg->msg, src_msg->msg_len);
 		target_msg->msg_len = src_msg->msg_len;
 	}
-	DEBUG("ntp_msgcopy src_msg->msg_type=%d, src_msg->msg_len=%d, src_msg->msg='%s'", 
-		src_msg->msg_type, src_msg->msg_len, src_msg->msg);
+	// DEBUG("ntp_msgcopy src_msg->msg_type=%d, src_msg->msg_len=%d, src_msg->msg='%s'", 
+	// 	src_msg->msg_type, src_msg->msg_len, src_msg->msg);
 
-	DEBUG("ntp_msgcopy target_msg->msg_type=%d, target_msg->msg_len=%d, target_msg->msg='%s'", 
-		target_msg->msg_type, target_msg->msg_len, target_msg->msg);
+	// DEBUG("ntp_msgcopy target_msg->msg_type=%d, target_msg->msg_len=%d, target_msg->msg='%s'", 
+	// 	target_msg->msg_type, target_msg->msg_len, target_msg->msg);
 
 }
 
