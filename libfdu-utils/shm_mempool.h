@@ -12,6 +12,8 @@
 #include <semaphore.h>
 #include <stdbool.h>
 
+#include "hash_map.h"
+
 #define SMP_OK               0
 #define SMP_MALLOC_FAIL     -1
 #define SMP_NOT_INIT        -2
@@ -22,6 +24,8 @@
 
 #define SHM_PATH_PREFIX "/dev/shm"
 
+#define SHM_OFFSET_SIZE 20
+#define NODE_IDX_SIZE   sizeof(int)
 
 typedef struct {
     unsigned int column;
@@ -63,6 +67,15 @@ typedef struct {
     char * shm_mem;
 
 
+    /**
+     * @brief  hold <shm segment addr offset, shm mp node_idx>
+     * @note   key: shm segment virtual memory addr offset,  value: shm mp node index
+     * @retval None
+     */
+    HashMap mp_node_map;
+    int * node_idxs;
+    char ** offset_strs;
+
 } shm_mp_handler;
 typedef shm_mp_handler * shm_mp_handler_t;
 
@@ -72,6 +85,8 @@ shm_mp_handler_t shm_mp_init(unsigned int block_len, unsigned int block_count, c
 shm_mempool_node * shm_mp_malloc(shm_mp_handler_t mp_handler, unsigned int size);
 
 shm_mempool_node * shm_mp_node(shm_mp_handler_t mp_handler, unsigned int node_idx);
+
+shm_mempool_node * shm_mp_node_by_shmaddr(shm_mp_handler_t mp_handler, char *shmaddr);
 
 char * shm_offset_mem(shm_mp_handler_t mp_handler, int node_idx);
 

@@ -2,8 +2,8 @@ BIN_PATH=./bin
 INC_PATH=./include
 LIB_PATH=./libs
 LIB_NAME=fdu-utils
-LIB_OBJS=shm_mempool.o shmring.o 
-LIB_SRCS=shm_mempool.c shmring.c
+LIB_OBJS=shm_mempool.o shmring.o hash_map.o array.o
+LIB_SRCS=shm_mempool.c shmring.c hash_map.c array.c
 
 CC=gcc
 LIBS+= -lpthread -lrt

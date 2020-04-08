@@ -38,6 +38,13 @@ int main() {
     char * shm_mem = shm_offset_mem(mp_handler, mp_node->node_idx);
     memcpy(shm_mem, HELLO_MSG, strlen(HELLO_MSG));
 
+    shm_mempool_node * tmp_mp_node;
+    tmp_mp_node = shm_mp_node_by_shmaddr(mp_handler, shm_mem);
+    if (tmp_mp_node) {
+        printf("[section 1] node_idx=%d, tmp_mp_node.node_idx=%d\n", node_idx, tmp_mp_node->node_idx);
+    }
+
+
     printf("[section 1] send msg payload: %s \n", shm_mem);
     /* end shm mempool */
 

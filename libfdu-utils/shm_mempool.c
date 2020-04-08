@@ -173,6 +173,37 @@ shm_mp_handler_t shm_mp_init(unsigned int block_len, unsigned int block_count, c
 
     }
 
+    mp_handler->offset_strs = (char **) malloc(sizeof(char *) * block_count);
+    for (size_t i = 0; i < block_count; i++)
+    {
+        mp_handler->offset_strs[i] = (char *) malloc(sizeof(char) * SHM_OFFSET_SIZE);
+    }
+    
+    /* init hash map for the mapping between shm segment virtual memory addr and shm mp node index */
+    mp_handler->mp_node_map = createHashMap(NULL, NULL);
+    mp_handler->node_idxs = (int *) malloc(sizeof(int) * block_count);
+    char * tmp_mem = mp_handler->shm_mem;
+    for (size_t i = 0; i < block_count; i++)
+    {
+        mp_handler->node_idxs[i] = i;
+        sprintf(mp_handler->offset_strs[i], "%ld", mp_handler->shm_mp_nodes[i].shm_offset);
+        Put(mp_handler->mp_node_map, mp_handler->offset_strs[i], &mp_handler->node_idxs[i]);
+        printf(" shm_offset=%ld, node_idx=%d, offset_str=%s \n", mp_handler->shm_mp_nodes[i].shm_offset, (int)i, mp_handler->offset_strs[i]);
+        tmp_mem += block_len;
+    }
+
+    
+
+    HashMapIterator iter = createHashMapIterator(mp_handler->mp_node_map);
+    while(hasNextHashMapIterator(iter)) {
+        iter = nextHashMapIterator(iter);
+        int idx = *(int *) iter->entry->value;
+        printf("{ key = %s, value = %d, hashcode=%d }\n", (char *)iter->entry->key, idx, iter->hashCode);
+
+    }
+    freeHashMapIterator(&iter);
+
+
     ret = sem_post(mp_handler->sem_mutex);
     if (ret == -1) {
         perror("sem_post: sem_mutex");
@@ -190,16 +221,31 @@ shm_mp_handler_t shm_mp_init(unsigned int block_len, unsigned int block_count, c
 
         if (mp_handler->shm_mp_name) {
             free(mp_handler->shm_mp_name);
+            mp_handler->shm_mp_name = NULL;
         }
 
         if (mp_handler->shm_mem_name) {
             free(mp_handler->shm_mem_name);
+            mp_handler->shm_mem_name = NULL;
         }
 
-        if (mp_handler->sem_mutex_name)
+        if (mp_handler->sem_mutex_name) {
             free(mp_handler->sem_mutex_name);
+            mp_handler->sem_mutex_name = NULL;
+        }
+
+        if (mp_handler->mp_node_map) {
+            Clear(mp_handler->mp_node_map);
+            mp_handler->mp_node_map = NULL;
+        }
+
+        if (mp_handler->node_idxs) {
+            free(mp_handler->node_idxs);
+            mp_handler->node_idxs = NULL;
+        }
 
         free(mp_handler);
+        mp_handler = NULL;
 
     }
 
@@ -256,6 +302,26 @@ shm_mempool_node * shm_mp_node(shm_mp_handler_t mp_handler, unsigned int node_id
     if(node_idx < mp_handler->shm_mp->total_count) {
 
         return &mp_handler->shm_mp_nodes[node_idx];   
+    }
+
+    return NULL;
+}
+
+shm_mempool_node * shm_mp_node_by_shmaddr(shm_mp_handler_t mp_handler, char *shmaddr) {
+    assert(shmaddr);
+
+    int * node_idx;
+    shm_mempool_node * mp_node;
+
+    uint64_t offset = shmaddr - mp_handler->shm_mem;
+    printf("\n offset=%ld\n", offset);
+    char offset_str[30] = {0};
+    sprintf(offset_str, "%ld", offset);
+
+    node_idx = (int *) Get(mp_handler->mp_node_map, offset_str);
+    if(node_idx) {
+        printf("[shm_mp_node_by_shmaddr] node_idx=%d \n", *node_idx);
+        return &mp_handler->shm_mp_nodes[*node_idx];
     }
 
     return NULL;
@@ -374,22 +440,42 @@ int shm_mp_destroy(shm_mp_handler_t mp_handler, int is_unlink) {
 
     }
 
-    DEBUG("free shm_mp_name \n");
     if (mp_handler->shm_mp_name) {
         free(mp_handler->shm_mp_name);
+        mp_handler->shm_mp_name = NULL;
     }
 
-    DEBUG("free shm_mem_name \n");
     if (mp_handler->shm_mem_name) {
         free(mp_handler->shm_mem_name);
+        mp_handler->shm_mem_name = NULL;
     }
 
-    DEBUG("free sem_mutex_name\n");
-    if (mp_handler->sem_mutex_name)
+    if (mp_handler->sem_mutex_name) {
         free(mp_handler->sem_mutex_name);
+        mp_handler->sem_mutex_name = NULL;
+    }
 
-    DEBUG("free mp_handler \n");
+    if (mp_handler->mp_node_map) {
+        Clear(mp_handler->mp_node_map);
+        mp_handler->mp_node_map = NULL;
+    }
+
+    if (mp_handler->node_idxs) {
+        free(mp_handler->node_idxs);
+        mp_handler->node_idxs = NULL;
+    }
+
+    if (block_count >0 && mp_handler->offset_strs) {
+        for (size_t i = 0; i < block_count; i++)
+        {
+            free(mp_handler->offset_strs[i]);
+        }
+        free(mp_handler->offset_strs);
+
+    }
+
     free(mp_handler);
+    mp_handler = NULL;
 
     DEBUG("shm_mp_destroy success \n");
 
