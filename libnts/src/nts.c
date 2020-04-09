@@ -169,8 +169,12 @@ void nts_context_destroy() {
         nts_ctx->ntm_ctx = NULL;
         DEBUG("free nts_ctx->ntm_ctx pass");
     }
-    DEBUG("free(nts_ctx);");
-    free(nts_ctx);
+    
+    if(nts_ctx) {
+        DEBUG("free(nts_ctx);");
+        free(nts_ctx);
+    }
+    
 
     /**
      * destroy the memory which is allocated to NTS_CONFIG

@@ -206,6 +206,8 @@ ntp_ntm_shmring_handle_t ntp_ntm_get_shmring(char *shm_addr, size_t addrlen) {
  */
 bool ntp_ntm_shmring_push(ntp_ntm_shmring_handle_t self, ntp_ntm_msg *element) {
     assert(self);
+    assert(self->shmring);
+    assert(element);
 
     /* Critical Section */
     const uint64_t w_idx = nt_atomic_load64_explicit(
@@ -232,6 +234,8 @@ bool ntp_ntm_shmring_push(ntp_ntm_shmring_handle_t self, ntp_ntm_msg *element) {
 
 bool ntp_ntm_shmring_pop(ntp_ntm_shmring_handle_t self, ntp_ntm_msg *element) {
     assert(self);
+    assert(self->shmring);
+    assert(element);
 
    uint64_t w_idx = nt_atomic_load64_explicit(&self->shmring->write_index, ATOMIC_MEMORY_ORDER_ACQUIRE);
    uint64_t r_idx = nt_atomic_load64_explicit(&self->shmring->read_index, ATOMIC_MEMORY_ORDER_RELAXED);

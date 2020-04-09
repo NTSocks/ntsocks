@@ -18,7 +18,7 @@
 #include "ntm_shm.h"
 #include "nts_shm.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 
 
@@ -302,7 +302,7 @@ int nts_getsockopt(int sockid, int level, int optname, void *optval,
 int nts_listen(int sockid, int backlog) {
 	DEBUG("nts_listen() start...");
 	assert(nts_ctx);
-	assert(sockid > 0);
+	assert(sockid >= 0);
 	assert(backlog > 0);
 
 	/**
@@ -378,7 +378,7 @@ int nts_listen(int sockid, int backlog) {
 int nts_bind(int sockid, const struct sockaddr *addr, socklen_t addrlen){
 	DEBUG("nts_bind() start...");
 	assert(nts_ctx);
-	assert(sockid > 0);
+	assert(sockid >= 0);
 	assert(addrlen > 0);
 	assert(addr);
 
@@ -465,7 +465,7 @@ int nts_bind(int sockid, const struct sockaddr *addr, socklen_t addrlen){
 int nts_accept(int sockid, const struct sockaddr *addr, socklen_t *addrlen) {
 	DEBUG("nts_accept start...");
 	assert(nts_ctx);
-	assert(sockid > 0);
+	assert(sockid >= 0);
 
 	/**
 	 * 1. get the coressponding nt_sock_context via nt_socket_id
@@ -653,7 +653,7 @@ int nts_accept(int sockid, const struct sockaddr *addr, socklen_t *addrlen) {
 int nts_connect(int sockid, const struct sockaddr *name, socklen_t namelen) {
 	DEBUG("nts_connect start...");
 	assert(nts_ctx);
-	assert(sockid > 0);
+	assert(sockid >= 0);
 	assert(namelen > 0);
 	assert(name);
 
@@ -796,7 +796,7 @@ int nts_connect(int sockid, const struct sockaddr *name, socklen_t namelen) {
 int nts_close(int sockid) {
 	DEBUG("nts_close start...");
 	assert(nts_ctx);
-	assert(sockid > 0);
+	assert(sockid >= 0);
 
 	/**
 	 * 1. get/pop `nt_sock_context` from `HashMap nt_sock_map` using sockid.
@@ -981,7 +981,7 @@ int nts_getsockname(int sockid, struct sockaddr *name,
 ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 	DEBUG("nts_read start...");
 	assert(nts_ctx);
-	assert(sockid > 0);
+	assert(sockid >= 0);
 
 	if (!buf || nbytes <= 0)
 	{
@@ -1029,6 +1029,7 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 	// 3. else, then check whether msg_type is `NTP_NTS_MSG_FIN`
 	int retval;
 	ntp_msg incoming_data;
+	DEBUG("[out] ntp_shm_front");
 	// TODO: ntp_shm_recv is replaced with ntp_shm_front() method
 	retval = ntp_shm_front(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
 	while (retval == -1)
@@ -1036,6 +1037,7 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 		sched_yield();
 		retval = ntp_shm_front(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
 	}
+	DEBUG("[out] ntp_shm_front end");
 
 
 	// 4. if is `NTP_NTS_MSG_FIN`, then set the socket state to `WAIT_FIN` 
@@ -1179,12 +1181,14 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 				 * if true, close(),
 				 * else, jump to `step 0`
 				 */
+				DEBUG("[in] ntp_shm_front");
 				retval = ntp_shm_front(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
 				while (retval == -1)
 				{
 					sched_yield();
 					retval = ntp_shm_front(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
 				}
+				DEBUG("[in] ntp_shm_front end");
 
 				// judge whether msg_type is NTP_NTS_MSG_FIN or not
 				if (incoming_data.msg_type == NTP_NTS_MSG_FIN) {
