@@ -74,12 +74,12 @@ inline int handle_ntp_fin_msg(nt_sock_context_t nt_sock_ctx, int sockid) {
 		ntp_shm_destroy(nt_sock_ctx->ntp_recv_ctx);
 	}
 
-	if (nt_sock_ctx->nts_shm_ctx) {
-		nts_shm_close(nt_sock_ctx->nts_shm_ctx);
-		nts_shm_destroy(nt_sock_ctx->nts_shm_ctx);
-	}
+	// if (nt_sock_ctx->nts_shm_ctx) {
+	// 	nts_shm_close(nt_sock_ctx->nts_shm_ctx);
+	// 	nts_shm_destroy(nt_sock_ctx->nts_shm_ctx);
+	// }
 
-	free(nt_sock_ctx->socket);
+	// free(nt_sock_ctx->socket);
 
 	DEBUG("handle_ntp_fin_msg success.");
 
@@ -794,7 +794,7 @@ int nts_connect(int sockid, const struct sockaddr *name, socklen_t namelen) {
 }
 
 int nts_close(int sockid) {
-	DEBUG("nts_close start...");
+	DEBUG("nts_close start running...");
 	assert(nts_ctx);
 	assert(sockid >= 0);
 
@@ -812,21 +812,47 @@ int nts_close(int sockid) {
 	 */
 
 	// 1. get/pop `nt_sock_context` from `HashMap nt_sock_map` using sockid.
+	HashMapIterator iter = createHashMapIterator(nts_ctx->nt_sock_map);
+	while(hasNextHashMapIterator(iter)) {
+		iter = nextHashMapIterator(iter);
+		nt_sock_context_t tmp_sock_ctx;
+		tmp_sock_ctx = (nt_sock_context_t) iter->entry->value;
+		printf("{ key[sockid]=%d, sock_ctx->sockid=%d, hashcode=%d } \n", *(int *) iter->entry->key, iter->hashCode);
+
+	}
+	freeHashMapIterator(&iter);
+	
 	nt_sock_context_t nt_sock_ctx;
 	nt_sock_ctx = (nt_sock_context_t) Get(nts_ctx->nt_sock_map, &sockid);
 	if(!nt_sock_ctx) {
-		ERR("Non-existing sockid. ");
+		ERR("Non-existing sockid [sockid=%d]. ", sockid);
 		goto FAIL;
 	}
+	// remove corresponding nt_sock_context_t from nts_ctx->nt_sock_map
+	Remove(nts_ctx->nt_sock_map, &sockid);
 	
-	if (nt_sock_ctx->socket->state == CLOSED) {
-		printf("socket state is CLOSED\n\n\n");
-		return 0;
-	}
-		
 	
 	int retval;
-	if (nt_sock_ctx->socket->state != ESTABLISHED || nt_sock_ctx->socket->state == LISTENING) {
+	if(nt_sock_ctx->socket->socktype != NT_SOCK_LISTENER && nt_sock_ctx->socket->state != ESTABLISHED) {
+		DEBUG("free UNESTABLISHED client nt_socket");
+		nt_sock_ctx->socket->state = CLOSED;
+		if (nt_sock_ctx->nts_shm_ctx) {
+			nts_shm_close(nt_sock_ctx->nts_shm_ctx);
+			nts_shm_destroy(nt_sock_ctx->nts_shm_ctx);
+		}
+
+		if (nt_sock_ctx->socket) {
+			free(nt_sock_ctx->socket);
+		}
+
+		free(nt_sock_ctx);
+
+		DEBUG("nts_close success [sockfd=%d]", sockid);
+		return 0;
+	}
+	
+	if (nt_sock_ctx->socket->socktype == NT_SOCK_LISTENER && nt_sock_ctx->socket->state == LISTENING) {
+		DEBUG("free LISTENING server nt_socket");
 		DEBUG("directly destroy nt_socket related resources.");
 		nt_sock_ctx->socket->state = WAIT_FIN;
 
@@ -892,13 +918,19 @@ int nts_close(int sockid) {
 			nts_shm_destroy(nt_sock_ctx->nts_shm_ctx);
 		}
 
-		free(nt_sock_ctx->socket);
+		if (nt_sock_ctx->socket) {
+			free(nt_sock_ctx->socket);
+		}
 
+		free(nt_sock_ctx);
+		
+		DEBUG("nts_close listening server nt_socket success [sockfd=%d]", sockid);
 		return 0;
 	}
 
 
 	// else if `ESTABLISHED`, directly destroy nt_socket related resources.
+	DEBUG("actively disconnect/close active or ESTABLISHED client nt_socket [sockfd=%d]", sockid);
 	nt_sock_ctx->socket->state = WAIT_FIN;
 
 	ntp_msg ntp_outgoing_msg;
@@ -910,6 +942,7 @@ int nts_close(int sockid) {
 		retval = ntp_shm_send(nt_sock_ctx->ntp_send_ctx, &ntp_outgoing_msg);
 	} 
 
+	DEBUG("wait for FIN_ACK msg from remote monitor");
 	nts_msg nts_incoming_msg;
 	retval = nts_shm_recv(nt_sock_ctx->nts_shm_ctx, &nts_incoming_msg);
 	while(retval) {
@@ -944,9 +977,13 @@ int nts_close(int sockid) {
 		nts_shm_destroy(nt_sock_ctx->nts_shm_ctx);
 	}
 
-	free(nt_sock_ctx->socket);
+	if(nt_sock_ctx->socket) {
+		free(nt_sock_ctx->socket);
+		nt_sock_ctx->socket = NULL;
+	}
+	
 
-	DEBUG("nts_close success");
+	DEBUG("nts_close success [sockfd=%d]", sockid);
 	return 0;
 
 	FAIL: 

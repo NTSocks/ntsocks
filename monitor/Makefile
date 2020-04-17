@@ -39,6 +39,7 @@ SRC_LIST = src/shared_memory.c 	\
 		   src/ntb_monitor.c 
 
 $(TARGET): ${OBJS}
+			mkdir -p bin
 			$(CC) $^ -o $@ $(LIB_PATH) $(LIBS) $(TARGET_CFLAGS)
 $(TEST_TARGET): $(TEST_SRCS) $(SRC_LIST)
 			@$(CXX) $(CPPFLAGS) $(INCLUDE_PATH) -o $(TEST_TARGET) $^ $(LIBS) $(TEST_TARGET_CPPFLAGS)

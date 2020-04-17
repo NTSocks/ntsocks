@@ -39,7 +39,8 @@ struct ntm_config {
 	int remote_ntm_tcp_timewait;
 	int remote_ntm_tcp_timeout;
 
-	char *listen_ip;
+	// char *listen_ip;
+	char listen_ip[20];
 	int listen_port;
 	int ipaddr_len;
 
@@ -338,7 +339,7 @@ void * ntm_sock_recv_thread(void *args);
  * sender: remote ntb-monitor
  * receiver: local ntb-monitor
  */
-void ntm_sock_handle_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg);
+int ntm_sock_handle_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg);
 
 
 /**

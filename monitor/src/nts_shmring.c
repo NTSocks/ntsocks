@@ -282,6 +282,7 @@ void nts_shmring_free(nts_shmring_handle_t self, int unlink) {
     }
 
     free(self);
+    self = NULL;
     DEBUG("free nts shmring success!");
 }
 

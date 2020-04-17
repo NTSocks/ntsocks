@@ -245,13 +245,15 @@ bool nts_shmring_pop(nts_shmring_handle_t self, nts_msg *element) {
     assert(self->shmring);
     assert(element);
 
-//   uint64_t r_idx = nt_atomic_load64_explicit(
-//           &self->shmring->read_index, ATOMIC_MEMORY_ORDER_CONSUME);
-//   uint64_t w_idx = nt_atomic_load64_explicit(
-//           &self->shmring->write_index, ATOMIC_MEMORY_ORDER_CONSUME);
+    DEBUG("read_idx=%ld, write_idx=%ld", self->shmring->read_index, self->shmring->write_index);
 
-   uint64_t w_idx = nt_atomic_load64_explicit(&self->shmring->write_index, ATOMIC_MEMORY_ORDER_ACQUIRE);
-   uint64_t r_idx = nt_atomic_load64_explicit(&self->shmring->read_index, ATOMIC_MEMORY_ORDER_RELAXED);
+    uint64_t r_idx = nt_atomic_load64_explicit(
+            &self->shmring->read_index, ATOMIC_MEMORY_ORDER_CONSUME);
+    uint64_t w_idx = nt_atomic_load64_explicit(
+            &self->shmring->write_index, ATOMIC_MEMORY_ORDER_CONSUME);
+
+//    uint64_t w_idx = nt_atomic_load64_explicit(&self->shmring->write_index, ATOMIC_MEMORY_ORDER_ACQUIRE);
+//    uint64_t r_idx = nt_atomic_load64_explicit(&self->shmring->read_index, ATOMIC_MEMORY_ORDER_RELAXED);
 
    /// Queue is empty (or was empty when we checked)
    if (empty(w_idx, r_idx))
@@ -285,6 +287,7 @@ void nts_shmring_free(nts_shmring_handle_t self, int unlink) {
     }
 
     free(self);
+    self = NULL;
     DEBUG("free nts shmring success!");
 }
 

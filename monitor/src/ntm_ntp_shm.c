@@ -89,7 +89,6 @@ int ntm_ntp_shm_close(ntm_ntp_shm_context_t shm_ctx) {
 
 	ntm_ntp_shmring_free(shm_ctx->ntm_ntpring_handle, 1);
 	shm_ctx->shm_stat = SHM_UNLINK;
-	free(shm_ctx->ntm_ntpring_handle);
 
 	DEBUG("ntm_ntp_shm_close pass");
 	return 0;
@@ -99,9 +98,13 @@ int ntm_ntp_shm_close(ntm_ntp_shm_context_t shm_ctx) {
 int ntm_ntp_shm_ntm_close(ntm_ntp_shm_context_t shm_ctx) {
 	assert(shm_ctx);
 
-	ntm_ntp_shmring_free(shm_ctx->ntm_ntpring_handle, 0);
-	shm_ctx->shm_stat = SHM_CLOSE;
-	free(shm_ctx->ntm_ntpring_handle);
+	if(shm_ctx->ntm_ntpring_handle) {
+		DEBUG("start ntm_ntp_shmring_free");
+		ntm_ntp_shmring_free(shm_ctx->ntm_ntpring_handle, 0);
+		DEBUG("end ntm_ntp_shmring_free");
+		shm_ctx->shm_stat = SHM_CLOSE;
+		DEBUG("start free ntm_ntpring_handle");
+	}
 
 	DEBUG("ntm_ntp_shm_ntm_close pass");
 	return 0;
@@ -111,7 +114,11 @@ int ntm_ntp_shm_ntm_close(ntm_ntp_shm_context_t shm_ctx) {
 void ntm_ntp_shm_destroy(ntm_ntp_shm_context_t shm_ctx) {
 	assert(shm_ctx);
 
-	free(shm_ctx->shm_addr);
+	if(shm_ctx->shm_addr) {
+		free(shm_ctx->shm_addr);
+		shm_ctx->shm_addr = NULL;
+	}
+	
 	free(shm_ctx);
 	shm_ctx = NULL;
 	DEBUG("ntm_ntp_shm_destroy pass");

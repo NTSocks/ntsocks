@@ -85,7 +85,9 @@ int main(int argc, char **argv) {
 			usage(argv[0]);
 			return 1;
 		case 's':
-			NTM_CONFIG.listen_ip = (char *)strdup(optarg);
+			NTM_CONFIG.ipaddr_len = strlen(optarg);
+			memcpy(NTM_CONFIG.listen_ip, optarg, NTM_CONFIG.ipaddr_len);
+			printf("listen_ip:%s \n", NTM_CONFIG.listen_ip);
 			break;
 		case 'p':
 			NTM_CONFIG.listen_port = strtoul(optarg, NULL, 0);
@@ -110,7 +112,7 @@ int main(int argc, char **argv) {
 
 	ntm_init(CONFIG_FILE);
 
-	getchar();
+	// getchar();
 
 	ntm_destroy();
 
