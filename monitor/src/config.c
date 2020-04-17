@@ -109,8 +109,9 @@ int load_conf(const char *fname)
 			continue;
 		DEBUG("ntb monitor configuration %s=%s", _paramk, _paramv);
 		if (strcmp(_paramk, "listen_ip") == 0) {
-			NTM_CONFIG.listen_ip = calloc(_vlen, sizeof(char));
+			NTM_CONFIG.ipaddr_len = _vlen;
 			memcpy(NTM_CONFIG.listen_ip, _paramv, _vlen);
+
 		} else if (strcmp(_paramk, "listen_port") == 0) {
 			NTM_CONFIG.listen_port = atoi(_paramv);
 		} else if (strcmp(_paramk, "remote_ntm_tcp_timeout") == 0){
@@ -129,10 +130,7 @@ int load_conf(const char *fname)
 }
 
 void free_conf(){
-	if(NTM_CONFIG.listen_ip)
-		free(NTM_CONFIG.listen_ip);
 	
-	NTM_CONFIG.listen_ip = NULL;
 }
 
 void print_conf() {

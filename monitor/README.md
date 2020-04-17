@@ -114,6 +114,6 @@ scp -r examples/ src/ ntsocks@10.10.88.211:/home/ntsocks/ntsocks-deploy/libnts/b
 scp -r examples/ ntsocks@10.10.88.211:/home/ntsocks/ntsocks-deploy/libnts/build
 
 LD_PRELOAD=./libnts.so ./examples/hello-ntsock
- LD_PRELOAD=./libnts.so ./examples/client-ntsock
+LD_PRELOAD=./libnts.so ./examples/client-ntsock
 
 sudo su 切换到root权限执行 ntb-monitors

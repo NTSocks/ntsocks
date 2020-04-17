@@ -269,6 +269,7 @@ void ntm_ntp_shmring_free(ntm_ntp_shmring_handle_t self, int unlink) {
     }
 
     free(self);
+    self = NULL;
     DEBUG("free ntm_ntp shmring successfully!");
 }
 

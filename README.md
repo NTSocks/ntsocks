@@ -10,3 +10,6 @@ NTB based RPC library -- NTRPC: Focus on latency-sensitive small message, and ai
 
 C/C++ code lines: **5131(ntm) + 4762(libnts) + 4015(ntp) = 13908 lines**.
 
+## Note
+
+4月3日及之前的commits是正常的。

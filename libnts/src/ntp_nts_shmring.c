@@ -212,6 +212,8 @@ ntp_shmring_handle_t ntp_get_shmring(char *shm_addr, size_t addrlen) {
  */
 bool ntp_shmring_push(ntp_shmring_handle_t self, ntp_msg *element) {
     assert(self);
+    assert(self->shmring);
+    assert(element);
     DEBUG("ntp_shmring_push start with shmaddr='%s'.", self->shm_addr);
 
     /* Critical Section */
@@ -245,6 +247,8 @@ bool ntp_shmring_push(ntp_shmring_handle_t self, ntp_msg *element) {
 
 bool ntp_shmring_pop(ntp_shmring_handle_t self, ntp_msg *element) {
     assert(self);
+    assert(self->shmring);
+    assert(element);
     DEBUG("ntp_shmring_pop start with shmaddr='%s'.", self->shm_addr);
 
     uint64_t w_idx = nt_atomic_load64_explicit(&self->shmring->write_index, ATOMIC_MEMORY_ORDER_ACQUIRE);
@@ -275,6 +279,8 @@ bool ntp_shmring_pop(ntp_shmring_handle_t self, ntp_msg *element) {
  */
 bool ntp_shmring_front(ntp_shmring_handle_t self, ntp_msg *element) {
     assert(self);
+    assert(self->shmring);
+    assert(element);
 
     uint64_t w_idx = nt_atomic_load64_explicit(&self->shmring->write_index, ATOMIC_MEMORY_ORDER_ACQUIRE);
     uint64_t r_idx = nt_atomic_load64_explicit(&self->shmring->read_index, ATOMIC_MEMORY_ORDER_RELAXED);
@@ -311,6 +317,7 @@ void ntp_shmring_free(ntp_shmring_handle_t self, int unlink) {
     }
 
     free(self);
+    self = NULL;
     DEBUG("free nts shmring successfully!");
 }
 

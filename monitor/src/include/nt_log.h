@@ -79,7 +79,7 @@ do {                                                    \
 	do{ 							                       \
         if (debug >= DEBUG_LEVEL_DEBUG) {                  \
             PRINT(stdout,                                  \
-                "%s %s[DEBUG] [%s:%s:%d]: " fmt "\n",      \
+                "%s %s[DEBUG] [%s:%s:%ld]: " fmt "\n",      \
                 __DATE__, __TIME__, __FILE__,              \
                 __FUNCTION__, __LINE__, ##__VA_ARGS__);    \
         }                                                  \

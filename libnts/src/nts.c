@@ -107,6 +107,7 @@ void nts_context_destroy() {
             nts_ctx->ntm_ctx->shm_send_ctx->shm_stat == NTM_SHM_READY) {
         ntm_shm_nts_close(nts_ctx->ntm_ctx->shm_send_ctx);
         ntm_shm_destroy(nts_ctx->ntm_ctx->shm_send_ctx);
+        nts_ctx->ntm_ctx->shm_send_ctx = NULL;
     }
     DEBUG("destroy the ntm_shm_context_t shm_send_ctx resource pass");
 
@@ -126,8 +127,9 @@ void nts_context_destroy() {
     {
         DEBUG("iter next");
         iter = nextHashMapIterator(iter);
-        nt_sock_ctx = iter->entry->value;
+        nt_sock_ctx = (nt_sock_context_t) iter->entry->value;
         
+
         /**
          * destroy one nt_sock_context_t(equal to the workflow of `close()`): 
          * TODO:0. update local socket state, notify the ntm to destroy nt_socket resources
@@ -157,6 +159,7 @@ void nts_context_destroy() {
     }
     freeHashMapIterator(&iter);
     Clear(nts_ctx->nt_sock_map);
+    nts_ctx->nt_sock_map = NULL;
     DEBUG("destroy nt_sock_map pass");
     
     if(nts_ctx->ntp_ctx) {
@@ -169,15 +172,19 @@ void nts_context_destroy() {
         nts_ctx->ntm_ctx = NULL;
         DEBUG("free nts_ctx->ntm_ctx pass");
     }
-    DEBUG("free(nts_ctx);");
-    free(nts_ctx);
+    
+    if(nts_ctx) {
+        DEBUG("free(nts_ctx)");
+        free(nts_ctx);
+    }
+    
 
     /**
      * destroy the memory which is allocated to NTS_CONFIG
      */
     free_conf();
 
-    DEBUG("destroy nts_context pass");
+    DEBUG("destroy nts_context success");
 }
 
 int generate_nts_shmname(char * nts_shmaddr) {
