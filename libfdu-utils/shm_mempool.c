@@ -12,7 +12,7 @@
 #include "shm_mempool.h"
 #include "nt_log.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_INFO);
 
 // shm_mp_handler * mp_handler;
 
@@ -397,7 +397,7 @@ int shm_mp_free(shm_mp_handler_t mp_handler, shm_mempool_node * node) {
         return -1;
     }
 
-    DEBUG("shm_mp_free success.\n");
+    INFO("shm_mp_free success.\n");
 
     return SMP_OK;
 }

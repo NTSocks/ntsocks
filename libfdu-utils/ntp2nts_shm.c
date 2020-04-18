@@ -163,7 +163,7 @@ int ntp_shm_send(ntp_shm_context_t shm_ctx, ntp_msg *buf) {
 }
 
 
-int ntp_shm_recv(ntp_shm_context_t shm_ctx, ntp_msg *buf) {
+ntp_msg * ntp_shm_recv(ntp_shm_context_t shm_ctx) {
 	assert(shm_ctx);
 
 	bool ret;
@@ -177,18 +177,19 @@ int ntp_shm_recv(ntp_shm_context_t shm_ctx, ntp_msg *buf) {
 
     DEBUG("node_idx=%d", node_idx);
 
+    ntp_msg *buf;
     if(ret) {
         buf = (ntp_msg *) shm_offset_mem(shm_ctx->mp_handler, node_idx);
         if (!buf) {
             ERR("ntp_shm_recv failed");
-            return -1;
+            return NULL;
         }
         DEBUG("ntp_shm_recv success");
-        return 0;
+        return buf;
     }
 
 	ERR("ntp_shm_recv failed");
-	return -1;
+	return NULL;
 }
 
 int ntp_shm_front(ntp_shm_context_t shm_ctx, ntp_msg *buf) {

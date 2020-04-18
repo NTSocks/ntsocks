@@ -69,7 +69,7 @@ extern "C"
 	/**
      * used by libnts app to receive message from nt-monitor
      */
-	int ntp_shm_recv(ntp_shm_context_t shm_ctx, ntp_msg *buf);
+	ntp_msg * ntp_shm_recv(ntp_shm_context_t shm_ctx);
 
 	/**
 	 * used by libnts to front the top or next-pop ntp_msg

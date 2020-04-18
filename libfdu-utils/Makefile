@@ -2,8 +2,8 @@ BIN_PATH=./bin
 INC_PATH=./include
 LIB_PATH=./libs
 LIB_NAME=fdu-utils
-LIB_OBJS=shm_mempool.o shmring.o hash_map.o array.o
-LIB_SRCS=shm_mempool.c shmring.c hash_map.c array.c
+LIB_OBJS=shm_mempool.o shmring.o hash_map.o array.o ntp2nts_msg.o ntp2nts_shm.o
+LIB_SRCS=shm_mempool.c shmring.c hash_map.c array.c ntp2nts_msg.c ntp2nts_shm.c
 
 CC=gcc
 LIBS+= -lpthread -lrt
@@ -11,15 +11,23 @@ DEBUG = -g -O2
 CFLAGS += $(DEBUG) -Wall -std=c11 -D_BSD_SOURCE -DHAVE_GCC_C11_ATOMICS 
 LDFLAGS+= -L$(LIB_PATH) -l$(LIB_NAME)
 
-TARGET=shmring 
+TARGET=shmring ntp2nts-shm
 
-all: clean $(LIB_OBJS) fdu_utils_static_lib fdu_utils_shared_lib local-install $(TARGET)
+all: clean $(LIB_OBJS) fdu_utils_static_lib fdu_utils_shared_lib local-install shmring ntp2nts-shm
 	rm -f *.o 
+	mv $(TARGET) $(BIN_PATH)
+
+
 
 
 shmring: shmring_main.c 
 	$(CC) $(CFLAGS) $(LIBS) $^ -o $@ $(LDFLAGS) -I$(INC_PATH)
-	mv $(TARGET) $(BIN_PATH)
+	# mv $(TARGET) $(BIN_PATH)
+
+ntp2nts-shm: shm_main.c 
+	$(CC) $(CFLAGS) $(LIBS) $^ -o $@ $(LDFLAGS) -I$(INC_PATH)
+	# mv $(TARGET) $(BIN_PATH)
+
 
 fdu_utils_static_lib: $(LIB_OBJS)
 	ar cq lib$(LIB_NAME).a $^ 
