@@ -74,7 +74,7 @@ extern "C"
 	/**
 	 * used by libnts to front the top or next-pop ntp_msg
 	 */
-	int ntp_shm_front(ntp_shm_context_t shm_ctx, ntp_msg *buf);
+	ntp_msg * ntp_shm_front(ntp_shm_context_t shm_ctx);
 
 	/**
      * used by libnts app to close and unlink the shm ring buffer.

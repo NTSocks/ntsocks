@@ -38,12 +38,13 @@ lib_libnts_la_SOURCES = socket.c libnts.c $(INC_DIR)/socket.h		        \
 		ntm_shmring.c $(INC_DIR)/ntm_shmring.h			\
 		ntm_shm.c $(INC_DIR)/ntm_shm.h					\
 		nt_port.c $(INC_DIR)/nt_port.h					\
-		ntp_nts_msg.c $(INC_DIR)/ntp_nts_msg.h 			\
-		ntp_nts_shm.c $(INC_DIR)/ntp_nts_shm.h 			\
-		ntp_nts_shmring.c $(INC_DIR)/ntp_nts_shmring.h 	\
-		$(UTILS_DIR)/array.c $(UTILS_DIR)/include/array.h 								\
-		$(UTILS_DIR)/hash_map.c $(UTILS_DIR)/include/hash_map.h							\
-		$(UTILS_DIR)/utils.c $(UTILS_DIR)/include/utils.h 								\
+		$(INC_DIR)/ntp2nts_msg.h 			\
+		$(INC_DIR)/ntp2nts_shm.h 			\
+		$(INC_DIR)/shmring.h 	\
+		$(INC_DIR)/shm_mempool.h 	\
+		$(UTILS_DIR)/include/array.h 								\
+		$(UTILS_DIR)/include/hash_map.h							\
+		$(UTILS_DIR)/include/utils.h 								\
 		$(UTILS_DIR)/nt_spsc_shm_queue.c $(UTILS_DIR)/include/nt_spsc_shm_queue.h 		\
 		$(UTILS_DIR)/include/data_struct.h $(UTILS_DIR)/include/nt_atomic.h 			\
 		$(UTILS_DIR)/include/gcc_builtins.h 

@@ -21,7 +21,7 @@
 #include "socket.h"
 #include "hash_map.h"
 #include "nt_backlog.h"
-#include "ntp_nts_shm.h"
+#include "ntp2nts_shm.h"
 
 #ifdef __cplusplus
 extern "C" {
