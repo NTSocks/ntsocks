@@ -33,7 +33,7 @@ typedef struct _shmring {
     int addrlen;
     char *shm_addr;
     //read_index of opposite recv buffer
-    uint64_t opposite_read_index;
+    uint64_t peer_read_index;
     struct shmring_buf *shmring;
     uint64_t max_size;
 } _shmring;
@@ -110,7 +110,7 @@ shmring_handle_t shmring_init(char *shm_addr, size_t addrlen) {
     }
     // init the shared memory
     shmring_handle->shmring->read_index = shmring_handle->shmring->write_index = 0;
-    shmring_handle->opposite_read_index = 0;
+    shmring_handle->peer_read_index = 0;
     DEBUG("mmap pass");
 
     shmring_handle->MASK = MAX_BUFS - 1;
@@ -167,7 +167,7 @@ shmring_handle_t get_shmring(char *shm_addr, size_t addrlen) {
     
     shmring_handle->MASK = MAX_BUFS - 1;
     shmring_handle->max_size = MAX_BUFS;
-    shmring_handle->opposite_read_index = 0;
+    shmring_handle->peer_read_index = 0;
     DEBUG("nts get shmring successfully!");
 
     return shmring_handle;
@@ -281,3 +281,24 @@ void shmring_free(shmring_handle_t self, int unlink) {
     DEBUG("free shmring successfully!");
 }
 
+
+uint64_t ntp_get_read_index(shmring_handle_t self)
+{
+    const uint64_t r_idx = nt_atomic_load64_explicit(
+        &self->shmring->read_index, ATOMIC_MEMORY_ORDER_RELAXED);
+    return r_idx;
+}
+
+uint64_t ntp_get_peer_read_index(shmring_handle_t self)
+{
+    const uint64_t op_idx = nt_atomic_load64_explicit(
+        &self->peer_read_index, ATOMIC_MEMORY_ORDER_RELAXED);
+    return op_idx;
+}
+
+int ntp_set_peer_read_index(shmring_handle_t self, uint64_t read_index)
+{
+    nt_atomic_store64_explicit(&self->peer_read_index,
+                               read_index, ATOMIC_MEMORY_ORDER_RELAXED);
+    return 0;
+}
