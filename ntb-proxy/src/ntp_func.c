@@ -53,13 +53,13 @@ static char *int_to_char(uint16_t x)
 }
 
 //result[0] is src_port-dst_post-s, result[1] is src_port-des_port-r
-static int parse_sockaddr_port(struct sockaddr_in *saddr)
-{
-    assert(saddr);
-    int port;
-    port = ntohs(saddr->sin_port);
-    return port;
-}
+// static int parse_sockaddr_port(struct sockaddr_in *saddr)
+// {
+//     assert(saddr);
+//     int port;
+//     port = ntohs(saddr->sin_port);
+//     return port;
+// }
 // static char **create_nts_ring_name(uint16_t src_port, uint16_t dst_port)
 // {
 //     char **result = 0;

@@ -21,11 +21,11 @@ all: clean $(LIB_OBJS) fdu_utils_static_lib fdu_utils_shared_lib local-install s
 
 
 shmring: shmring_main.c 
-	$(CC) $(CFLAGS) $(LIBS) $^ -o $@ $(LDFLAGS) -I$(INC_PATH)
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS) -I$(INC_PATH)
 	# mv $(TARGET) $(BIN_PATH)
 
 ntp2nts-shm: shm_main.c 
-	$(CC) $(CFLAGS) $(LIBS) $^ -o $@ $(LDFLAGS) -I$(INC_PATH)
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS) -I$(INC_PATH)
 	# mv $(TARGET) $(BIN_PATH)
 
 
@@ -33,7 +33,7 @@ fdu_utils_static_lib: $(LIB_OBJS)
 	ar cq lib$(LIB_NAME).a $^ 
 
 fdu_utils_shared_lib:
-	$(CC) -fPIC -shared $(CFLAGS) $(LIBS) $(LIB_SRCS) -o lib$(LIB_NAME).so 
+	$(CC) -fPIC -shared $(CFLAGS) $(LIB_SRCS) -o lib$(LIB_NAME).so $(LIBS) 
 
 $(LIB_OBJS): $(LIB_SRCS)
 	$(CC) $(CFLAGS)  $(LIBS) -c -o $@ $<

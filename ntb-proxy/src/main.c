@@ -94,9 +94,9 @@ ntb_send_thread(__attribute__((unused)) void *arg)
 			if(curr_node == ntb_link->send_list.ring_tail){
 				ntb_link->send_list.ring_tail = pre_node;
 			}
-			ntp_shm_ntm_close(curr_node->conn->nts_recv_ring);
+			ntp_shm_nts_close(curr_node->conn->nts_recv_ring);
 			ntp_shm_destroy(curr_node->conn->nts_recv_ring);
-			ntp_shm_ntm_close(curr_node->conn->nts_send_ring);
+			ntp_shm_nts_close(curr_node->conn->nts_send_ring);
 			ntp_shm_destroy(curr_node->conn->nts_send_ring);
 			// ntb_conn *conn;
 			free(curr_node->conn);

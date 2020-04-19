@@ -6,5 +6,7 @@
 - `make all` or `make -j8`  (note: generated **libfdu-utils.so** and **libfdu-utils.a** files are in **libfdu-utils/libs** directory.)
 - `sudo make install`   (note: install libfdu-utils.so into **/usr/local/lib**) 
 
+## Clean 
 
-
+- `make clean`
+- `make distclean`
