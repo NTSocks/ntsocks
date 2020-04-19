@@ -26,7 +26,7 @@
 #include "nt_atomic.h"
 #include "nt_log.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_INFO);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DISABLE);
 
 typedef struct ntp_ntm_shmring_buf
 {

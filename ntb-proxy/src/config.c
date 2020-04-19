@@ -7,10 +7,10 @@
  * @date Dec 16, 2019 
  * @version 1.0
  */
+#include "ntb.h"
 #include "config.h"
 #include "nt_log.h"
 #include <unistd.h>
-#include <stdlib.h>
 #include <string.h>
 
 #define MAX_BUF_LEN 1024
@@ -24,7 +24,8 @@ struct ntp_config NTP_CONFIG = {
 		.sublink_number = 1,
 		.sublink_data_ring_size = 8388608,
 		.sublink_ctrl_ring_size = 262144,
-		.nts_buff_size = 8388608
+		.nts_buff_size = 8388608,
+		.branch_trans_number = 512
 };
 
 static int trim(char s[])
@@ -107,6 +108,8 @@ int load_conf(const char *fname)
 			NTP_CONFIG.sublink_ctrl_ring_size = atoi(_paramv);
 		}else if(strcmp(_paramk, "sublink_data_ring_size") == 0){
 			NTP_CONFIG.sublink_data_ring_size = atoi(_paramv);
+		}else if(strcmp(_paramk, "branch_trans_number") == 0){
+			NTP_CONFIG.branch_trans_number = atoi(_paramv);
 		}else {
 			fclose(file);
 			return 1;

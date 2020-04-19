@@ -17,7 +17,7 @@
 #include "ntp_ntm_shm.h"
 #include "nt_log.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_INFO);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DISABLE);
 
 ntp_ntm_shm_context_t ntp_ntm_shm() {
 	ntp_ntm_shm_context_t shm_ctx;

@@ -44,6 +44,7 @@ DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 int trans_data_link_cur_index(struct ntb_data_link *data_link)
 {
     *data_link->remote_cum_ptr = data_link->local_ring->cur_index;
+    DEBUG("trans cur index to peer, = %ld",data_link->local_ring->cur_index);
     return 0;
 }
 
@@ -158,8 +159,10 @@ int ntb_data_msg_enqueue(struct ntb_data_link *data_link, struct ntb_data_msg *m
     msg_len &= 0x0fff;
     uint64_t next_index = r->cur_index + 1 < r->capacity ? r->cur_index + 1 : 0;
     //looping send
+    DEBUG("next_index = %ld,*data_link->local_cum_ptr= %ld",next_index,*data_link->local_cum_ptr);
     while (next_index == *data_link->local_cum_ptr)
     {
+        // DEBUG("next_index = %ld,*data_link->local_cum_ptr= %ld",next_index,*data_link->local_cum_ptr);
     }
     uint8_t *ptr = r->start_addr + (r->cur_index << 7);
     if (msg_len <= NTB_DATA_MSG_TL)

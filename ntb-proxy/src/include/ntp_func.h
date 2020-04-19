@@ -12,8 +12,8 @@
 #define NTP_FUNC_H_
 
 #include "ntb_mw.h"
-#include "ntp_nts_msg.h"
-#include "ntp_nts_shm.h"
+#include "ntp2nts_msg.h"
+#include "ntp2nts_shm.h"
 #include "ntm_msg.h"
 #include "ntm_ntp_shm.h"
 #include "ntp_ntm_shm.h"

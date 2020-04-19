@@ -6,6 +6,7 @@
 #define _NTB_RAWDEV_H_
 
 #include <stdbool.h>
+#include <stdint.h>
 
 extern int ntb_logtype;
 
