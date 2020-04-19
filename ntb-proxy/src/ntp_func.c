@@ -265,9 +265,10 @@ int ntp_send_buff_data(struct ntb_data_link *data_link, ntp_shm_context_t ring, 
         global_send_msg += 1;
         DEBUG("send_msg counter = %ld,send_msg_len counter = %ld", global_send_msg, global_send_data);
         shm_mempool_node *tmp_node;
-        tmp_node = shm_mp_node_by_shmaddr(ring->mp_handler,(char *)send_msg);
-        if(tmp_node){
-            shm_mp_free(ring->mp_handler,tmp_node);
+        tmp_node = shm_mp_node_by_shmaddr(ring->mp_handler, (char *)send_msg);
+        if (tmp_node)
+        {
+            shm_mp_free(ring->mp_handler, tmp_node);
         }
     }
     i = 0;
@@ -374,7 +375,7 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
             recv_msg->msg_type = NTP_DATA;
             recv_msg->msg_len = msg_len - NTB_HEADER_LEN;
             rte_memcpy(recv_msg->msg, msg->msg, recv_msg->msg_len);
-            ntp_shm_send(conn->nts_recv_ring, &recv_msg);
+            ntp_shm_send(conn->nts_recv_ring, recv_msg);
             //将msg_len置为0，cur_index++
             msg->header.msg_len = 0;
             // if(r->cur_index +1 >= max_cap)5
@@ -419,7 +420,7 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
             global_rece_data += recv_msg->msg_len;
             global_rece_msg += 1;
             DEBUG("recv_msg counter = %ld,rece_msg_len counter = %ld", global_rece_msg, global_rece_data);
-            ntp_shm_send(conn->nts_recv_ring, &recv_msg);
+            ntp_shm_send(conn->nts_recv_ring, recv_msg);
             r->cur_index = next_index + 1 < r->capacity ? next_index + 1 : next_index - r->capacity + 1;
             DEBUG("recv_msg->msg = %s", recv_msg->msg);
             DEBUG("receive MULTI_PKG end");
@@ -436,7 +437,7 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
             INFO("receive FIN_PKG");
             recv_msg->msg_type = NTP_FIN;
             recv_msg->msg_len = msg_len - NTB_HEADER_LEN;
-            ntp_shm_send(conn->nts_recv_ring, &recv_msg);
+            ntp_shm_send(conn->nts_recv_ring, recv_msg);
             conn->state = PASSIVE_CLOSE;
             DEBUG("conn->state change to passive_close");
             msg->header.msg_len = 0;

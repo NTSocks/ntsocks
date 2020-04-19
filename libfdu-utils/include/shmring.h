@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdint.h>
 
 
 #ifdef __cplusplus
@@ -30,6 +31,14 @@ bool shmring_pop(shmring_handle_t self, char *element, size_t ele_len);
 bool shmring_front(shmring_handle_t self, char *element, size_t ele_len);
 
 void shmring_free(shmring_handle_t self, int unlink);
+
+uint64_t ntp_get_read_index(shmring_handle_t self);
+
+uint64_t ntp_get_peer_read_index(shmring_handle_t self);
+
+int ntp_set_peer_read_index(shmring_handle_t self, uint64_t read_index);
+
+
 
 #ifdef __cplusplus
 };

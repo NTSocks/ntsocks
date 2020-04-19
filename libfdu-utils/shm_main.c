@@ -64,7 +64,13 @@ int main() {
 
     printf("recv msg: %s \n", recv_msg->msg);
 
-    shm_mp_free(ntp_shm_ctx->mp_handler, mp_node);
+    shm_mempool_node * tmp_node;
+    tmp_node = shm_mp_node_by_shmaddr(ntp_shm_ctx->mp_handler, (char *)recv_msg);
+    if(tmp_node) {
+        shm_mp_free(ntp_shm_ctx->mp_handler, tmp_node);
+    }
+
+    // shm_mp_free(ntp_shm_ctx->mp_handler, mp_node);
 
 
     ntp_shm_close(ntp_shm_ctx);
