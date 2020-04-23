@@ -2,11 +2,11 @@ BIN_PATH=./bin
 INC_PATH=./include
 LIB_PATH=./libs
 LIB_NAME=fdu-utils
-LIB_OBJS=shm_mempool.o shmring.o hash_map.o array.o ntp2nts_msg.o ntp2nts_shm.o
-LIB_SRCS=shm_mempool.c shmring.c hash_map.c array.c ntp2nts_msg.c ntp2nts_shm.c
+LIB_OBJS=utils.o shm_mempool.o shmring.o hash_map.o array.o ntp2nts_msg.o ntp2nts_shm.o
+LIB_SRCS=utils.c shm_mempool.c shmring.c hash_map.c array.c ntp2nts_msg.c ntp2nts_shm.c
 
 CC=gcc
-LIBS+= -lpthread -lrt
+LIBS+= -lpthread -lrt -luuid
 DEBUG = -g -O2
 CFLAGS += $(DEBUG) -Wall -std=c11 -D_BSD_SOURCE -DHAVE_GCC_C11_ATOMICS 
 LDFLAGS+= -L$(LIB_PATH) -l$(LIB_NAME)

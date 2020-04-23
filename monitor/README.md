@@ -101,9 +101,9 @@ scp bin/ntb-monitor ntsocks@10.10.88.210:/home/ntsocks/ntsocks-deploy
 
 scp bin/ntb-monitor ntsocks@10.10.88.211:/home/ntsocks/ntsocks-deploy
 
-scp src/lib/.libs/libnts.so* ntsocks@10.10.88.210:/home/ntsocks/ntsocks-deploy/libnts/build
+scp src/lib/.libs/libnts.so* ntsocks@10.10.88.210:/home/ntsocks/ntsocks-deploy/
 
-scp src/lib/.libs/libnts.so* ntsocks@10.10.88.211:/home/ntsocks/ntsocks-deploy/libnts/build
+scp src/lib/.libs/libnts.so* ntsocks@10.10.88.211:/home/ntsocks/ntsocks-deploy/
 
 scp -r examples/ src/ ntsocks@10.10.88.210:/home/ntsocks/ntsocks-deploy/libnts/build
 
