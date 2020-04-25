@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <semaphore.h>
 #include <assert.h>
@@ -12,7 +13,7 @@
 #include "shm_mempool.h"
 #include "nt_log.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_INFO);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 // shm_mp_handler * mp_handler;
 
@@ -79,6 +80,8 @@ shm_mp_handler_t shm_mp_init(unsigned int block_len, unsigned int block_count, c
         perror("shm_open");
         goto FAIL;
     }
+    // set the permission of shm fd for write/read in non-root users 
+    fchmod(mp_handler->shm_mem_fd, 0666);
 
     if (!is_exist) {
         ret = ftruncate(mp_handler->shm_mem_fd, sizeof(u_char) * block_count * block_len);
@@ -104,6 +107,8 @@ shm_mp_handler_t shm_mp_init(unsigned int block_len, unsigned int block_count, c
         perror("shm_open");
         goto FAIL;
     }
+    // set the permission of shm fd for write/read in non-root users 
+    fchmod(mp_handler->shm_mp_fd, 0666);
 
     shm_mp_size = sizeof(shm_mempool) + sizeof(shm_mempool_node) * block_count;
     if (!is_exist) {
@@ -120,12 +125,15 @@ shm_mp_handler_t shm_mp_init(unsigned int block_len, unsigned int block_count, c
     mp_handler->shm_mp = (shm_mempool *) mp_handler->base_shm_mp;
     mp_handler->shm_mp_nodes = (shm_mempool_node *) ((char *)mp_handler->base_shm_mp + sizeof(shm_mempool));
 
-
+    // store old, umask for world-writable access of semaphores 
+    mode_t old_umask = umask(0);
     mp_handler->sem_mutex = sem_open(mp_handler->sem_mutex_name, O_CREAT, 0666, 0);
     if (mp_handler->sem_mutex == SEM_FAILED) {
         perror("sem_open: sem_mutex");
         goto FAIL;
     }
+    // restore old mask
+    umask(old_umask);
 
     // if first create shm mempool, init
     if (!is_exist) {
@@ -188,7 +196,7 @@ shm_mp_handler_t shm_mp_init(unsigned int block_len, unsigned int block_count, c
         mp_handler->node_idxs[i] = i;
         sprintf(mp_handler->offset_strs[i], "%ld", mp_handler->shm_mp_nodes[i].shm_offset);
         Put(mp_handler->mp_node_map, mp_handler->offset_strs[i], &mp_handler->node_idxs[i]);
-        printf(" shm_offset=%ld, node_idx=%d, offset_str=%s \n", mp_handler->shm_mp_nodes[i].shm_offset, (int)i, mp_handler->offset_strs[i]);
+        // printf(" shm_offset=%ld, node_idx=%d, offset_str=%s \n", mp_handler->shm_mp_nodes[i].shm_offset, (int)i, mp_handler->offset_strs[i]);
         tmp_mem += block_len;
     }
 
@@ -198,7 +206,7 @@ shm_mp_handler_t shm_mp_init(unsigned int block_len, unsigned int block_count, c
     while(hasNextHashMapIterator(iter)) {
         iter = nextHashMapIterator(iter);
         int idx = *(int *) iter->entry->value;
-        printf("{ key = %s, value = %d, hashcode=%d }\n", (char *)iter->entry->key, idx, iter->hashCode);
+        // printf("{ key = %s, value = %d, hashcode=%d }\n", (char *)iter->entry->key, idx, iter->hashCode);
 
     }
     freeHashMapIterator(&iter);
@@ -256,7 +264,7 @@ shm_mp_handler_t shm_mp_init(unsigned int block_len, unsigned int block_count, c
 
 shm_mempool_node * shm_mp_malloc(shm_mp_handler_t mp_handler, unsigned int size) {
     assert(mp_handler);
-    DEBUG("shm_mp_malloc start. shm_mp addr=%p\n", mp_handler->shm_mp);
+    DEBUG("shm_mp_malloc start.");
 
     DEBUG("mp_handler->shm_mp: column=%d, total_count=%d, used_count=%d, block_len=%d \n", 
                 mp_handler->shm_mp->column, mp_handler->shm_mp->total_count, 
@@ -276,7 +284,14 @@ shm_mempool_node * shm_mp_malloc(shm_mp_handler_t mp_handler, unsigned int size)
     size = mp_handler->shm_mp->block_len;
 
     int node_idx = mp_handler->shm_mp->free_header_idx;
+    if(node_idx == -1) {
+        ERR("no free shm-mempool node");
+        shm_mp_runtime_print(mp_handler);
+        ret = sem_post(mp_handler->sem_mutex);
+        return NULL;
+    }
     node = &mp_handler->shm_mp_nodes[node_idx];
+    DEBUG("node->node_idx=%d, node_idx=%d", node->node_idx, node_idx);
     mp_handler->shm_mp->free_header_idx = node->next_node_idx;
     mp_handler->shm_mp->used_count++;
     node->next_node_idx = mp_handler->shm_mp->used_header_idx;
@@ -331,13 +346,13 @@ shm_mempool_node * shm_mp_node_by_shmaddr(shm_mp_handler_t mp_handler, char *shm
 char * shm_offset_mem(shm_mp_handler_t mp_handler, int node_idx) {
     assert(mp_handler);
 
-    DEBUG("shm_offset_mem start. shm_mp addr=%p\n", mp_handler->shm_mp);
+    DEBUG("shm_offset_mem start.");
     // DEBUG("mp_handler->shm_mp: column=%d, total_count=%d, used_count=%d, block_len=%d \n", 
     //             mp_handler->shm_mp->column, mp_handler->shm_mp->total_count, 
     //             mp_handler->shm_mp->used_count, mp_handler->shm_mp->block_len);
 
     if ( node_idx >= 0 && node_idx < mp_handler->shm_mp->total_count){
-        DEBUG("shm_offset_mem success.\n");
+        DEBUG("shm_offset_mem success [node_idx=%d].\n", node_idx);
         return (mp_handler->shm_mem + mp_handler->shm_mp_nodes[node_idx].shm_offset);
     }
 
@@ -352,7 +367,7 @@ char * shm_offset_mem(shm_mp_handler_t mp_handler, int node_idx) {
 
 int shm_mp_free(shm_mp_handler_t mp_handler, shm_mempool_node * node) {
     assert(mp_handler);
-    DEBUG("shm_mp_free start. shm_mp addr=%p\n", mp_handler->shm_mp);
+    DEBUG("shm_mp_free start.");
 
     DEBUG("mp_handler->shm_mp: column=%d, total_count=%d, used_count=%d, block_len=%d \n", 
                 mp_handler->shm_mp->column, mp_handler->shm_mp->total_count, 

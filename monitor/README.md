@@ -117,3 +117,6 @@ LD_PRELOAD=./libnts.so ./examples/hello-ntsock
 LD_PRELOAD=./libnts.so ./examples/client-ntsock
 
 sudo su 切换到root权限执行 ntb-monitors
+
+
+

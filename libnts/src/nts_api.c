@@ -1185,6 +1185,7 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 
 				
 				tmp_node = shm_mp_node_by_shmaddr(nt_sock_ctx->ntp_recv_ctx->mp_handler, (char *)incoming_data);
+				DEBUG("tmp_node->node_idx=%d", tmp_node->node_idx);
 				if(tmp_node) {
 					shm_mp_free(nt_sock_ctx->ntp_recv_ctx->mp_handler, tmp_node);
 				}
@@ -1204,6 +1205,7 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 				nt_sock_ctx->ntp_buflen = bytes_left;
 
 				tmp_node = shm_mp_node_by_shmaddr(nt_sock_ctx->ntp_recv_ctx->mp_handler, (char *)incoming_data);
+				DEBUG("tmp_node->node_idx=%d", tmp_node->node_idx);
 				if(tmp_node) {
 					shm_mp_free(nt_sock_ctx->ntp_recv_ctx->mp_handler, tmp_node);
 				}
@@ -1223,6 +1225,7 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 				nt_sock_ctx->ntp_buflen = bytes_left;
 
 				tmp_node = shm_mp_node_by_shmaddr(nt_sock_ctx->ntp_recv_ctx->mp_handler, (char *)incoming_data);
+				DEBUG("tmp_node->node_idx=%d", tmp_node->node_idx);
 				if(tmp_node) {
 					shm_mp_free(nt_sock_ctx->ntp_recv_ctx->mp_handler, tmp_node);
 				}
@@ -1241,6 +1244,7 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 				}
 
 				tmp_node = shm_mp_node_by_shmaddr(nt_sock_ctx->ntp_recv_ctx->mp_handler, (char *)incoming_data);
+				DEBUG("tmp_node->node_idx=%d", tmp_node->node_idx);
 				if(tmp_node) {
 					shm_mp_free(nt_sock_ctx->ntp_recv_ctx->mp_handler, tmp_node);
 				}
@@ -1263,6 +1267,7 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 				DEBUG("bytes_read =%d, bytes_left = %d", bytes_read, bytes_left);
 
 				tmp_node = shm_mp_node_by_shmaddr(nt_sock_ctx->ntp_recv_ctx->mp_handler, (char *)incoming_data);
+				DEBUG("tmp_node->node_idx=%d", tmp_node->node_idx);
 				if(tmp_node) {
 					shm_mp_free(nt_sock_ctx->ntp_recv_ctx->mp_handler, tmp_node);
 				}

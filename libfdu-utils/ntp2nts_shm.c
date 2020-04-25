@@ -198,22 +198,22 @@ ntp_msg * ntp_shm_front(ntp_shm_context_t shm_ctx) {
     ntp_msg *buf;
 
 	bool ret;
-    int node_idx;
+    int node_idx = -1;
 	ret = shmring_front(shm_ctx->ntsring_handle, (char*)(int*)&node_idx, NODE_IDX_SIZE);
     DEBUG("node_idx=%d", node_idx);
 
     if(ret) {
         buf = (ntp_msg *) shm_offset_mem(shm_ctx->mp_handler, node_idx);
         if (!buf) {
-            ERR("ntp_shm_recv failed");
+            ERR("[in]ntp_shm_front failed");
             return NULL;
         }
-        DEBUG("ntp_shm_recv success");
+        DEBUG("ntp_shm_front success");
         return buf;
     }
 
 
-	DEBUG("ntp_shm_front failed");
+	DEBUG("[out]ntp_shm_front failed");
 	return NULL;
 }
 

@@ -25,7 +25,7 @@ extern "C" {
  */
 
 #define PAYLOAD_SIZE            1024
-#define NTP_PAYLOAD_MAX_SIZE    253
+#define NTP_PAYLOAD_MAX_SIZE    252
 
 
 /*----------------------------------------------------------------------------*/

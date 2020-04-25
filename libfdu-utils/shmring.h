@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 // max bytes of total bufs: 8 MB, = 256 * 32768 [(32 * 1024) = 32768]
-#define MAX_BUFS 8 // define NTP_MAX_BUFS as [(a power of 2) -1] (65535 in our case)
+#define MAX_BUFS 4 // define NTP_MAX_BUFS as [(a power of 2) -1] (65535 in our case)
 #define BUF_SIZE sizeof(int)
 
 #define NTP_SHM_NAME "/nts-shm-ring"

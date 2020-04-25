@@ -10,3 +10,8 @@
 
 - `make clean`
 - `make distclean`
+
+## Deploy
+
+scp libs/* ntsocks@10.10.88.211:/home/ntsocks/ntsocks-deploy/libs
+scp libs/* ntsocks@10.10.88.210:/home/ntsocks/ntsocks-deploy/libs

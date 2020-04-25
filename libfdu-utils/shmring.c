@@ -16,14 +16,14 @@
 #include "nt_atomic.h"
 #include "nt_log.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 typedef struct shmring_buf {
 //    char buf[NTS_MAX_BUFS + 1][NTS_BUF_SIZE];
 	// nts_msg buf[NTS_MAX_BUFS + 1];
+    char buf[MAX_BUFS + 1][BUF_SIZE];
     uint64_t write_index;
     uint64_t read_index;
-    char buf[MAX_BUFS + 1][BUF_SIZE];
     
 } shmring_buf;
 
@@ -208,7 +208,9 @@ bool shmring_push(shmring_handle_t self, char *element, size_t ele_len) {
         return false;
 
     DEBUG("ntp_msgcopy start with write_idx=%d, read_idx=%d", (int)w_idx, (int)r_idx);
+    memset(self->shmring->buf[w_idx], 0, BUF_SIZE);
     memcpy(self->shmring->buf[w_idx], element, ele_len);
+    DEBUG("[after push]value=%d", *(int *)self->shmring->buf[w_idx]);
 
     nt_atomic_store64_explicit(&self->shmring->write_index,
                                w_next_idx, ATOMIC_MEMORY_ORDER_RELEASE);
@@ -233,7 +235,9 @@ bool shmring_pop(shmring_handle_t self, char *element, size_t ele_len) {
         return false;
 
     DEBUG("ntp_msgcopy start with write_idx=%d, read_idx=%d", (int)w_idx, (int)r_idx);
+    memset(element, 0, ele_len);
     memcpy(element, self->shmring->buf[self->shmring->read_index], ele_len);
+    DEBUG("[pop]value=%d", *(int *)self->shmring->buf[self->shmring->read_index]);
 
     nt_atomic_store64_explicit(&self->shmring->read_index,
                                mask_increment(r_idx, self->MASK), ATOMIC_MEMORY_ORDER_RELEASE);
@@ -254,10 +258,16 @@ bool shmring_front(shmring_handle_t self, char *element, size_t ele_len) {
     uint64_t r_idx = nt_atomic_load64_explicit(&self->shmring->read_index, ATOMIC_MEMORY_ORDER_RELAXED);
 
    /// Queue is empty (or was empty when we checked)
-   if (empty(w_idx, r_idx))
+   if (empty(w_idx, r_idx)){
+       INFO("shmring is empty!!!");
        return false;
+   }
+       
 
+    DEBUG("ntp_msgcopy start with write_idx=%d, read_idx=%d", (int)w_idx, (int)r_idx);
+    memset(element, 0, ele_len);
     memcpy(element, self->shmring->buf[self->shmring->read_index], ele_len);
+    DEBUG("[front]value=%d", *(int *)self->shmring->buf[self->shmring->read_index]);
 
 
     DEBUG("front shmring successfully!");

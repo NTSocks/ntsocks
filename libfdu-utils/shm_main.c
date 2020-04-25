@@ -20,29 +20,47 @@ int main() {
         return -1;
     }
 
-    shm_mempool_node *mp_node;
-    mp_node = shm_mp_malloc(ntp_shm_ctx->mp_handler, sizeof(ntp_msg));
-    if (mp_node == NULL) {
-        perror("shm_mp_malloc failed. \n");
-        return -1;
+    // for (size_t i = 0; i < 10000; i++)
+    // {
+    //     shm_mempool_node *mp_node;
+    //     mp_node = shm_mp_malloc(ntp_shm_ctx->mp_handler, sizeof(ntp_msg));
+    //     if(mp_node) {
+    //         shm_mp_free(ntp_shm_ctx->mp_handler, mp_node);
+    //     }
+    // }
+    
+
+
+    for (size_t i = 0; i < 1023; i++)
+    {
+        shm_mempool_node *mp_node;
+        mp_node = shm_mp_malloc(ntp_shm_ctx->mp_handler, sizeof(ntp_msg));
+        if (mp_node == NULL) {
+            perror("shm_mp_malloc failed. \n");
+            return -1;
+        }
+
+        ntp_msg * msg = (ntp_msg *) shm_offset_mem(ntp_shm_ctx->mp_handler, mp_node->node_idx);
+        if (msg == NULL) {
+            perror("shm_offset_mem failed \n");
+            return -1;
+        }
+
+        msg->msg_type = NTP_NTS_MSG_DATA;
+        msg->msg_len = strlen(MSG);
+        sprintf(msg->msg, "msg-%d", (int)i);
+
+
+        retval = ntp_shm_send(ntp_shm_ctx, msg);
+        if(retval == -1) {
+            perror("ntp_shm_send failed \n");
+            return -1;
+        }
+
+        printf("send '%s' success\n", msg->msg);
+
     }
-
-    ntp_msg * msg = (ntp_msg *) shm_offset_mem(ntp_shm_ctx->mp_handler, mp_node->node_idx);
-    if (msg == NULL) {
-        perror("shm_offset_mem failed \n");
-        return -1;
-    }
-
-    msg->msg_type = NTP_NTS_MSG_DATA;
-    msg->msg_len = strlen(MSG);
-    sprintf(msg->msg, "%s", MSG);
-
-
-    retval = ntp_shm_send(ntp_shm_ctx, msg);
-    if(retval == -1) {
-        perror("ntp_shm_send failed \n");
-        return -1;
-    }
+    
 
     ntp_shm_nts_close(ntp_shm_ctx);
     ntp_shm_destroy(ntp_shm_ctx);
@@ -55,20 +73,24 @@ int main() {
         return -1;
     }
 
-    ntp_msg * recv_msg;
-    recv_msg = ntp_shm_recv(ntp_shm_ctx);
-    if(recv_msg == NULL) {
-        perror("ntp_shm_recv failed \n");
-        return -1;
-    }
+    for (size_t i = 0; i < 1023; i++)
+    {
+        ntp_msg * recv_msg;
+        recv_msg = ntp_shm_recv(ntp_shm_ctx);
+        if(recv_msg == NULL) {
+            perror("ntp_shm_recv failed \n");
+            return -1;
+        }
 
-    printf("recv msg: %s \n", recv_msg->msg);
+        printf("recv msg: '%s' \n", recv_msg->msg);
 
-    shm_mempool_node * tmp_node;
-    tmp_node = shm_mp_node_by_shmaddr(ntp_shm_ctx->mp_handler, (char *)recv_msg);
-    if(tmp_node) {
-        shm_mp_free(ntp_shm_ctx->mp_handler, tmp_node);
+        shm_mempool_node * tmp_node;
+        tmp_node = shm_mp_node_by_shmaddr(ntp_shm_ctx->mp_handler, (char *)recv_msg);
+        if(tmp_node) {
+            shm_mp_free(ntp_shm_ctx->mp_handler, tmp_node);
+        }
     }
+    
 
     // shm_mp_free(ntp_shm_ctx->mp_handler, mp_node);
 
