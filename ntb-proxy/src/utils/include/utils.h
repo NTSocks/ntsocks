@@ -17,10 +17,14 @@
 #include <stdarg.h>
 #include <time.h>
 #include <assert.h>
+#include <uuid/uuid.h>
+#include <netinet/in.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define UUID_LEN 36
 
 #define NEW(type) (type *)malloc(sizeof(type))
 #define APPLY(task, ...) task(__VA_ARGS__)
@@ -31,6 +35,10 @@ extern "C" {
 
 // uuid
 char * createUUID();
+
+char * generate_uuid();
+
+int parse_sockaddr_port(struct sockaddr_in* saddr);
 
 #ifdef __cplusplus
 };

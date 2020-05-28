@@ -26,7 +26,10 @@ struct ntp_config
     int sublink_data_ring_size;
     int sublink_ctrl_ring_size;
     int nts_buff_size;
+    int branch_trans_number;
 };
+
+extern struct ntp_config NTP_CONFIG;
 
 /* load configuration from specified configuration file name */
 int load_conf(const char *fname);

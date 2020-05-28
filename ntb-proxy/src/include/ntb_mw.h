@@ -14,7 +14,7 @@
 #include "hash_map.h"
 #include "ntm_ntp_shm.h"
 #include "ntp_ntm_shm.h"
-#include "ntp_nts_shm.h"
+#include "ntp2nts_shm.h"
 
 #define DATA_RING_SIZE 0x800000
 #define CTRL_RING_SIZE 0x40000

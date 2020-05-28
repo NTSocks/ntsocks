@@ -12,9 +12,9 @@ SRCS-y += config.c ntb_mw.c ntp_func.c
 
 SRCS-y += ntm_msg.c ntm_ntp_shm.c ntm_ntp_shmring.c
 SRCS-y += ntp_ntm_shm.c ntp_ntm_shmring.c
-SRCS-y += ntp_nts_msg.c ntp_nts_shm.c ntp_nts_shmring.c
+#SRCS-y += ntp2nts_msg.c ntp2nts_shm.c ntp_nts_shmring.c
 
-SRCS-y += array.c hash_map.c utils.c
+#SRCS-y += array.c hash_map.c utils.c
 
 
 
@@ -33,7 +33,6 @@ static: build/$(APP)-static
 CFLAGS += -D_FILE_OFFSET_BITS=64 
 CFLAGS += -D_BSD_SOURCE 
 CFLAGS += -DHAVE_GCC_C11_ATOMICS
-LDFLAGS += -pthread
 
 
 PC_FILE := $(shell pkg-config --path libdpdk)
@@ -45,7 +44,7 @@ build/$(APP)-shared: $(SRCS-y) Makefile $(PC_FILE) | build
 	$(CC) $(CFLAGS) $(SRCS-y) -o $@ $(LDFLAGS) $(LDFLAGS_SHARED)
 
 build/$(APP)-static: $(SRCS-y) Makefile $(PC_FILE) | build
-	$(CC) $(CFLAGS) $(SRCS-y) -o $@ $(LDFLAGS) $(LDFLAGS_STATIC)
+	$(CC) $(CFLAGS) $(SRCS-y) -o $@ $(LDFLAGS) $(LDFLAGS_STATIC) 
 
 build:
 	@mkdir -p $@
@@ -72,9 +71,7 @@ please change the definition of the RTE_TARGET environment variable)
 all:
 else
 
-# VPATH += $(SRCDIR)/utils 
-CFLAGS += -I$(SRCDIR)/utils/include -I$(SRCDIR)/include
-
+VPATH += $(SRCDIR)/utils 
 
 CFLAGS += -D_FILE_OFFSET_BITS=64
 CFLAGS += -O2
@@ -82,6 +79,11 @@ CFLAGS += -D_BSD_SOURCE
 CFLAGS += -DHAVE_GCC_C11_ATOMICS
 # CFLAGS += $(WERROR_FLAGS)
 CFLAGS += -DALLOW_EXPERIMENTAL_API
+CFLAGS += -pthread  
+CFLAGS += -I$(SRCDIR)/utils/include -I$(SRCDIR)/include
+
+LDLIBS += -L/usr/local/lib -lfdu-utils
+
 
 include $(RTE_SDK)/mk/rte.extapp.mk
 

@@ -48,12 +48,12 @@
 #include "ntb.h"
 #include "ntb_hw_intel.h"
 #include "ntm_msg.h"
-#include "ntp_nts_shm.h"
+#include "ntp2nts_shm.h"
 #include "ntm_ntp_shm.h"
 #include "ntp_ntm_shm.h"
 #include "nt_log.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_INFO);
 
 #define XEON_LINK_STATUS_OFFSET 0x01a2
 #define RTE_RAWDEV_MAX_DEVS 64
@@ -91,11 +91,14 @@ ntb_send_thread(__attribute__((unused)) void *arg)
 			Remove(ntb_link->port2conn, &curr_node->conn->conn_id);		// remove ntb conn from hash map
 			// destory_conn_ack(ntb_link, next_node->conn->name);
 			pre_node->next_node = curr_node->next_node;	// remove ntb conn from traseval list
-			ntp_shm_ntm_close(curr_node->conn->nts_recv_ring);
+			if(curr_node == ntb_link->send_list.ring_tail){
+				ntb_link->send_list.ring_tail = pre_node;
+			}
+			ntp_shm_nts_close(curr_node->conn->nts_recv_ring);
 			ntp_shm_destroy(curr_node->conn->nts_recv_ring);
-			ntp_shm_ntm_close(curr_node->conn->nts_send_ring);
+			ntp_shm_nts_close(curr_node->conn->nts_send_ring);
 			ntp_shm_destroy(curr_node->conn->nts_send_ring);
-			ntb_conn *conn;
+			// ntb_conn *conn;
 			free(curr_node->conn);
 			free(curr_node);
 			continue;

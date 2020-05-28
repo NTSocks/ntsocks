@@ -1,5 +1,5 @@
 /*
- * <p>Title: ntp_nts_msg.h</p>
+ * <p>Title: ntp2nts_msg.h</p>
  * <p>Description: </p>
  * <p>Copyright: Copyright (c) 2019 FDU NiSL</p>
  *
@@ -8,8 +8,8 @@
  * @version 1.0
  */
 
-#ifndef NTP_NTS_MSG_H_
-#define NTP_NTS_MSG_H_
+#ifndef NTP2NTS_MSG_H_
+#define NTP2NTS_MSG_H_
 
 #include <stdint.h>
 
@@ -24,7 +24,8 @@ extern "C" {
  * between local and remote ntb-monitor.
  */
 
-#define PAYLOAD_SIZE 1024
+#define PAYLOAD_SIZE            1024
+#define NTP_PAYLOAD_MAX_SIZE    253
 
 
 /*----------------------------------------------------------------------------*/
@@ -34,11 +35,14 @@ extern "C" {
  * receiver: ntb-monitor
  */
 
+/* define the message type between ntp and libnts */
+#define NTP_NTS_MSG_DATA        1
+#define NTP_NTS_MSG_FIN         2       
 
 typedef struct {
-    uint8_t msg_type;
-    uint16_t msg_len;
-    char msg[253];
+    uint16_t msg_type;   // 2 bytes
+    uint16_t msg_len;   // 2 bytes
+    char msg[NTP_PAYLOAD_MAX_SIZE]; // 252 bytes
 } ntp_msg;
 
 void ntp_msgcopy(ntp_msg *src_msg, ntp_msg *target_msg);
@@ -48,4 +52,4 @@ void ntp_msgcopy(ntp_msg *src_msg, ntp_msg *target_msg);
 };
 #endif
 
-#endif /* NTP_NTS_MSG_H_ */
+#endif /* NTP2NTS_MSG_H_ */
