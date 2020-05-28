@@ -16,7 +16,7 @@
 #include "nt_atomic.h"
 #include "nt_log.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
 
 typedef struct shmring_buf {
 //    char buf[NTS_MAX_BUFS + 1][NTS_BUF_SIZE];
@@ -185,7 +185,7 @@ shmring_handle_t get_shmring(char *shm_addr, size_t addrlen) {
 bool shmring_push(shmring_handle_t self, char *element, size_t ele_len) {
     assert(self);
     assert(element);
-    DEBUG("ntp_shmring_push start with shmaddr='%s'.", self->shm_addr);
+    // DEBUG("ntp_shmring_push start with shmaddr='%s'.", self->shm_addr);
 
     ele_len = ele_len > BUF_SIZE ? BUF_SIZE : ele_len;
 
@@ -204,8 +204,10 @@ bool shmring_push(shmring_handle_t self, char *element, size_t ele_len) {
     /// The two pointers colliding means we would have exceeded the
     /// ring buffer size and create an ambiguous state with being empty.
     if (w_next_idx == nt_atomic_load64_explicit(
-            &self->shmring->read_index, ATOMIC_MEMORY_ORDER_ACQUIRE))
+            &self->shmring->read_index, ATOMIC_MEMORY_ORDER_ACQUIRE)){
+        DEBUG("shmring is full, write_idx=%d, read_idx=%d", (int)w_idx, (int)r_idx);
         return false;
+    }
 
     DEBUG("ntp_msgcopy start with write_idx=%d, read_idx=%d", (int)w_idx, (int)r_idx);
     memset(self->shmring->buf[w_idx], 0, BUF_SIZE);
@@ -256,10 +258,11 @@ bool shmring_front(shmring_handle_t self, char *element, size_t ele_len) {
 
     uint64_t w_idx = nt_atomic_load64_explicit(&self->shmring->write_index, ATOMIC_MEMORY_ORDER_ACQUIRE);
     uint64_t r_idx = nt_atomic_load64_explicit(&self->shmring->read_index, ATOMIC_MEMORY_ORDER_RELAXED);
-
+    
+    DEBUG("shmring_front write_idx=%d, read_idx=%d", (int)w_idx, (int)r_idx);
    /// Queue is empty (or was empty when we checked)
    if (empty(w_idx, r_idx)){
-       INFO("shmring is empty!!!");
+    //    INFO("shmring is empty!!!");
        return false;
    }
        

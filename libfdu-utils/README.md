@@ -15,3 +15,6 @@
 
 scp libs/* ntsocks@10.10.88.211:/home/ntsocks/ntsocks-deploy/libs
 scp libs/* ntsocks@10.10.88.210:/home/ntsocks/ntsocks-deploy/libs
+cd ntsocks-deploy/libs
+sudo cp libfdu-utils.* /usr/local/lib/
+sudo ldconfig

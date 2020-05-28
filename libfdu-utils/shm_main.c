@@ -20,18 +20,18 @@ int main() {
         return -1;
     }
 
-    // for (size_t i = 0; i < 10000; i++)
-    // {
-    //     shm_mempool_node *mp_node;
-    //     mp_node = shm_mp_malloc(ntp_shm_ctx->mp_handler, sizeof(ntp_msg));
-    //     if(mp_node) {
-    //         shm_mp_free(ntp_shm_ctx->mp_handler, mp_node);
-    //     }
-    // }
+    for (size_t i = 0; i < 13; i++)
+    {
+        shm_mempool_node *mp_node;
+        mp_node = shm_mp_malloc(ntp_shm_ctx->mp_handler, sizeof(ntp_msg));
+        if(mp_node) {
+            shm_mp_free(ntp_shm_ctx->mp_handler, mp_node);
+        }
+    }
     
 
 
-    for (size_t i = 0; i < 1023; i++)
+    for (size_t i = 0; i < 3; i++)
     {
         shm_mempool_node *mp_node;
         mp_node = shm_mp_malloc(ntp_shm_ctx->mp_handler, sizeof(ntp_msg));
@@ -47,8 +47,8 @@ int main() {
         }
 
         msg->msg_type = NTP_NTS_MSG_DATA;
-        msg->msg_len = strlen(MSG);
         sprintf(msg->msg, "msg-%d", (int)i);
+        msg->msg_len = strlen(msg->msg);
 
 
         retval = ntp_shm_send(ntp_shm_ctx, msg);
@@ -73,7 +73,7 @@ int main() {
         return -1;
     }
 
-    for (size_t i = 0; i < 1023; i++)
+    for (size_t i = 0; i < 3; i++)
     {
         ntp_msg * recv_msg;
         recv_msg = ntp_shm_recv(ntp_shm_ctx);
@@ -82,7 +82,7 @@ int main() {
             return -1;
         }
 
-        printf("recv msg: '%s' \n", recv_msg->msg);
+        printf("msg_len=%d, recv msg: '%s' \n", recv_msg->msg_len, recv_msg->msg);
 
         shm_mempool_node * tmp_node;
         tmp_node = shm_mp_node_by_shmaddr(ntp_shm_ctx->mp_handler, (char *)recv_msg);

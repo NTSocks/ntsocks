@@ -10,6 +10,7 @@
 
 
 #include <assert.h>
+#include <errno.h>
 
 #include "nts_api.h"
 #include "nts_config.h"
@@ -18,7 +19,7 @@
 #include "ntm_shm.h"
 #include "nts_shm.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
 
 
 
@@ -939,7 +940,7 @@ int nts_close(int sockid) {
 	shm_mempool_node *mp_node;
     mp_node = shm_mp_malloc(nt_sock_ctx->ntp_send_ctx->mp_handler, sizeof(ntp_msg));
     if (mp_node == NULL) {
-        perror("shm_mp_malloc failed. \n");
+        // perror("shm_mp_malloc failed. \n");
         return -1;
     }
 
@@ -1385,7 +1386,7 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 	shm_mempool_node *mp_node;
     mp_node = shm_mp_malloc(nt_sock_ctx->ntp_send_ctx->mp_handler, sizeof(ntp_msg));
     if (mp_node == NULL) {
-        perror("shm_mp_malloc failed. \n");
+        // perror("shm_mp_malloc failed. \n");
         return -1;
     }
 
@@ -1438,7 +1439,7 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 		shm_mempool_node * send_mp_node;
 		send_mp_node = shm_mp_malloc(nt_sock_ctx->ntp_send_ctx->mp_handler, sizeof(ntp_msg));
 		if (send_mp_node == NULL) {
-			perror("shm_mp_malloc failed. \n");
+			// perror("shm_mp_malloc failed. \n");
 			return -1;
 		}
 

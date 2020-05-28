@@ -18,7 +18,7 @@
 #include "nt_log.h"
 
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
 
 ntp_shm_context_t ntp_shm() {
 	ntp_shm_context_t shm_ctx;
@@ -152,10 +152,17 @@ int ntp_shm_send(ntp_shm_context_t shm_ctx, ntp_msg *buf) {
     DEBUG("shmring push node_idx=%d", mp_node->node_idx);
 	ret = shmring_push(shm_ctx->ntsring_handle, (char *)(int*) &mp_node->node_idx, NODE_IDX_SIZE);
 	//TODO: add the timeout limit for retry push times.
+    // int retry_times = 1;
 	while(!ret) {
+        // once the retry_times is greater than pre-define 'RETRY_TIMES' (default 5), 
+        //  indicate current ntp_shm ring is empty and immediately return NULL
+        // if(retry_times > RETRY_TIMES) 
+        //     break;
+
 		sched_yield();
 		INFO("shmring_push failed and maybe shmring is full.");
 		ret = shmring_push(shm_ctx->ntsring_handle, (char *)(int*) &mp_node->node_idx, NODE_IDX_SIZE);
+        // retry_times ++;
 	}
 
 	DEBUG("ntp_shm_send pass with ret=%d", ret);
@@ -167,12 +174,22 @@ ntp_msg * ntp_shm_recv(ntp_shm_context_t shm_ctx) {
 	assert(shm_ctx);
 
 	bool ret;
-    int node_idx;
+    int node_idx = -1;
 	ret = shmring_pop(shm_ctx->ntsring_handle, (char*)(int*)&node_idx, NODE_IDX_SIZE);
 	//TODO: add the timeout limit for retry pop times.
+    int retry_times = 1;
 	while(!ret) {
+        // once the retry_times is greater than pre-define 'RETRY_TIMES' (default 5), 
+        //  indicate current ntp_shm ring is empty and immediately return NULL
+        if(retry_times > RETRY_TIMES){
+            INFO("ntp_shm_recv failed: the ntp_shm_recv retry times > RETRY_TIME(%d)", RETRY_TIMES);
+            return NULL;
+        }
+            
+
 		sched_yield();
 		ret = shmring_pop(shm_ctx->ntsring_handle, (char*)(int*)&node_idx, NODE_IDX_SIZE);
+        retry_times ++;
 	}
 
     DEBUG("node_idx=%d", node_idx);
@@ -213,7 +230,7 @@ ntp_msg * ntp_shm_front(ntp_shm_context_t shm_ctx) {
     }
 
 
-	DEBUG("[out]ntp_shm_front failed");
+	// DEBUG("[out]ntp_shm_front failed");
 	return NULL;
 }
 

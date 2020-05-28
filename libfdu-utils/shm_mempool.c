@@ -13,7 +13,7 @@
 #include "shm_mempool.h"
 #include "nt_log.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
 
 // shm_mp_handler * mp_handler;
 
@@ -147,6 +147,7 @@ shm_mp_handler_t shm_mp_init(unsigned int block_len, unsigned int block_count, c
         mp_handler->shm_mp->used_count = 0;
         mp_handler->shm_mp->block_len = block_len;
         mp_handler->shm_mp->free_header_idx = -1;
+        mp_handler->shm_mp->free_tail_idx = -1;
         mp_handler->shm_mp->used_header_idx = -1;
         DEBUG("mp_handler->shm_mp: column=%d, total_count=%d, used_count=%d, block_len=%d \n", 
                 mp_handler->shm_mp->column, mp_handler->shm_mp->total_count, 
@@ -166,10 +167,12 @@ shm_mp_handler_t shm_mp_init(unsigned int block_len, unsigned int block_count, c
 
             if(i == 0) {
                 mp_handler->shm_mp->free_header_idx = new_node->node_idx;
+                mp_handler->shm_mp->free_tail_idx = new_node->node_idx;
                 curr_node = new_node;
 
             } else {
                 curr_node->next_node_idx = new_node->node_idx;
+                mp_handler->shm_mp->free_tail_idx = new_node->node_idx;
                 curr_node = new_node; // mp_handler->shm_mp_nodes[curr_node->next_node_idx]
 
             }
@@ -283,9 +286,13 @@ shm_mempool_node * shm_mp_malloc(shm_mp_handler_t mp_handler, unsigned int size)
 
     size = mp_handler->shm_mp->block_len;
 
+    // print all node_idx and next_idx
+
+
     int node_idx = mp_handler->shm_mp->free_header_idx;
     if(node_idx == -1) {
-        ERR("no free shm-mempool node");
+        ERR("no free shm-mempool node with free_header_idx=%d, free_tail_idx=%d", 
+            mp_handler->shm_mp->free_header_idx, mp_handler->shm_mp->free_tail_idx);
         shm_mp_runtime_print(mp_handler);
         ret = sem_post(mp_handler->sem_mutex);
         return NULL;
@@ -294,8 +301,12 @@ shm_mempool_node * shm_mp_malloc(shm_mp_handler_t mp_handler, unsigned int size)
     DEBUG("node->node_idx=%d, node_idx=%d", node->node_idx, node_idx);
     mp_handler->shm_mp->free_header_idx = node->next_node_idx;
     mp_handler->shm_mp->used_count++;
-    node->next_node_idx = mp_handler->shm_mp->used_header_idx;
-    mp_handler->shm_mp->used_header_idx = node->node_idx;
+    
+    //todo:
+    node->next_node_idx = -1;
+
+    // node->next_node_idx = mp_handler->shm_mp->used_header_idx;
+    // mp_handler->shm_mp->used_header_idx = node->node_idx;
 
     ret = sem_post(mp_handler->sem_mutex);
     if (ret == -1) {
@@ -329,13 +340,13 @@ shm_mempool_node * shm_mp_node_by_shmaddr(shm_mp_handler_t mp_handler, char *shm
     shm_mempool_node * mp_node;
 
     uint64_t offset = shmaddr - mp_handler->shm_mem;
-    printf("\n offset=%ld\n", offset);
+    DEBUG("\n offset=%ld\n", offset);
     char offset_str[30] = {0};
     sprintf(offset_str, "%ld", offset);
 
     node_idx = (int *) Get(mp_handler->mp_node_map, offset_str);
     if(node_idx) {
-        printf("[shm_mp_node_by_shmaddr] node_idx=%d \n", *node_idx);
+        DEBUG("[shm_mp_node_by_shmaddr] node_idx=%d \n", *node_idx);
         return &mp_handler->shm_mp_nodes[*node_idx];
     }
 
@@ -381,30 +392,57 @@ int shm_mp_free(shm_mp_handler_t mp_handler, shm_mempool_node * node) {
         return -1;
     }
 
-    int cur_node_idx = mp_handler->shm_mp->used_header_idx;
-    int pre_node_idx = -1;
     DEBUG("free shm mempool nodes start.\n");
-    while (cur_node_idx != -1) {
-        if (node->node_idx != cur_node_idx) {
-            pre_node_idx = cur_node_idx;
-            cur_node_idx = mp_handler->shm_mp_nodes[cur_node_idx].next_node_idx;
-            continue;
-        }
+    //todo:
+    if(mp_handler->shm_mp->free_tail_idx != -1) {
+        DEBUG("start update free_tail_idx=%d (!= -1), free_header_idx=%d", 
+            mp_handler->shm_mp->free_tail_idx, mp_handler->shm_mp->free_header_idx);
 
-        if (pre_node_idx == -1) {
-            mp_handler->shm_mp->used_header_idx = mp_handler->shm_mp_nodes[cur_node_idx].next_node_idx;
-
-        } else {
-            mp_handler->shm_mp_nodes[pre_node_idx].next_node_idx = mp_handler->shm_mp_nodes[cur_node_idx].next_node_idx;
-
-        }
-
+        node->next_node_idx = -1;
+        
+        mp_handler->shm_mp_nodes[mp_handler->shm_mp->free_tail_idx].next_node_idx = node->node_idx;
+        mp_handler->shm_mp->free_tail_idx = node->node_idx;
+        DEBUG("target node->node_idx=%d, free_tail_idx=%d, free_tail_node->next_node_idx=%d", 
+            node->node_idx, mp_handler->shm_mp->free_tail_idx, 
+            mp_handler->shm_mp_nodes[mp_handler->shm_mp->free_tail_idx].next_node_idx);
         mp_handler->shm_mp->used_count--;
-        mp_handler->shm_mp_nodes[cur_node_idx].next_node_idx = mp_handler->shm_mp->free_header_idx;
-        mp_handler->shm_mp->free_header_idx = cur_node_idx;
-        break;
 
+    } else {
+        DEBUG("free_tail_idx == -1, free_header_idx=%d", mp_handler->shm_mp->free_header_idx);
+
+        node->next_node_idx = -1;
+        mp_handler->shm_mp->free_tail_idx = node->node_idx;
+        mp_handler->shm_mp->free_header_idx = node->node_idx;
+        mp_handler->shm_mp->used_count--;
+        
     }
+
+
+    // int cur_node_idx = mp_handler->shm_mp->used_header_idx;
+    // int pre_node_idx = -1;
+    
+    // while (cur_node_idx != -1) {
+    //     if (node->node_idx != cur_node_idx) {
+    //         pre_node_idx = cur_node_idx;
+    //         cur_node_idx = mp_handler->shm_mp_nodes[cur_node_idx].next_node_idx;
+    //         continue;
+    //     }
+
+    //     if (pre_node_idx == -1) {
+    //         mp_handler->shm_mp->used_header_idx = mp_handler->shm_mp_nodes[cur_node_idx].next_node_idx;
+
+    //     } else {
+    //         mp_handler->shm_mp_nodes[pre_node_idx].next_node_idx = mp_handler->shm_mp_nodes[cur_node_idx].next_node_idx;
+
+    //     }
+
+    //     mp_handler->shm_mp->used_count--;
+    //     mp_handler->shm_mp_nodes[cur_node_idx].next_node_idx = mp_handler->shm_mp->free_header_idx;
+    //     DEBUG("free_header_idx=%d, cur_node_idx=%d", mp_handler->shm_mp->free_header_idx, cur_node_idx);
+    //     mp_handler->shm_mp->free_header_idx = cur_node_idx;
+    //     break;
+
+    // }
 
     ret = sem_post(mp_handler->sem_mutex);
     if (ret == -1) {
@@ -509,12 +547,12 @@ int shm_mp_runtime_print(shm_mp_handler_t mp_handler) {
         return SMP_NOT_INIT;
     }
 
-    printf("\n*********************** memory pool runtime report start************************\n");
-        printf("pool no[%d] blocksize[%d] blockTotalCount[%d] usedBlock[%d] used percentage[%d%%]\n",
-               mp_handler->shm_mp->column , mp_handler->shm_mp->block_len , mp_handler->shm_mp->total_count ,
-               mp_handler->shm_mp->used_count , mp_handler->shm_mp->used_count*100/ mp_handler->shm_mp->total_count);
+    // printf("\n*********************** memory pool runtime report start************************\n");
+        // printf("pool no[%d] blocksize[%d] blockTotalCount[%d] usedBlock[%d] used percentage[%d%%]\n",
+            //    mp_handler->shm_mp->column , mp_handler->shm_mp->block_len , mp_handler->shm_mp->total_count ,
+            //    mp_handler->shm_mp->used_count , mp_handler->shm_mp->used_count*100/ mp_handler->shm_mp->total_count);
 
-    printf("*********************** memory pool runtime report end**************************\n");
+    // printf("*********************** memory pool runtime report end**************************\n");
 
     DEBUG("shm_mp_runtime_print success. \n");
 
