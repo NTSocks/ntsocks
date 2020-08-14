@@ -63,7 +63,7 @@ ntm_shmring_handle_t ntm_shmring_init(char *shm_addr, size_t addrlen) {
 	shmring_handle->shm_addr = shm_addr;
 
     // get shared memory for ntm_shmring
-    shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, 0666);
+    shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, 0666);    ///???
     if (shmring_handle->shm_fd == -1) {
         if (errno == ENOENT || errno == EEXIST) {
             shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, 0666);
@@ -80,6 +80,7 @@ ntm_shmring_handle_t ntm_shmring_init(char *shm_addr, size_t addrlen) {
     fchmod(shmring_handle->shm_fd, 0666);
 	DEBUG("shm_open pass");
 
+    ///???
     int ret;
     ret = ftruncate(shmring_handle->shm_fd, sizeof(struct ntm_shmring_buf));
     if (ret == -1) {
@@ -97,17 +98,20 @@ ntm_shmring_handle_t ntm_shmring_init(char *shm_addr, size_t addrlen) {
         error("mmap");
         goto FAIL;
     }
+    ///???
     // init the shared memory
     shmring_handle->shmring->read_index = shmring_handle->shmring->write_index = 0;
 	DEBUG("mmap pass");
 
     // store old, umask for world-writable access of semaphores (mutex_sem, buf_count_sem, spool_signal_sem)
-    mode_t old_umask = umask(0);
+    mode_t old_umask;
+    old_umask = umask(0);
 
     // mutual exclusion semaphore, mutex_sem with an initial value 0.
     shmring_handle->mutex_sem = sem_open(NTM_SEM_MUTEX_NAME, O_CREAT, 0666, 0);
     if (shmring_handle->mutex_sem == SEM_FAILED) {
         error("sem_open: mutex_sem");
+        umask(old_umask);
         goto FAIL;
     }
 	DEBUG("sem_open mutex_sem pass");
@@ -115,8 +119,9 @@ ntm_shmring_handle_t ntm_shmring_init(char *shm_addr, size_t addrlen) {
     // counting semaphore, indicating the number of available buffers in shm ring.
     // init value = NTM_MAX_BUFS
     shmring_handle->buf_count_sem = sem_open(NTM_SEM_BUF_COUNT_NAME, O_CREAT, 0666, NTM_MAX_BUFS);
-    if ((sem_t *)shmring_handle == SEM_FAILED) {
+    if ((sem_t *)shmring_handle->buf_count_sem == SEM_FAILED) {
         error("sem_open: buf_count_sem");
+        umask(old_umask);
         goto FAIL;
     }
 	DEBUG("sem_open buf_count_sem pass");
@@ -125,6 +130,7 @@ ntm_shmring_handle_t ntm_shmring_init(char *shm_addr, size_t addrlen) {
     shmring_handle->spool_signal_sem = sem_open(NTM_SEM_SPOOL_SIGNAL_NAME, O_CREAT, 0666, 0);
     if (shmring_handle->spool_signal_sem == SEM_FAILED) {
         error("sem_open: spool_signal_sem");
+        umask(old_umask);
         goto FAIL;
     }
 	DEBUG("sem_open spool_signal_sem pass");
@@ -132,8 +138,7 @@ ntm_shmring_handle_t ntm_shmring_init(char *shm_addr, size_t addrlen) {
     // restore old mask
     umask(old_umask);
 
-    
-
+    ///???
     // init complete; now set mutex semaphore as 1 to
     // indicate the shared memory segment is available
     ret = sem_post(shmring_handle->mutex_sem);
@@ -144,7 +149,6 @@ ntm_shmring_handle_t ntm_shmring_init(char *shm_addr, size_t addrlen) {
 
     shmring_handle->MASK = NTM_MAX_BUFS - 1;
 	DEBUG("ntm shmring init successfully!");
-
 
     return shmring_handle;
 
@@ -186,7 +190,7 @@ ntm_shmring_handle_t ntm_get_shmring(char *shm_addr, size_t addrlen) {
 
 
     // get shared memory with specified SHM NAME
-    shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR, 0);
+    shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR, 0); ///???
     if (shmring_handle->shm_fd == -1) {
         error("shm_open");
         goto FAIL;
@@ -206,15 +210,15 @@ ntm_shmring_handle_t ntm_get_shmring(char *shm_addr, size_t addrlen) {
     }
 	DEBUG("mmap pass");
 
-
-
     // store old, umask for world-writable access of semaphores (mutex_sem, buf_count_sem, spool_signal_sem)
-    mode_t old_umask = umask(0);
+    mode_t old_umask;
+    old_umask = umask(0);
 
     // mutual exclusion semaphore, mutex_sem
     shmring_handle->mutex_sem = sem_open(NTM_SEM_MUTEX_NAME, O_CREAT, 0666, 0);
     if (shmring_handle->mutex_sem == SEM_FAILED) {
         error("sem_open: mutex_sem");
+        umask(old_umask);
         goto FAIL;
     }
 	DEBUG("sem_open mutex_sem pass");
@@ -223,6 +227,7 @@ ntm_shmring_handle_t ntm_get_shmring(char *shm_addr, size_t addrlen) {
     shmring_handle->buf_count_sem = sem_open(NTM_SEM_BUF_COUNT_NAME, O_CREAT, 0666, NTM_MAX_BUFS);
     if (shmring_handle->buf_count_sem == SEM_FAILED) {
         error("sem_open: buf_count_sem");
+        umask(old_umask);
         goto FAIL;
     }
 	DEBUG("sem_open buf count_sem pass");
@@ -231,13 +236,13 @@ ntm_shmring_handle_t ntm_get_shmring(char *shm_addr, size_t addrlen) {
     shmring_handle->spool_signal_sem = sem_open(NTM_SEM_SPOOL_SIGNAL_NAME, O_CREAT, 0666, 0);
     if (shmring_handle->spool_signal_sem == SEM_FAILED) {
         error("sem_open: spool_signal_sem");
+        umask(old_umask);
         goto FAIL;
     }
 	DEBUG("sem_open spool_signal_sem pass");
 
     // restore old mask
     umask(old_umask);
-
 
     shmring_handle->MASK = NTM_MAX_BUFS - 1;
 	DEBUG("ntm get shmring successfully!");
@@ -271,6 +276,7 @@ ntm_shmring_handle_t ntm_get_shmring(char *shm_addr, size_t addrlen) {
  */
 bool ntm_shmring_push(ntm_shmring_handle_t self, ntm_msg *element) {
     assert(self);
+    assert(element);
     int rc;
 
     // get a buffer: P (buf_count_sem)
@@ -317,13 +323,15 @@ bool ntm_shmring_push(ntm_shmring_handle_t self, ntm_msg *element) {
     return true;
 
     FAIL:
-
     return false;
-
 }
 
 bool ntm_shmring_pop(ntm_shmring_handle_t self, ntm_msg *element) {
     assert(self);
+    if(!element) {
+        DEBUG("element not existing.");
+    }
+
     int rc;
 
     // Is there a shm element to read ? P(spool_signal_sem)
@@ -333,9 +341,7 @@ bool ntm_shmring_pop(ntm_shmring_handle_t self, ntm_msg *element) {
         goto FAIL;
     }
 
-    if(!element) {
-        DEBUG("element not existing.");
-    }
+    
     DEBUG("ntm_write_index=%ld, ntm_read_index=%ld", self->shmring->write_index, self->shmring->read_index);
 	ntm_msgcopy(&(self->shmring->buf[self->shmring->read_index]), element);
 
@@ -359,9 +365,7 @@ bool ntm_shmring_pop(ntm_shmring_handle_t self, ntm_msg *element) {
         error("sem_post: buf_count_sem");
         goto FAIL;
     }
-
 	DEBUG("pop ntm shmring successfully!");
-
     return true;
 
     FAIL:

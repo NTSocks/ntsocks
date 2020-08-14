@@ -19,6 +19,7 @@ extern "C" {
 
 // #define NTS_CONFIG_FILE "/etc/nts.cfg"
 #define NTS_CONFIG_FILE "./nts.cfg"
+#define NTS_MAX_CONCURRENCY 65536
 
 // check whether the connect ip addr is vaild or not, if vaild return 0 else return -1
 int ip_is_vaild(char * addr);

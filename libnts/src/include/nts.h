@@ -22,6 +22,7 @@
 #include "hash_map.h"
 #include "nt_backlog.h"
 #include "ntp2nts_shm.h"
+#include "epoll_shm.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -136,10 +137,46 @@ typedef struct nts_ntp_context* nts_ntp_context_t;
 
 /*----------------------------------------------------------------------------*/
 /**
+ * Definitions for the epoll manager context.
+ */
+typedef struct nt_epoll_context {
+	nt_socket_t socket;
+
+	/**
+	 * The nts epoll shm channel between epoll and ntm
+	 * 
+	 * 1. init or create first when invoking `epoll_create()`
+	 * 
+	 */
+	char epoll_shmaddr[EPOLL_SHM_NAME_LEN];
+	int epoll_shmlen;
+	int epoll_msg_id;
+	epoll_shm_context_t epoll_shm_ctx;
+
+	// for SHM-based ready I/O queue,
+	// ntm generates the `io_queue_shmaddr` and return to libnts
+	char io_queue_shmaddr[EPOLL_SHM_NAME_LEN];
+	int io_queue_shmlen;
+	int io_queue_size;
+
+
+	// cache all focused socket: listen socket or client socket
+	/**
+	 * key: nt_socket_id
+	 * value: nt_socket_t
+	 */
+	HashMap epoll_sockets;
+
+} nt_epoll_context;
+
+typedef struct nt_epoll_context* nt_epoll_context_t;
+
+
+/*----------------------------------------------------------------------------*/
+/**
  * Definitions of ntm_manager to manage the context of libnts
  */
 struct nts_context {
-	
 	nts_ntm_context_t ntm_ctx;
 
 	nts_ntp_context_t ntp_ctx;
@@ -152,12 +189,25 @@ struct nts_context {
 	 */
 	HashMap nt_sock_map;
 
+	/** 
+	 * hold the process-level global nt_epoll_context_t list
+	 * 
+	 * key: epoll nt_socket_id
+	 * value: nt_epoll_context_t
+	 */
+	HashMap nt_epoll_map;
+
 	/**
 	 * nts init flag:
 	 * 1 when nts init, else 0
 	 */
-	int init_flag;
+	uint8_t init_flag;
 
+	/**
+	 * nts exit flag:
+	 * w when nts exit, else 0
+	 */
+	uint8_t exit;
 
 } nts_context;
 
@@ -187,6 +237,16 @@ void nts_context_destroy();
  * else return -1, failed
  */
 int generate_nts_shmname(char * nts_shmaddr);
+
+/**
+ * @brief  generate unique epoll shm name for the msg ringbuffer 
+ * 			between libnts and ntm.
+ * @note   
+ * @param  epoll_shmaddr: 
+ * @retval if 0, success; else if -1, failed.
+ */
+int generate_epoll_shmname(char * epoll_shmaddr);
+
 
 int nt_sock_errno(int sockid);
 

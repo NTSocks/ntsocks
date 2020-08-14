@@ -22,7 +22,7 @@ ntm_ntp_shm_context_t ntm_ntp_shm() {
 	ntm_ntp_shm_context_t shm_ctx;
 
 	shm_ctx = (ntm_ntp_shm_context_t) malloc(sizeof(struct ntm_ntp_shm_context));
-	shm_ctx->shm_stat = SHM_UNREADY;
+	shm_ctx->shm_stat = SHM_STAT_UNREADY;
 	if (shm_ctx) {
 		DEBUG("[ntm_ntp_shm] create shm_ctx pass");
 	}
@@ -39,7 +39,7 @@ int ntm_ntp_shm_accept(ntm_ntp_shm_context_t shm_ctx, char *shm_addr, size_t add
 	shm_ctx->addrlen = addrlen;
 	memcpy(shm_ctx->shm_addr, shm_addr, addrlen);
 	shm_ctx->ntm_ntpring_handle = ntm_ntp_shmring_init(shm_ctx->shm_addr, shm_ctx->addrlen);
-	shm_ctx->shm_stat = SHM_READY;
+	shm_ctx->shm_stat = SHM_STAT_READY;
 
 	DEBUG("ntm_ntp_shm_accept pass");
 	return 0;
@@ -55,7 +55,7 @@ int ntm_ntp_shm_connect(ntm_ntp_shm_context_t shm_ctx, char *shm_addr, size_t ad
 	shm_ctx->addrlen = addrlen;
 	memcpy(shm_ctx->shm_addr, shm_addr, addrlen);
 	shm_ctx->ntm_ntpring_handle = ntm_ntp_get_shmring(shm_ctx->shm_addr, shm_ctx->addrlen); /// note: need to improve
-	shm_ctx->shm_stat = SHM_READY;
+	shm_ctx->shm_stat = SHM_STAT_READY;
 
 	DEBUG("ntm_ntp_shm_connect pass");
 	return 0;
@@ -88,7 +88,7 @@ int ntm_ntp_shm_close(ntm_ntp_shm_context_t shm_ctx) {
 	assert(shm_ctx);
 
 	ntm_ntp_shmring_free(shm_ctx->ntm_ntpring_handle, 1);
-	shm_ctx->shm_stat = SHM_UNLINK;
+	shm_ctx->shm_stat = SHM_STAT_UNLINK;
 
 	DEBUG("ntm_ntp_shm_close pass");
 	return 0;
@@ -102,7 +102,7 @@ int ntm_ntp_shm_ntm_close(ntm_ntp_shm_context_t shm_ctx) {
 		DEBUG("start ntm_ntp_shmring_free");
 		ntm_ntp_shmring_free(shm_ctx->ntm_ntpring_handle, 0);
 		DEBUG("end ntm_ntp_shmring_free");
-		shm_ctx->shm_stat = SHM_CLOSE;
+		shm_ctx->shm_stat = SHM_STAT_CLOSE;
 		DEBUG("start free ntm_ntpring_handle");
 	}
 

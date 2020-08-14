@@ -22,7 +22,6 @@
 DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
 
 
-
 static inline int handle_ntp_fin_msg(nt_sock_context_t nt_sock_ctx, int sockid);
 
 
@@ -184,7 +183,7 @@ int nts_socket(int domain, int type, int protocol) {
 
 	/**
 	 * 1. generate nts_shm-uuid shm name
-	 * 2. init/create nts_socket-coresponding nts_shm_ring 
+	 * 2. init/create nts_socket-corresponding nts_shm_ring 
 	 * 	  to receive response message from ntb monitor
 	 * 3. pack the `NTM_MSG_NEW_SOCK` ntm_msg and `ntm_shm_send()` the message into ntm
 	 * 4. poll or wait for the response message from ntm

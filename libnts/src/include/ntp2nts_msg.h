@@ -25,7 +25,7 @@ extern "C" {
  */
 
 #define PAYLOAD_SIZE            1024
-#define NTP_PAYLOAD_MAX_SIZE    253
+#define NTP_PAYLOAD_MAX_SIZE    252
 
 
 /*----------------------------------------------------------------------------*/
@@ -45,9 +45,10 @@ typedef struct {
     char msg[NTP_PAYLOAD_MAX_SIZE]; // 252 bytes
 } ntp_msg;
 
-
 void ntp_msgcopy(ntp_msg *src_msg, ntp_msg *target_msg);
 
+#define NTP_MSG_IDX_SIZE sizeof(int)
+#define DEFAULT_MAX_NUM_NTP_MSG 1024
 
 #ifdef __cplusplus
 };

@@ -82,7 +82,7 @@ typedef struct {
  * sender: nts app
  * receiver: ntb-monitor
  */
-#define SHM_NAME_LEN 50
+#define SHM_NAME_LEN 64
 
 typedef enum {
     NT_SHUT_RD = 1,  // close socket read operation
@@ -103,7 +103,10 @@ typedef enum {
     NTM_MSG_FIN = 1 << 9,               // for passively close/FIN
     NTM_MSG_SHUTDOWN = 1 << 10,
     NTM_MSG_ERR = 1 << 11,
-    NTM_MSG_DISCONNECT = 1 << 12
+    NTM_MSG_DISCONNECT = 1 << 12,
+    NTM_MSG_EPOLL_CREATE = 1 << 13,
+    NTM_MSG_EPOLL_CTL = 1 << 14,
+    NTM_MSG_EPOLL_CLOSE = 1 << 15
 } ntm_msg_type;
 
 
@@ -116,10 +119,15 @@ typedef struct {
     int req_client_sockaddr;
     int domain;
     int sock_type;
+    int io_queue_size;  // for epoll ready I/O queue size
     int protocol;
     int nts_shm_addrlen;
     int addrlen;
     int port;
+    int epid;   // for epoll socket id, NTM_MSG_EPOLL_CTL
+    int epoll_op;   // NTS_EPOLL_CTL_ADD, NTS_EPOLL_CTL_MOD, NTS_EPOLL_CTL_DEL
+    uint32_t events;    // NTM_MSG_EPOLL_CTL
+    uint64_t ep_data;   // NTM_MSG_EPOLL_CTL
     char address[16];
     char nts_shm_name[SHM_NAME_LEN];
 
@@ -131,9 +139,6 @@ typedef struct {
     // int domain;
     // int sock_type;
     // int protocol;
-
-  
-    
 
     /**
      * For NTM_MSG_BIND
@@ -195,6 +200,26 @@ typedef struct {
      */
     // socket id
     // shutdown_type howto; 
+
+    /**
+     * For NTM_MSG_EPOLL_CREATE
+     */
+    // socket id
+    // sock_type
+    // io_queue_size
+    // nts_shm_addrlen
+    // nts_shm_name
+
+    /**
+     * For NTM_MSG_EPOLL_CTL
+     */
+    // socket id
+    // sock_type for client or listen socket
+    // epid for epoll socket id
+    // events
+    // ep_data
+    // epoll_op
+
 
     /**
      * For NTM_MSG_ERR

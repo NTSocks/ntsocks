@@ -11,12 +11,14 @@
 
 #include "nts.h"
 #include "nts_config.h"
+
 #include "nt_log.h"
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 #define MAX_BUF_LEN 1024
 #define MAX_KEY_LEN 64
 #define MAX_VAL_LEN 256
-DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
+
 
 
 struct nts_config NTS_CONFIG = {

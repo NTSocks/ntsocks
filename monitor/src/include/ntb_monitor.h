@@ -22,6 +22,11 @@
 #include "ntm_ntp_shm.h"
 #include "ntp_ntm_shm.h"
 
+#include "epoll_msg.h"
+#include "epoll_shm.h"
+#include "epoll_sem_shm.h"
+#include "epoll_event_queue.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -39,21 +44,77 @@ struct ntm_config {
 	int remote_ntm_tcp_timewait;
 	int remote_ntm_tcp_timeout;
 
-	// char *listen_ip;
-	char listen_ip[20];
-	int listen_port;
-	int ipaddr_len;
-
 	int max_concurrency;	// the maximum number of ntb socket id
 	int max_port;			// the maximum number of ntb port
 	int nt_max_conn_num;    // max number of ntb-based socket connections
 	int nt_max_port_num;	// max number of ntb-based port
 
+	// char *listen_ip;
+	int listen_port;
+	int ipaddr_len;
+	char listen_ip[32];
 };
 
 typedef struct ntm_conn * ntm_conn_t;
 typedef struct nt_listener_wrapper * nt_listener_wrapper_t;
 
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief concept definition for epoll
+ * @note   
+ */
+typedef struct epoll_context {
+	nt_socket_t socket;
+
+	/**
+	 * The nts epoll shm channel between epoll and ntm
+	 * 
+	 * 1. init or create first when invoking `epoll_create()`
+	 * 
+	 */
+	char epoll_shmaddr[EPOLL_SHM_NAME_LEN];
+	int epoll_shmlen;
+	epoll_shm_context_t epoll_shm_ctx;
+	
+	// for SHM-based ready I/O queue,
+	// ntm generates the `io_queue_shmaddr` and return to libnts
+	char io_queue_shmaddr[EPOLL_SHM_NAME_LEN];
+	int io_queue_shmlen;
+	int io_queue_size; 
+	nts_event_queue_t ep_io_queue;
+	epoll_event_queue_t ep_io_queue_ctx;
+
+	// cache all focused socket: listen socket 
+	/**
+	 * key: nt_socket_id
+	 * value: listener nt_socket_t
+	 */
+	HashMap ep_socket_map;
+
+} epoll_context;
+
+typedef struct epoll_context * epoll_context_t;
+
+typedef struct epoll_manager {
+	/**
+	 * Maintain the mapping between epoll-fd and epoll_context
+	 * 
+	 * key: & epoll_id (epoll socket id)
+	 * value: epoll_context_t 
+	 */
+	HashMap epoll_ctx_map;
+
+	/**
+	 * Define the shm-based communication channel for epoll control command sync.
+	 * 
+	 * Connect/Init the 'ntp_ep_send_queue' and 'ntp_ep_recv_queue' epoll ring queue.
+	 * 
+	 */
+	epoll_sem_shm_ctx_t ntp_ep_send_ctx;
+	epoll_sem_shm_ctx_t ntp_ep_recv_ctx;
+
+} epoll_manager;
+typedef struct epoll_manager * epoll_manager_t;
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -90,9 +151,13 @@ struct nts_shm_conn {
 	nt_listener_wrapper_t listener;
 
 	ntm_conn_t ntm_conn;
+
+	// for epoll
+	epoll_context_t epoll_ctx;
 };
 
 typedef struct nts_shm_conn * nts_shm_conn_t;
+
 
 struct ntm_nts_context {
 	/**
@@ -120,7 +185,6 @@ struct ntm_nts_context {
 	nts_shm_context_t shm_send_ctx;
 	pthread_t shm_send_thr;
 	int shm_send_signal;
-
 };
 
 typedef struct ntm_nts_context* ntm_nts_context_t;
@@ -145,8 +209,6 @@ struct ntm_ntp_context {
 };
 
 typedef struct ntm_ntp_context* ntm_ntp_context_t;
-
-
 
 
 /*----------------------------------------------------------------------------*/
@@ -180,7 +242,6 @@ struct ntm_conn_context {
 	int addrlen;
 	int listen_port;
 	char *listen_ip;
-
 };
 
 typedef struct ntm_conn_context *ntm_conn_ctx_t;
@@ -274,6 +335,11 @@ struct ntm_manager {
 	 * value: nt_socket_t
 	 */
 	HashMap port_sock_map;
+
+	/**
+	 * For epoll
+	 */
+	epoll_manager_t epoll_mgr;
 
 };
 

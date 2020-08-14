@@ -17,7 +17,7 @@
 #include <rte_io.h>
 #include <rte_eal.h>
 #include <rte_pci.h>
-#include <rte_bus_pci.h>
+// #include <rte_bus_pci.h>
 #include <rte_rawdev.h>
 #include <rte_rawdev_pmd.h>
 #include <rte_memcpy.h>
@@ -35,7 +35,7 @@
 #include <rte_memory.h>
 #include <rte_lcore.h>
 #include <rte_bus.h>
-#include <rte_bus_vdev.h>
+// #include <rte_bus_vdev.h>
 #include <rte_memzone.h>
 #include <rte_mempool.h>
 #include <rte_rwlock.h>
@@ -51,8 +51,8 @@
 #include "ntp2nts_shm.h"
 #include "ntm_ntp_shm.h"
 #include "ntp_ntm_shm.h"
-#include "nt_log.h"
 
+#include "nt_log.h"
 DEBUG_SET_LEVEL(DEBUG_LEVEL_INFO);
 
 #define XEON_LINK_STATUS_OFFSET 0x01a2
@@ -143,7 +143,7 @@ ntm_ntp_receive_thread(__attribute__((unused)) void *arg)
 
 	while (1)
 	{
-		if (ntm_ntp_shm_recv(recv_shm, &recv_msg) == -1)
+		if (UNLIKELY(ntm_ntp_shm_recv(recv_shm, &recv_msg) == -1))
 		{
 			continue;
 		}
@@ -158,6 +158,33 @@ ntm_ntp_receive_thread(__attribute__((unused)) void *arg)
 	}
 	return 0;
 }
+
+static int 
+ntp_epoll_listen_thread(__attribute__((unused)) void *arg) {
+	epoll_sem_shm_ctx_t ep_recv_ctx = ntb_link->ntp_ep_recv_ctx;
+	epoll_sem_shm_ctx_t ep_send_ctx = ntb_link->ntp_ep_send_ctx;
+
+	epoll_msg req_msg;
+	int rc;
+
+	while(1) {
+		rc = epoll_sem_shm_recv(ep_recv_ctx, &req_msg);
+		if (UNLIKELY(rc == -1)) {
+			break;
+
+		} else {
+			DEBUG("receive one epoll_msg from ntm");
+			rc = ntp_handle_epoll_msg(ntb_link, &req_msg);
+			if (rc != 0) break;
+		}
+
+	}
+
+	INFO("ntp_epoll_listen_thread exit!");
+
+	return 0;
+}
+
 
 int main(int argc, char **argv)
 {
@@ -218,7 +245,15 @@ int main(int argc, char **argv)
 		{
 			rte_eal_remote_launch(ntm_ntp_receive_thread, NULL, lcore_id);
 		}
+		if (lcore_id == 12) 
+		{
+			rte_eal_remote_launch(ntp_epoll_listen_thread, NULL, lcore_id);
+		}
 	}
 	rte_eal_mp_wait_lcore();
 	return 0;
 }
+
+//TODO: 
+// 1. add ntb_link destroy method
+

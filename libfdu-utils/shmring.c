@@ -14,28 +14,30 @@
 
 #include "shmring.h"
 #include "nt_atomic.h"
+#include "utils.h"
 #include "nt_log.h"
-
 DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
 
+#define SHM_MAX_ADDRLEN 64
+
 typedef struct shmring_buf {
-//    char buf[NTS_MAX_BUFS + 1][NTS_BUF_SIZE];
-	// nts_msg buf[NTS_MAX_BUFS + 1];
-    char buf[MAX_BUFS + 1][BUF_SIZE];
-    uint64_t write_index;
-    uint64_t read_index;
-    
+    uint64_t write_idx;
+    uint64_t read_idx;
+    uint8_t * data_area;    // for store data
 } shmring_buf;
+typedef shmring_buf *ring_queue_t;
 
 typedef struct _shmring {
-    int shm_fd;
-    unsigned long MASK;
-    int addrlen;
-    char *shm_addr;
-    //read_index of opposite recv buffer
-    uint64_t peer_read_index;
-    struct shmring_buf *shmring;
-    uint64_t max_size;
+    uint64_t shm_fd;
+    uint64_t addrlen;
+    uint64_t ele_size;      // the size of each element which is specified during initing
+    uint64_t capacity;       // the number of total circular buffer
+    uint64_t queue_size;    // = sizeof(struct shmring_buf) + ele_size * capacity
+    uint64_t peer_read_idx;   //read_idx of opposite recv buffer
+    char shm_addr[SHM_MAX_ADDRLEN];
+    ring_queue_t queue;
+    char **data;            // organize the memory addr of each queue element, 
+                            // like data[i] = queue->data_area + i * ele_size
 } _shmring;
 
 
@@ -51,174 +53,154 @@ static inline uint64_t mask_increment(uint64_t current_idx, uint64_t mask) {
 
 static inline uint64_t next_index(uint64_t current_idx, uint64_t max_size) {
     uint64_t ret = current_idx + 1;
-    while (NTS_UNLIKELY(ret >= max_size))
+    while (UNLIKELY(ret >= max_size))
         ret -= max_size;
 
     return ret;
 }
 
-static inline bool empty(uint64_t write_index, uint64_t read_index) {
-    return write_index == read_index;
+static inline bool empty(uint64_t write_idx, uint64_t read_idx) {
+    return write_idx == read_idx;
 }
 
 
-shmring_handle_t shmring_init(char *shm_addr, size_t addrlen) {
+shmring_handle_t _shmring_init(char *shm_addr, size_t addrlen, size_t ele_size, size_t ele_num, bool is_owner) {
     assert(shm_addr);
-	assert(addrlen > 0);
+    assert(addrlen > 0);
+    assert(ele_size > 0);
+    ele_num = (ele_num > 0) ? ele_num : DEFAULT_MAX_BUFS;
 
-    shmring_handle_t shmring_handle;
+    shmring_handle_t handle;
+    handle = (shmring_handle_t) calloc(1, sizeof(shmring_t));
+    if (!handle) {
+        ERR("malloc shmring_handle_t failed");
+        return NULL;
+    }
+    handle->addrlen = addrlen;
+    memcpy(handle->shm_addr, shm_addr, addrlen);
+    handle->ele_size = ele_size;
+    handle->capacity = ele_num;
+    handle->queue_size = sizeof(struct shmring_buf) + ele_size * ele_num;
+    handle->data = (char **) calloc(handle->capacity, sizeof(char *));
+    if (!handle->data) {
+        ERR("malloc handle->data (char **) failed");
+        free(handle);
+        return NULL;
+    }
 
-    shmring_handle = (shmring_handle_t) malloc(sizeof(shmring_t));
-    DEBUG("init shmring");
-    shmring_handle->addrlen = addrlen;
-    shmring_handle->shm_addr = shm_addr;
-
-    // get shared memory for shmring
-    shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, 0666);
-    if (shmring_handle->shm_fd == -1) {
-        if (errno == ENOENT || errno == EEXIST) {
-            shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR | O_CREAT, 0666);
-            if (shmring_handle->shm_fd == -1) {
+    int shm_mask = (is_owner ? O_RDWR | O_CREAT : O_RDWR);
+    mode_t shm_mode = is_owner ? 0666 : 0;
+    handle->shm_fd = shm_open(handle->shm_addr, shm_mask, shm_mode);
+    if (handle->shm_fd == -1) {
+        if (is_owner && (errno == ENOENT || errno == EEXIST)) {
+            handle->shm_fd = shm_open(handle->shm_addr, shm_mask, shm_mode);
+            if (handle->shm_fd == -1) {
                 perror("shm_open");
+                ERR("shm_open '%s' failed!", handle->shm_addr);
                 goto FAIL;
             }
         } else {
             perror("shm_open");
+            ERR("shm_open '%s' failed!", handle->shm_addr);
             goto FAIL;
         }
     }
+
     // set the permission of shm fd for write/read in non-root users 
-    fchmod(shmring_handle->shm_fd, 0666);
+    fchmod(handle->shm_fd, 0666);
     DEBUG("shm_open pass");
 
     int ret;
-    ret = ftruncate(shmring_handle->shm_fd, sizeof(struct shmring_buf));
-    if (ret == -1) {
-        perror("ftruncate");
-        goto FAIL;
+    if (is_owner) {
+        ret = ftruncate(handle->shm_fd, handle->queue_size);
+        if (ret == -1) {
+            perror("ftruncate");
+            goto FAIL;
+        }
+        DEBUG("ftruncate pass");
     }
-    DEBUG("ftruncate pass");
 
     // mmap the allocated shared memory to shmring
-    shmring_handle->shmring = (struct shmring_buf *)
-            mmap(NULL, sizeof(struct shmring_buf),
+    handle->queue = (ring_queue_t)
+            mmap(NULL, handle->queue_size,
                  PROT_READ | PROT_WRITE, MAP_SHARED,
-                 shmring_handle->shm_fd, 0);
-    if (shmring_handle->shmring == MAP_FAILED) {
-        perror("mmap");
+                 handle->shm_fd, 0);
+    if (handle->queue == MAP_FAILED) {
+        perror("mmap sem_shmring");
+        ERR("mmap sem_shmring failed");
         goto FAIL;
     }
-    // init the shared memory
-    shmring_handle->shmring->read_index = shmring_handle->shmring->write_index = 0;
-    shmring_handle->peer_read_index = 0;
-    DEBUG("mmap pass");
-
-    shmring_handle->MASK = MAX_BUFS - 1;
-    shmring_handle->max_size = MAX_BUFS;
-    DEBUG("nts shmring init successfully!");
-
-
-    return shmring_handle;
-
-    FAIL:
-    if (shmring_handle->shm_fd != -1) {
-        close(shmring_handle->shm_fd);
-        shm_unlink(shmring_handle->shm_addr);
+    if (is_owner) {
+        handle->queue->write_idx = handle->queue->read_idx = 0;
     }
+    handle->peer_read_idx = 0;
+    handle->queue->data_area = (uint8_t *) ((uint8_t *)handle->queue + sizeof(struct shmring_buf));
+    for(int i = 0; i < handle->capacity; i++) {
+        handle->data[i] = (char *) (handle->queue->data_area + i * handle->ele_size);
+    }
+    return handle;
 
-    free(shmring_handle);
-
+FAIL: 
+    if (handle->queue) {
+        munmap((void*) handle->queue, handle->queue_size);
+    }
+    if (handle->shm_fd) {
+      close(handle->shm_fd);
+        if (is_owner) { 
+            shm_unlink(handle->shm_addr);
+        }
+    }
+    if (handle->data) {
+        free((void *)handle->data);
+    }
+    free(handle);
     return NULL;
 }
 
-shmring_handle_t get_shmring(char *shm_addr, size_t addrlen) {
-    assert(shm_addr);
-	assert(addrlen > 0);
+shmring_handle_t shmring_create(char *shm_addr, size_t addrlen, size_t ele_size, size_t ele_num) { 
 
-    shmring_handle_t shmring_handle;
-    DEBUG("nts get shmring start");
-
-    shmring_handle = (shmring_handle_t) malloc(sizeof(shmring_t));
-    memset(shmring_handle, 0, sizeof(shmring_t));
-    shmring_handle->addrlen = addrlen;
-    shmring_handle->shm_addr = shm_addr;
-    DEBUG("ntp shm_addr='%s', addrlen=%d", shm_addr, (int)addrlen);
-
-    // get shared memory with specified SHM NAME
-    shmring_handle->shm_fd = shm_open(shmring_handle->shm_addr, O_RDWR, 0);
-    if (shmring_handle->shm_fd == -1) {
-        perror("shm_open");
-        goto FAIL;
-    }
-    // set the permission of shm fd for write/read in non-root users 
-    fchmod(shmring_handle->shm_fd, 0666);
-    DEBUG("shm_open pass with fd - %d", shmring_handle->shm_fd);
-
-    // mmap the allocated shared memory to shmring
-    shmring_handle->shmring = (struct shmring_buf *)
-            mmap(NULL, sizeof(struct shmring_buf),
-                 PROT_READ | PROT_WRITE, MAP_SHARED,
-                 shmring_handle->shm_fd, 0);
-    if (shmring_handle->shmring == MAP_FAILED) {
-        perror("mmap");
-        goto FAIL;
-    }
-    DEBUG("mmap pass");
-    
-    shmring_handle->MASK = MAX_BUFS - 1;
-    shmring_handle->max_size = MAX_BUFS;
-    shmring_handle->peer_read_index = 0;
-    DEBUG("nts get shmring successfully!");
-
-    return shmring_handle;
-
-    FAIL:
-    if (shmring_handle->shm_fd != -1) {
-        close(shmring_handle->shm_fd);
-    }
-
-    free(shmring_handle);
-
-    return NULL;
+    return _shmring_init(shm_addr, addrlen, ele_size, ele_num, true);
 }
+
+
+shmring_handle_t shmring_init(char *shm_addr, size_t addrlen, size_t ele_size, size_t ele_num) { 
+
+    return _shmring_init(shm_addr, addrlen, ele_size, ele_num, false);
+}
+
 
 bool shmring_push(shmring_handle_t self, char *element, size_t ele_len) {
     assert(self);
     assert(element);
-    // DEBUG("ntp_shmring_push start with shmaddr='%s'.", self->shm_addr);
 
-    ele_len = ele_len > BUF_SIZE ? BUF_SIZE : ele_len;
+    ele_len = UNLIKELY(ele_len > self->ele_size) ? self->ele_size : ele_len;
 
     /* Critical Section */
-    const uint64_t r_idx = nt_atomic_load64_explicit(
-            &self->shmring->read_index, ATOMIC_MEMORY_ORDER_CONSUME);
 //    const uint64_t w_idx = nt_atomic_load64_explicit(
-//            &self->shmring->write_index, ATOMIC_MEMORY_ORDER_CONSUME);
+//            &self->queue->write_idx, ATOMIC_MEMORY_ORDER_CONSUME);
 
     const uint64_t w_idx = nt_atomic_load64_explicit(
-            &self->shmring->write_index, ATOMIC_MEMORY_ORDER_RELAXED);
+            &self->queue->write_idx, ATOMIC_MEMORY_ORDER_RELAXED);
 
     /// Assuming we write, where will move next ?
-    const uint64_t w_next_idx = mask_increment(w_idx, self->MASK);
+    const uint64_t w_next_idx = next_index(w_idx, self->capacity);
 
     /// The two pointers colliding means we would have exceeded the
     /// ring buffer size and create an ambiguous state with being empty.
-    if (w_next_idx == nt_atomic_load64_explicit(
-            &self->shmring->read_index, ATOMIC_MEMORY_ORDER_ACQUIRE)){
-        DEBUG("shmring is full, write_idx=%d, read_idx=%d", (int)w_idx, (int)r_idx);
+    if (UNLIKELY(w_next_idx == nt_atomic_load64_explicit(
+            &self->queue->read_idx, ATOMIC_MEMORY_ORDER_ACQUIRE))){
+        INFO("shmring is full");
         return false;
     }
 
-    DEBUG("ntp_msgcopy start with write_idx=%d, read_idx=%d", (int)w_idx, (int)r_idx);
-    memset(self->shmring->buf[w_idx], 0, BUF_SIZE);
-    memcpy(self->shmring->buf[w_idx], element, ele_len);
-    DEBUG("[after push]value=%d", *(int *)self->shmring->buf[w_idx]);
+    memset(self->data[w_idx], 0, self->ele_size);
+    memcpy(self->data[w_idx], element, ele_len);
+    DEBUG("[after push] value=%s", self->data[w_idx]);
 
-    nt_atomic_store64_explicit(&self->shmring->write_index,
+    nt_atomic_store64_explicit(&self->queue->write_idx,
                                w_next_idx, ATOMIC_MEMORY_ORDER_RELEASE);
 
     DEBUG("push nts shmring successfully!");
-
     return true;
 }
 
@@ -227,10 +209,10 @@ bool shmring_pop(shmring_handle_t self, char *element, size_t ele_len) {
     assert(element);
     DEBUG("ntp_shmring_pop start with shmaddr='%s'.", self->shm_addr);
 
-    ele_len = ele_len > BUF_SIZE ? BUF_SIZE : ele_len;
+    ele_len = UNLIKELY(ele_len > self->ele_size) ? self->ele_size : ele_len;
 
-    uint64_t w_idx = nt_atomic_load64_explicit(&self->shmring->write_index, ATOMIC_MEMORY_ORDER_ACQUIRE);
-    uint64_t r_idx = nt_atomic_load64_explicit(&self->shmring->read_index, ATOMIC_MEMORY_ORDER_RELAXED);
+    uint64_t w_idx = nt_atomic_load64_explicit(&self->queue->write_idx, ATOMIC_MEMORY_ORDER_ACQUIRE);
+    uint64_t r_idx = nt_atomic_load64_explicit(&self->queue->read_idx, ATOMIC_MEMORY_ORDER_RELAXED);
 
     /// Queue is empty (or was empty when we checked)
     if (empty(w_idx, r_idx))
@@ -238,39 +220,35 @@ bool shmring_pop(shmring_handle_t self, char *element, size_t ele_len) {
 
     DEBUG("ntp_msgcopy start with write_idx=%d, read_idx=%d", (int)w_idx, (int)r_idx);
     memset(element, 0, ele_len);
-    memcpy(element, self->shmring->buf[self->shmring->read_index], ele_len);
-    DEBUG("[pop]value=%d", *(int *)self->shmring->buf[self->shmring->read_index]);
+    memcpy(element, self->data[self->queue->read_idx], ele_len);
+    DEBUG("[pop]value=%s", self->data[self->queue->read_idx]);
 
-    nt_atomic_store64_explicit(&self->shmring->read_index,
-                               mask_increment(r_idx, self->MASK), ATOMIC_MEMORY_ORDER_RELEASE);
+    nt_atomic_store64_explicit(&self->queue->read_idx,
+                               next_index(r_idx, self->capacity), ATOMIC_MEMORY_ORDER_RELEASE);
 
     DEBUG("pop shmring successfully!");
-
     return true;
-
 }
 
 bool shmring_front(shmring_handle_t self, char *element, size_t ele_len) {
     assert(self);
     assert(element);
 
-    ele_len = ele_len > BUF_SIZE ? BUF_SIZE : ele_len;
+    ele_len = UNLIKELY(ele_len > self->ele_size) ? self->ele_size : ele_len;
 
-    uint64_t w_idx = nt_atomic_load64_explicit(&self->shmring->write_index, ATOMIC_MEMORY_ORDER_ACQUIRE);
-    uint64_t r_idx = nt_atomic_load64_explicit(&self->shmring->read_index, ATOMIC_MEMORY_ORDER_RELAXED);
+    uint64_t w_idx = nt_atomic_load64_explicit(&self->queue->write_idx, ATOMIC_MEMORY_ORDER_ACQUIRE);
+    uint64_t r_idx = nt_atomic_load64_explicit(&self->queue->read_idx, ATOMIC_MEMORY_ORDER_RELAXED);
     
     DEBUG("shmring_front write_idx=%d, read_idx=%d", (int)w_idx, (int)r_idx);
    /// Queue is empty (or was empty when we checked)
    if (empty(w_idx, r_idx)){
-    //    INFO("shmring is empty!!!");
        return false;
    }
        
-
     DEBUG("ntp_msgcopy start with write_idx=%d, read_idx=%d", (int)w_idx, (int)r_idx);
     memset(element, 0, ele_len);
-    memcpy(element, self->shmring->buf[self->shmring->read_index], ele_len);
-    DEBUG("[front]value=%d", *(int *)self->shmring->buf[self->shmring->read_index]);
+    memcpy(element, self->data[self->queue->read_idx], ele_len);
+    DEBUG("[front]value=%s", self->data[self->queue->read_idx]);
 
 
     DEBUG("front shmring successfully!");
@@ -278,40 +256,44 @@ bool shmring_front(shmring_handle_t self, char *element, size_t ele_len) {
     return true;
 }
 
-void shmring_free(shmring_handle_t self, int unlink) {
-    assert(self);
+void shmring_free(shmring_handle_t handle, bool is_unlink) {
+    assert(handle);
     DEBUG("nts shmring free start");
 
-    munmap(self->shmring, sizeof(struct shmring_buf));
-    close(self->shm_fd);
-    DEBUG("munmap close pass");
-
-    if (unlink) {
-        shm_unlink(self->shm_addr);
+    if (handle->queue) {
+        munmap((void *)handle->queue, handle->queue_size);
     }
-
-    free(self);
+    if (handle->shm_fd) {
+        close(handle->shm_fd);
+        if (is_unlink) { 
+            shm_unlink(handle->shm_addr);
+        }
+    }
+    if (handle->data) {
+        free((void *)handle->data);
+    }
+    free(handle);
     DEBUG("free shmring successfully!");
 }
 
 
-uint64_t ntp_get_read_index(shmring_handle_t self)
+uint64_t ntp_get_read_idx(shmring_handle_t self)
 {
     const uint64_t r_idx = nt_atomic_load64_explicit(
-        &self->shmring->read_index, ATOMIC_MEMORY_ORDER_RELAXED);
+        &self->queue->read_idx, ATOMIC_MEMORY_ORDER_RELAXED);
     return r_idx;
 }
 
-uint64_t ntp_get_peer_read_index(shmring_handle_t self)
+uint64_t ntp_get_peer_read_idx(shmring_handle_t self)
 {
     const uint64_t op_idx = nt_atomic_load64_explicit(
-        &self->peer_read_index, ATOMIC_MEMORY_ORDER_RELAXED);
+        &self->peer_read_idx, ATOMIC_MEMORY_ORDER_RELAXED);
     return op_idx;
 }
 
-int ntp_set_peer_read_index(shmring_handle_t self, uint64_t read_index)
+int ntp_set_peer_read_idx(shmring_handle_t self, uint64_t read_idx)
 {
-    nt_atomic_store64_explicit(&self->peer_read_index,
-                               read_index, ATOMIC_MEMORY_ORDER_RELAXED);
+    nt_atomic_store64_explicit(&self->peer_read_idx,
+                               read_idx, ATOMIC_MEMORY_ORDER_RELAXED);
     return 0;
 }

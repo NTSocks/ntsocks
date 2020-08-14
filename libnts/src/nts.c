@@ -50,6 +50,7 @@ int nts_context_init(const char *config_file) {
         ERR("Failed to allocate nts_context.");
         return -1;
     }
+    nts_ctx->exit = 0;
 
     // init hash map for the mapping between nt_socket_id and nt_sock_context_t
     nts_ctx->nt_sock_map = createHashMap(NULL, NULL);
@@ -70,6 +71,11 @@ int nts_context_init(const char *config_file) {
     }
     ntp_ctx = nts_ctx->ntp_ctx;
 
+    /**
+     * init hash map for the mapping between epoll nt_socket_id and nt_epoll_context_t
+     */
+    nts_ctx->nt_epoll_map = createHashMap(NULL, NULL);
+
 
     /**
      * init/get the ntm shm ring queue to send the control messages 
@@ -88,7 +94,7 @@ int nts_context_init(const char *config_file) {
 		return -1;
     }
 
-
+    nts_ctx->init_flag = 1;
     DEBUG("nts_context_init pass");
 
     return 0;
@@ -99,6 +105,7 @@ void nts_context_destroy() {
     assert(nts_ctx);
 
     DEBUG("destroy nts_context ready...");
+    nts_ctx->exit = 1;  // indicate nts context exits
 
     /**
      * destroy the ntm shm ring queue between libnts and ntb monitor
@@ -129,7 +136,6 @@ void nts_context_destroy() {
         iter = nextHashMapIterator(iter);
         nt_sock_ctx = (nt_sock_context_t) iter->entry->value;
         
-
         /**
          * destroy one nt_sock_context_t(equal to the workflow of `close()`): 
          * TODO:0. update local socket state, notify the ntm to destroy nt_socket resources
@@ -147,11 +153,11 @@ void nts_context_destroy() {
             nts_shm_destroy(nt_sock_ctx->nts_shm_ctx);
         }
 
+        Remove(nts_ctx->nt_sock_map, &nt_sock_ctx->socket->sockid);
+
         if (nt_sock_ctx->socket) {
             free(nt_sock_ctx->socket);
         }
-
-        Remove(nts_ctx->nt_sock_map, &nt_sock_ctx->socket->sockid);
 
         DEBUG("free the nt_socket and nts_ntm_context");
         // free(nt_sock_ctx->socket);
@@ -161,6 +167,38 @@ void nts_context_destroy() {
     Clear(nts_ctx->nt_sock_map);
     nts_ctx->nt_sock_map = NULL;
     DEBUG("destroy nt_sock_map pass");
+
+    iter = createHashMapIterator(nts_ctx->nt_epoll_map);
+    nt_epoll_context_t epoll_ctx;
+    while(hasNextHashMapIterator(iter)) {
+        iter = nextHashMapIterator(iter);
+        epoll_ctx = (nt_epoll_context_t) iter->entry->value;
+
+        /**
+         * destroy one nt_epoll_context_t (equal to the workflow of `close()`): 
+         * TODO:0. update local epoll state, notify the ntm/ntp to destroy epoll resources
+         * TODO:1. close/destroy the epoll-corresponding shm event queue;
+         * 2. close/destroy the epoll-corresponding shm ring queue between libnts and ntm.
+         */
+
+
+        // 2. close/destroy the epoll-corresponding shm ring queue between libnts and ntm.
+        if (epoll_ctx->epoll_shm_ctx && 
+            epoll_ctx->epoll_shm_ctx->stat == SHM_READY) {
+            epoll_shm_master_close(epoll_ctx->epoll_shm_ctx);
+            epoll_shm_destroy(epoll_ctx->epoll_shm_ctx);
+        }
+
+        Remove(nts_ctx->nt_epoll_map, &epoll_ctx->socket->sockid);
+        if (epoll_ctx->socket) {
+            free(epoll_ctx->socket);
+        }
+
+        free(epoll_ctx);
+    }
+    freeHashMapIterator(&iter);
+    Clear(nts_ctx->nt_epoll_map);
+    nts_ctx->nt_epoll_map = NULL;
     
     if(nts_ctx->ntp_ctx) {
          free(nts_ctx->ntp_ctx);
@@ -191,11 +229,27 @@ int generate_nts_shmname(char * nts_shmaddr) {
     assert(nts_shmaddr);
 
     char *shm_uuid = generate_uuid();
-	sprintf(nts_shmaddr, "nts_shm-%s", shm_uuid);
-	free(shm_uuid);
-
-    return 0;
+    if (shm_uuid) {
+        sprintf(nts_shmaddr, "nts_shm-%s", shm_uuid);
+        free(shm_uuid);
+        return 0;
+    }
+	return -1;
 }
+
+
+int generate_epoll_shmname(char * epoll_shmaddr) {
+    assert(epoll_shmaddr);
+
+    char *shm_uuid = generate_uuid();
+    if (shm_uuid) {
+        sprintf(epoll_shmaddr, "epoll_shm-%s", shm_uuid);
+        free(shm_uuid);
+        return 0;
+    }
+    return -1;
+}
+
 
 int nt_sock_errno(int sockid){
     assert(sockid > 0);

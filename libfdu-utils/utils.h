@@ -26,6 +26,19 @@ extern "C" {
 
 #define UUID_LEN 36
 
+#define LIKELY(x) __builtin_expect(!!(x), 1)
+#define UNLIKELY(x) __builtin_expect(!!(x), 0)
+
+//MEMORY read & write barrier
+#define __MEM_BARRIER \
+    __asm__ __volatile__("mfence":::"memory")
+//memory read barrier
+#define __READ_BARRIER__ \
+    __asm__ __volatile__("lfence":::"memory")
+//memory write barrier
+#define __WRITE_BARRIER__ \
+    __asm__ __volatile__("sfence":::"memory")
+
 #define NEW(type) (type *)malloc(sizeof(type))
 #define APPLY(task, ...) task(__VA_ARGS__)
 #define ABS(n) n > 0 ? n : -n

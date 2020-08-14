@@ -27,10 +27,11 @@
 #include <rte_memory.h>
 #include <rte_lcore.h>
 #include <rte_bus.h>
-#include <rte_bus_vdev.h>
+// #include <rte_bus_vdev.h>
 #include <rte_memzone.h>
 #include <rte_mempool.h>
 #include <rte_rwlock.h>
+#include <errno.h>
 
 #include "ntb_mw.h"
 
@@ -271,14 +272,54 @@ ntb_start(uint16_t dev_id)
     ntb_link->port2conn = createHashMap(NULL, NULL);
 
     ntm_ntp_shm_context_t ntm_ntp = ntm_ntp_shm();
-    char *ntm_ntp_name = "ntm-ntp";
-    ntm_ntp_shm_accept(ntm_ntp, (char *)ntm_ntp_name, sizeof(ntm_ntp_name));
+    ntm_ntp_shm_accept(ntm_ntp, NTM_NTP_SHM_NAME, strlen(NTM_NTP_SHM_NAME));
     ntb_link->ntm_ntp = ntm_ntp;
 
     ntp_ntm_shm_context_t ntp_ntm = ntp_ntm_shm();
-    char *ntp_ntm_name = "ntp-ntm";
-    ntp_ntm_shm_accept(ntp_ntm, (char *)ntp_ntm_name, sizeof(ntp_ntm_name));
+    ntp_ntm_shm_accept(ntp_ntm, NTP_NTM_SHM_NAME, strlen(NTP_NTM_SHM_NAME));
     ntb_link->ntp_ntm = ntp_ntm;
 
+    // create the 'ntp_ep_send_queue' and 'ntp_ep_recv_queue' epoll ring queue.
+    int rc;
+    epoll_sem_shm_ctx_t ep_send_ctx;
+    ep_send_ctx = epoll_sem_shm();
+    if (!ep_send_ctx) {
+		ERR("Failed to allocate memory for 'epoll_sem_shm_ctx_t ep_send_ctx'.");
+		goto FAIL;
+	}
+    rc = epoll_sem_shm_accept(ep_send_ctx, NTP_EP_SEND_QUEUE, strlen(NTP_EP_SEND_QUEUE));
+    if (rc != 0) {
+		ERR("Failed to epoll_sem_shm_accept for 'epoll_sem_shm_ctx_t ep_send_ctx'.");
+		goto FAIL;
+	}
+    ntb_link->ntp_ep_send_ctx = ep_send_ctx;
+
+    epoll_sem_shm_ctx_t ep_recv_ctx;
+    ep_recv_ctx = epoll_sem_shm();
+    if (!ep_recv_ctx) {
+		ERR("Failed to allocate memory for 'epoll_sem_shm_ctx_t ep_recv_ctx'.");
+		goto FAIL;
+	}
+    rc = epoll_sem_shm_accept(ep_recv_ctx, NTP_EP_RECV_QUEUE, strlen(NTP_EP_RECV_QUEUE));
+    if (rc != 0) {
+		ERR("Failed to epoll_sem_shm_accept for 'epoll_sem_shm_ctx_t ep_recv_ctx'.");
+		goto FAIL;
+	}
+    ntb_link->ntp_ep_recv_ctx = ep_recv_ctx;
+
+    // create the hashmap for caching epoll_context
+    ntb_link->epoll_ctx_map = createHashMap(NULL, NULL);
+
+
     return ntb_link;
+
+FAIL: 
+
+    return NULL;
 }
+
+int ntb_close(struct ntb_link_custom * ntb_link) {
+
+    return 0;
+}
+

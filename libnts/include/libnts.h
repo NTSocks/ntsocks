@@ -59,8 +59,4 @@ struct ntsocket_ioctl_arg {
 };
 
 
-
-
-
-
 #endif /* LIBNTS_H_ */

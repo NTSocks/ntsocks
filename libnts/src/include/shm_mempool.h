@@ -42,6 +42,7 @@ typedef struct {
     unsigned int used_count;
     unsigned int block_len;
     int free_header_idx;
+    int free_tail_idx;
     int used_header_idx;
 
 } shm_mempool;

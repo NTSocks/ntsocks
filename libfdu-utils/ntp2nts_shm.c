@@ -16,8 +16,6 @@
 
 #include "ntp2nts_shm.h"
 #include "nt_log.h"
-
-
 DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
 
 ntp_shm_context_t ntp_shm() {
@@ -40,34 +38,36 @@ int ntp_shm_accept(ntp_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
 	memset(shm_ctx->shm_addr, 0, addrlen);
 	shm_ctx->addrlen = addrlen;
 	memcpy(shm_ctx->shm_addr, shm_addr, addrlen);
-	shm_ctx->ntsring_handle = shmring_init(shm_ctx->shm_addr, shm_ctx->addrlen);
+	shm_ctx->ntsring_handle = shmring_create(shm_ctx->shm_addr, 
+                shm_ctx->addrlen, NTP_MSG_IDX_SIZE, DEFAULT_MAX_NUM_NTP_MSG);
     if(!shm_ctx->ntsring_handle) {
         ERR("init shmring failed.");
-        goto FAIL;
+        free(shm_ctx->shm_addr);
+        return -1;
     }
 	
     /* init shm mempool */
     char mp_name[30] = {0};
     sprintf(mp_name, "%s-mp", shm_addr);
-    shm_ctx->mp_handler = shm_mp_init(sizeof(ntp_msg), MAX_BUFS + 8, mp_name, strlen(mp_name));
+    shm_ctx->mp_handler = shm_mp_init(sizeof(ntp_msg), 
+                            DEFAULT_MAX_NUM_NTP_MSG + 8, mp_name, strlen(mp_name));
     if(!shm_ctx->mp_handler) {
         ERR("init shm mempool failed. ");
         goto FAIL;
-    }
-    
+    }    
     shm_ctx->shm_stat = NTP_SHM_READY;
 
 	DEBUG("ntp_shm_accept pass");
 	return 0;
 
-    FAIL: 
+FAIL: 
     if(shm_ctx->mp_handler) {
         shm_mp_destroy(shm_ctx->mp_handler, 1);
         shm_ctx->mp_handler = NULL;
     }
 
     if(shm_ctx->ntsring_handle) {
-        shmring_free(shm_ctx->ntsring_handle, 1);
+        shmring_free(shm_ctx->ntsring_handle, true);
         shm_ctx->ntsring_handle = NULL;
     }
 
@@ -75,7 +75,6 @@ int ntp_shm_accept(ntp_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
         free(shm_ctx->shm_addr);
 	    shm_ctx->shm_addr = NULL;
     }
-
     return -1;
 }
 
@@ -92,22 +91,23 @@ int ntp_shm_connect(ntp_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
 	memset(shm_ctx->shm_addr, 0, addrlen);
 	shm_ctx->addrlen = addrlen;
 	memcpy(shm_ctx->shm_addr, shm_addr, addrlen);
-	shm_ctx->ntsring_handle = get_shmring(shm_ctx->shm_addr, shm_ctx->addrlen); /// note: need to improve
+	shm_ctx->ntsring_handle = shmring_init(shm_ctx->shm_addr, 
+                                shm_ctx->addrlen, NTP_MSG_IDX_SIZE, DEFAULT_MAX_NUM_NTP_MSG); /// note: need to improve
 	if(!shm_ctx->ntsring_handle) {
         ERR("get shmring failed.");
-        goto FAIL;
+        free(shm_ctx->shm_addr);
+        return -1;
     }
 
     /* init shm mempool */
     char mp_name[30] = {0};
     sprintf(mp_name, "%s-mp", shm_addr);
-    shm_ctx->mp_handler = shm_mp_init(sizeof(ntp_msg), MAX_BUFS + 8, mp_name, strlen(mp_name));
+    shm_ctx->mp_handler = shm_mp_init(sizeof(ntp_msg), 
+                            DEFAULT_MAX_NUM_NTP_MSG + 8, mp_name, strlen(mp_name));
     if(!shm_ctx->mp_handler) {
         ERR("init shm mempool failed. ");
         goto FAIL;
     }
-    
-    
     shm_ctx->shm_stat = NTP_SHM_READY;
 
 	DEBUG("ntp_shm_connect pass");
@@ -121,7 +121,7 @@ int ntp_shm_connect(ntp_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
     }
 
     if(shm_ctx->ntsring_handle) {
-        shmring_free(shm_ctx->ntsring_handle, 0);
+        shmring_free(shm_ctx->ntsring_handle, false);
         shm_ctx->ntsring_handle = NULL;
     }
 
@@ -158,7 +158,6 @@ int ntp_shm_send(ntp_shm_context_t shm_ctx, ntp_msg *buf) {
         //  indicate current ntp_shm ring is empty and immediately return NULL
         // if(retry_times > RETRY_TIMES) 
         //     break;
-
 		sched_yield();
 		INFO("shmring_push failed and maybe shmring is full.");
 		ret = shmring_push(shm_ctx->ntsring_handle, (char *)(int*) &mp_node->node_idx, NODE_IDX_SIZE);
@@ -186,12 +185,10 @@ ntp_msg * ntp_shm_recv(ntp_shm_context_t shm_ctx) {
             return NULL;
         }
             
-
 		sched_yield();
 		ret = shmring_pop(shm_ctx->ntsring_handle, (char*)(int*)&node_idx, NODE_IDX_SIZE);
         retry_times ++;
 	}
-
     DEBUG("node_idx=%d", node_idx);
 
     ntp_msg *buf;
@@ -239,7 +236,7 @@ int ntp_shm_close(ntp_shm_context_t shm_ctx) {
 	assert(shm_ctx);
 
     if(shm_ctx->ntsring_handle) {
-        shmring_free(shm_ctx->ntsring_handle, 1);
+        shmring_free(shm_ctx->ntsring_handle, true);
         shm_ctx->ntsring_handle = NULL;
     }
 
@@ -264,7 +261,7 @@ int ntp_shm_nts_close(ntp_shm_context_t shm_ctx) {
 	assert(shm_ctx);
 
     if(shm_ctx->ntsring_handle) {
-        shmring_free(shm_ctx->ntsring_handle, 0);
+        shmring_free(shm_ctx->ntsring_handle, false);
         shm_ctx->ntsring_handle = NULL;
     }
 
@@ -292,4 +289,3 @@ void ntp_shm_destroy(ntp_shm_context_t shm_ctx) {
 	shm_ctx = NULL;
 	DEBUG("ntp_shm_destroy pass");
 }
-

@@ -15,9 +15,11 @@
 #include <errno.h>
 #include <unistd.h>
 #include <string.h>
-#include <linux/eventpoll.h>
+// #include <linux/eventpoll.h>
 #include <unistd.h>
 #include <assert.h>
+#include <sys/epoll.h>
+#include <linux/fcntl.h>
 
 #define __USE_GNU
 #include <sched.h>
@@ -25,6 +27,7 @@
 
 #include "libnts.h"
 #include "nts_api.h"
+#include "nts_epoll.h"
 #include "nts_config.h"
 #include "nt_log.h"
 
@@ -67,6 +70,13 @@ static int (*real_ioctl)(int, int, void *);
 static int (*real_fcntl)(int, int, void *);
 
 static int (*real_select)(int, fd_set *, fd_set *, fd_set *, struct timeval *);
+
+static int (*real_epoll_create)(int);
+static int (*real_epoll_create1)(int);
+static int (*real_epoll_ctl)(int, int, int, struct epoll_event *);
+static int (*real_epoll_wait)(int, struct epoll_event *, int, int);
+static int (*real_epoll_pwait)(int, struct epoll_event *, int, int, const __sigset_t *);
+
 
 static inline void test_ntm_ring()
 {
@@ -135,6 +145,13 @@ void ntsocket_init(void) {
 	INIT_FUNCTION(ioctl);
 	INIT_FUNCTION(fcntl);
 	INIT_FUNCTION(select);
+
+	INIT_FUNCTION(epoll_create);
+	INIT_FUNCTION(epoll_create1);
+	INIT_FUNCTION(epoll_ctl);
+	INIT_FUNCTION(epoll_wait);
+	INIT_FUNCTION(epoll_pwait);
+	
 
 	DEBUG("ntsocket init pass!!!");
 	nts_init(NTS_CONFIG_FILE);
@@ -387,5 +404,94 @@ int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
 	} else {
 		return real_select(nfds, readfds, writefds, exceptfds, timeout);
 	}
+}
+
+int epoll_create(int size) {
+	if (unlikely(inited == 0)) {
+		INIT_FUNCTION(epoll_create);
+		return real_epoll_create(size);
+	}
+
+	return nts_epoll_create(size);
+}
+
+//TODO: support in the future
+int epoll_create1(int flags) {
+	if (unlikely(inited == 0)) {
+		INIT_FUNCTION(epoll_create1);
+		return real_epoll_create1(flags);
+	}
+
+	return nts_epoll_create(flags);
+}
+
+int epoll_ctl(int epfd, int op, int fd, struct epoll_event *event) {
+	if (unlikely(inited == 0)) {
+		INIT_FUNCTION(epoll_ctl);
+		return real_epoll_ctl(epfd, op, fd, event);
+	}
+
+	// map struct epoll_event to nts_epoll_event
+	nts_epoll_event ep_event;
+	ep_event.events = event->events;
+	ep_event.data = event->data.fd;
+	return nts_epoll_ctl(epfd, op, fd, &ep_event);
+}
+
+int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout) {
+	if (unlikely(inited == 0)) {
+		INIT_FUNCTION(epoll_wait);
+		return real_epoll_wait(epfd, events, maxevents, timeout);
+	}
+
+	// map struct epoll_event to nts_epoll_event
+	nts_epoll_event *ep_events;
+	ep_events = (nts_epoll_event *)calloc(maxevents, sizeof(nts_epoll_event));
+	for (int i = 0; i < maxevents; i++)
+	{
+		ep_events[i].events = events[i].events;
+		ep_events[i].data = events[i].data.fd;
+	}
+
+	int rc;
+	rc = nts_epoll_wait(epfd, ep_events, maxevents, timeout);
+	if (rc > 0) {
+		for (int i = 0; i < rc; i++)
+		{
+			events[i].data.fd = ep_events[i].data;
+			events[i].events = ep_events[i].events;
+		}
+	}
+
+	return rc;
+}
+
+int epoll_pwait(int epfd, struct epoll_event *events, int maxevents, int timeout, const __sigset_t *ss) {
+	if (unlikely(inited == 0)) {
+		INIT_FUNCTION(epoll_pwait);
+		return real_epoll_pwait(epfd, events, maxevents, timeout, ss);
+	}
+
+	// map struct epoll_event to nts_epoll_event
+	// map struct epoll_event to nts_epoll_event
+	nts_epoll_event *ep_events;
+	ep_events = (nts_epoll_event *)calloc(maxevents, sizeof(nts_epoll_event));
+	for (int i = 0; i < maxevents; i++)
+	{
+		ep_events[i].events = events[i].events;
+		ep_events[i].data = events[i].data.fd;
+	}
+	
+	int rc;
+	rc = nts_epoll_wait(epfd, ep_events, maxevents, timeout);
+	if (rc > 0) {
+		for (int i = 0; i < rc; i++)
+		{
+			events[i].data.fd = ep_events[i].data;
+			events[i].events = ep_events[i].events;
+		}
+	}
+
+	return rc;
 }
 

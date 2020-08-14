@@ -24,10 +24,10 @@ extern "C" {
 
 typedef enum ntp_shm_stat
 {
-	SHM_UNREADY = 0,
-	SHM_READY,
-	SHM_CLOSE,
-	SHM_UNLINK
+	SHM_STAT_UNREADY = 0,
+	SHM_STAT_READY,
+	SHM_STAT_CLOSE,
+	SHM_STAT_UNLINK
 } ntp_shm_stat;
 
 

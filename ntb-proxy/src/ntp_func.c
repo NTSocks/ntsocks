@@ -15,7 +15,7 @@
 #include <rte_io.h>
 #include <rte_eal.h>
 #include <rte_pci.h>
-#include <rte_bus_pci.h>
+// #include <rte_bus_pci.h>
 #include <rte_rawdev.h>
 #include <rte_rawdev_pmd.h>
 #include <rte_memcpy.h>
@@ -29,7 +29,7 @@
 #include <rte_memory.h>
 #include <rte_lcore.h>
 #include <rte_bus.h>
-#include <rte_bus_vdev.h>
+// #include <rte_bus_vdev.h>
 #include <rte_memzone.h>
 #include <rte_mempool.h>
 #include <rte_rwlock.h>
@@ -43,7 +43,7 @@
 // uint64_t global_rece_msg = 0;
 // uint64_t global_send_msg = 0;
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_DISABLE);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 static char *int_to_char(uint16_t x)
 {
@@ -368,7 +368,7 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
             return -1;
         }
         // ntp_msg recv_msg;
-
+        int rc;
         if (msg_type == SINGLE_PKG)
         {
             // DEBUG("receive SINGLE_PKG start");
@@ -385,6 +385,19 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
             // DEBUG("recv_msg counter = %ld,rece_msg_len counter = %ld", global_rece_msg, global_rece_data);
             // DEBUG("recv_msg->msg = %s", recv_msg->msg);
             // DEBUG("receive SINGLE_PKG end");
+
+            // after forwarding data packet, check whether epoll or not
+            if (conn->epoll && (conn->epoll & NTS_EPOLLIN)) {
+                nts_epoll_event_int event;
+                event.sockid = conn->sockid;
+                event.ev.data = conn->sockid;
+                event.ev.events = NTS_EPOLLIN;
+                rc = ep_event_queue_push(conn->epoll_ctx->ep_io_queue_ctx, &event);
+                if (rc) {
+                    ERR("ep_event_queue_push for SINGLE_PKG msg_type");
+                }
+            }
+
         }
         else if (msg_type == MULTI_PKG)
         {
@@ -424,6 +437,19 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
             r->cur_index = next_index + 1 < r->capacity ? next_index + 1 : next_index - r->capacity + 1;
             // DEBUG("recv_msg->msg = %s", recv_msg->msg);
             // DEBUG("receive MULTI_PKG end");
+
+            // after forwarding data packet, check whether epoll or not
+            if (conn->epoll && (conn->epoll & NTS_EPOLLIN)) {
+                nts_epoll_event_int event;
+                event.sockid = conn->sockid;
+                event.ev.data = conn->sockid;
+                event.ev.events = NTS_EPOLLIN;
+                rc = ep_event_queue_push(conn->epoll_ctx->ep_io_queue_ctx, &event);
+                if (rc) {
+                    ERR("ep_event_queue_push failed for SINGLE_PKG msg_type");
+                }
+            }
+
         }
         else if (msg_type == DETECT_PKG)
         {
@@ -443,6 +469,18 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
             msg->header.msg_len = 0;
             //收到FIN包将state置为CLOSE—CLIENT。遍历ring_list时判断conn->state来close移出node并free
             r->cur_index = r->cur_index + 1 < r->capacity ? r->cur_index + 1 : 0;
+
+            // after forwarding data packet, check whether epoll or not
+            if (conn->epoll && (conn->epoll & NTS_EPOLLIN)) {
+                nts_epoll_event_int event;
+                event.sockid = conn->sockid;
+                event.ev.data = conn->sockid;
+                event.ev.events = NTS_EPOLLIN;
+                rc = ep_event_queue_push(conn->epoll_ctx->ep_io_queue_ctx, &event);
+                if (rc) {
+                    ERR("ep_event_queue_push for SINGLE_PKG msg_type");
+                }
+            }
         }
         else
         {
@@ -483,4 +521,255 @@ int ntp_ctrl_msg_receive(struct ntb_link_custom *ntb_link)
         msg->header.msg_len = 0;
     }
     return 0;
+}
+
+/** For epoll msg handling **/
+static int handle_epoll_create_msg(struct ntb_link_custom *ntb_link, epoll_msg *req_msg);
+static int handle_epoll_ctl_msg(struct ntb_link_custom *ntb_link, epoll_msg *req_msg);
+static int handle_epoll_close_msg(struct ntb_link_custom *ntb_link, epoll_msg *req_msg);
+
+int ntp_handle_epoll_msg(struct ntb_link_custom *ntb_link, epoll_msg *req_msg) {
+
+    /** Check section */
+    if (req_msg->id < 0) {
+        ERR("Invalid msg id for epoll_msg");
+        return -1;
+    }
+
+    int rc;
+
+    /** Critical section */
+    switch (req_msg->msg_type)
+    {
+    case EPOLL_MSG_CREATE:
+        DEBUG("handle_epoll_create_msg");
+        rc = handle_epoll_create_msg(ntb_link, req_msg);
+        break;
+
+    case EPOLL_MSG_CTL: 
+        DEBUG("handle_epoll_ctl_msg");
+        rc = handle_epoll_ctl_msg(ntb_link, req_msg);
+        break;
+
+    case EPOLL_MSG_CLOSE: 
+        DEBUG("handle_epoll_close_msg");
+        rc = handle_epoll_close_msg(ntb_link, req_msg);
+        break;
+    
+    default:
+        ERR("Invalid or Non-existing epoll_msg type!");
+        rc = -1;
+        break;
+    }
+
+
+    return rc;
+}
+
+static int handle_epoll_create_msg(struct ntb_link_custom *ntb_link, epoll_msg *req_msg) {
+    /** Check section */
+
+    /** Critical section */
+    /**
+     * 1. create/init epoll_context
+     * 2. connect/init SHM-based ready I/O event queue
+     * 3. send back response epoll_msg to ntm
+     * 4. push epoll_context into HashMap
+     */
+    epoll_msg resp_msg;
+    resp_msg.id = req_msg->id;
+    resp_msg.msg_type = req_msg->msg_type;
+    resp_msg.retval = 0;
+
+    // 1. create/init epoll_context
+    epoll_context_t epoll_ctx;
+    epoll_ctx = (epoll_context_t) calloc(1, sizeof(epoll_context));
+    if (!epoll_ctx) {
+        ERR("malloc epoll_context failed");
+        return -1;
+    }
+    epoll_ctx->epoll_fd = req_msg->sockid;
+    epoll_ctx->io_queue_size = req_msg->io_queue_size;
+    epoll_ctx->io_queue_shmlen = req_msg->shm_addrlen;
+    memcpy(epoll_ctx->io_queue_shmaddr, req_msg->shm_name, req_msg->shm_addrlen);
+
+    // 2. connect/init SHM-based ready I/O event queue
+    epoll_ctx->ep_io_queue_ctx = ep_event_queue_init(
+                                    epoll_ctx->io_queue_shmaddr, 
+                                    epoll_ctx->io_queue_shmlen,
+                                    epoll_ctx->io_queue_size);
+    if (!epoll_ctx->ep_io_queue_ctx) {
+        ERR("ntp failed to init the epoll event queue[ep_event_queue_init]");
+        free(epoll_ctx);
+        resp_msg.retval = -1;
+        goto FAIL;
+    }
+    epoll_ctx->ep_io_queue = epoll_ctx->ep_io_queue_ctx->shm_queue;
+
+    // create the HashMap of epoll context to cache ntb_conn
+    epoll_ctx->ep_conn_map = createHashMap(NULL, NULL);
+
+    // 3. send back response epoll_msg to ntm
+    int rc;
+    rc = epoll_sem_shm_send(ntb_link->ntp_ep_send_ctx, &resp_msg);
+    if (rc != 0) {
+        Clear(epoll_ctx->ep_conn_map);
+        epoll_ctx->ep_conn_map = NULL;
+        ep_event_queue_free(epoll_ctx->ep_io_queue_ctx, false);
+        free(epoll_ctx);
+        resp_msg.retval = -1;
+        goto FAIL;
+    }
+
+    // 4. push epoll_context into HashMap
+    Put(ntb_link->epoll_ctx_map, &epoll_ctx->epoll_fd, epoll_ctx);
+
+    return 0;
+
+FAIL: 
+    epoll_sem_shm_send(ntb_link->ntp_ep_send_ctx, &resp_msg);
+    return -1;
+}
+
+static int handle_epoll_ctl_msg(struct ntb_link_custom *ntb_link, epoll_msg *req_msg) {
+    /** Check section */
+
+
+    /** Critical section */
+    /**
+     * 1. get epoll_context according epid
+     * 2. query the corresponding ntb-conn with sockid or [src_port]-[dst_port]
+     * 3. set the epoll data/events for ntb-conn according to epoll_op
+     * 4. send back the response epoll_msg to ntm
+     */
+    epoll_msg resp_msg;
+    resp_msg.id = req_msg->id;
+    resp_msg.msg_type = req_msg->msg_type;
+    resp_msg.epid = req_msg->epid;
+    resp_msg.epoll_op = req_msg->epoll_op;
+    resp_msg.retval = 0;
+
+    // 1. get epoll_context according epid
+    epoll_context_t epoll_ctx;
+    epoll_ctx = Get(ntb_link->epoll_ctx_map, &req_msg->epid);
+    if (!epoll_ctx) {
+        ERR("Invalid epoll id [%d] and Non-existing epoll context", req_msg->epid);
+        resp_msg.retval = -1;
+        goto FAIL;
+    }
+
+    // 2. query the corresponding ntb-conn with sockid or [src_port]-[dst_port]
+    ntb_conn_t conn;
+    if (req_msg->epoll_op == NTS_EPOLL_CTL_ADD) {
+        int src_port, dst_port;
+        src_port = ntohs(req_msg->src_port);
+        dst_port = ntohs(req_msg->dst_port);
+        uint32_t conn_id;
+        conn_id = create_conn_id(src_port, dst_port);
+        conn = Get(ntb_link->port2conn, &conn_id);
+        if (!conn) {
+            ERR("Invalid socket id (conn id) or Non-existing ntb_conn with src_port=%d, dst_port=%d", src_port, dst_port);
+            resp_msg.retval = -1;
+            goto FAIL;
+        }
+
+        // push ntb_conn into HashMap
+        conn->sockid = req_msg->sockid;
+        Put(epoll_ctx->ep_conn_map, &conn->sockid, conn);
+        conn->epoll_ctx = epoll_ctx;
+
+    } else {
+        conn = Get(epoll_ctx->ep_conn_map, &req_msg->sockid);
+        if (!conn) {
+            ERR("Invalid socket id (conn id) or Non-existing ntb_conn with src_port=%d, dst_port=%d", src_port, dst_port);
+            resp_msg.retval = -1;
+            goto FAIL;
+        }
+
+    }
+
+    // 3. set the epoll data/events for ntb-conn according to epoll_op
+    if (req_msg->epoll_op == NTS_EPOLL_CTL_ADD 
+            || req_msg->epoll_op == NTS_EPOLL_CTL_MOD) {
+        conn->epoll = req_msg->events;
+        conn->ep_data = req_msg->ep_data;
+    } else if (req_msg->epoll_op == NTS_EPOLL_CTL_DEL) {
+        conn->epoll = NTS_EPOLLNONE;
+        Remove(epoll_ctx->ep_conn_map, &conn->sockid);
+    }
+
+    // 4. send back the response epoll_msg to ntm
+    int rc;
+    rc = epoll_sem_shm_send(ntb_link->ntp_ep_send_ctx, &resp_msg);
+    if (rc != 0) {
+        ERR("epoll_sem_shm_send EPOLL_MSG_CTL response epoll_msg failed");
+        resp_msg.retval = -1;
+        goto FAIL;
+    }
+
+    return 0;
+
+FAIL: 
+    epoll_sem_shm_send(ntb_link->ntp_ep_send_ctx, &resp_msg);
+    return -1;
+}
+
+static int handle_epoll_close_msg(struct ntb_link_custom *ntb_link, epoll_msg *req_msg) {
+    /** Check section */
+
+    /** Critical section */
+    /**
+     * 1. get epoll_context
+     * 2. remove all epoll of all ntb_conn within epoll_socket
+     * 3. remove epoll_context from HashMap
+     * 4. disconnect the corresponding event queue
+     * 5. destroy epoll_context
+     * 6. send back EPOLL_MSG_CLOSE response epoll_msg
+     */
+    epoll_msg resp_msg;
+    resp_msg.id = req_msg->id;
+    resp_msg.msg_type = req_msg->msg_type;
+    resp_msg.retval = 0;
+
+    // 1. get epoll_context
+    epoll_context_t epoll_ctx;
+    epoll_ctx = Get(ntb_link->epoll_ctx_map, &req_msg->epid);
+    if (!epoll_ctx) {
+        ERR("Invalid epoll id [%d] and Non-existing epoll context", req_msg->epid);
+        resp_msg.retval = -1;
+        goto FAIL;
+    }
+    
+    // 2. remove all epoll of all ntb_conn within epoll_socket
+    HashMapIterator iter;
+    iter = createHashMapIterator(epoll_ctx->ep_conn_map);
+    while (hasNextHashMapIterator(iter))
+    {
+        iter = nextHashMapIterator(iter);
+        ntb_conn_t conn = (ntb_conn_t) (iter->entry->value);
+        conn->epoll = NTS_EPOLLNONE;
+        conn->epoll_ctx = NULL;
+    }
+    freeHashMapIterator(&iter);
+    Clear(epoll_ctx->ep_conn_map);
+    epoll_ctx->ep_conn_map = NULL;
+    
+    // 3. remove epoll_context from HashMap
+    Remove(ntb_link->epoll_ctx_map, &req_msg->epid);
+
+    // 4. disconnect the corresponding event queue
+    ep_event_queue_free(epoll_ctx->ep_io_queue_ctx, false);
+    epoll_ctx->ep_io_queue = NULL;
+
+    // 5. destroy epoll_context
+    free(epoll_ctx);
+
+    // 6. send back EPOLL_MSG_CLOSE response epoll_msg
+    epoll_sem_shm_send(ntb_link->ntp_ep_send_ctx, &resp_msg);
+
+    return 0;
+
+FAIL: 
+    epoll_sem_shm_send(ntb_link->ntp_ep_send_ctx, &resp_msg);
+    return -1;
 }

@@ -17,13 +17,12 @@
 #include "ntp2nts_msg.h"
 #include "shm_mempool.h"
 
-#define RETRY_TIMES 5
-
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+
+#define RETRY_TIMES 5
 
 	typedef enum ntp_shm_stat
 	{
@@ -42,7 +41,6 @@ extern "C"
 
         // for shm mempool
         shm_mp_handler * mp_handler;
-
 
 	};
 

@@ -82,7 +82,30 @@ void ntm_msgcopy(ntm_msg *src_msg, ntm_msg *target_msg) {
 	else if (target_msg->msg_type & NTM_MSG_FIN)
 	{
 		target_msg->sockid = src_msg->sockid;
+	} 
+	else if (target_msg->msg_type & NTM_MSG_EPOLL_CREATE)
+	{
+		target_msg->nts_shm_addrlen = src_msg->nts_shm_addrlen;
+		memcpy(target_msg->nts_shm_name, src_msg->nts_shm_name, src_msg->nts_shm_addrlen);
+		target_msg->sock_type = src_msg->sock_type;
+		target_msg->io_queue_size = src_msg->io_queue_size;
 	}
+	else if (target_msg->msg_type & NTM_MSG_EPOLL_CTL)
+	{
+		target_msg->sockid = src_msg->sockid;
+		target_msg->sock_type = src_msg->sock_type;
+		target_msg->epid = src_msg->epid;
+		target_msg->epoll_op = src_msg->epoll_op;
+		if (src_msg->epoll_op != NTS_EPOLL_CTL_DEL) {
+			target_msg->events = src_msg->events;
+			target_msg->ep_data = src_msg->ep_data;
+		}
+	}
+	else if (target_msg->msg_type & NTM_MSG_EPOLL_CLOSE)
+	{
+		
+	}
+	
 
 	DEBUG("target_msg - ntm_msgcopy: sockid=%d, msg_type=%d", target_msg->sockid, target_msg->msg_type);
 

@@ -37,4 +37,12 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
 
 int ntp_ctrl_msg_receive(struct ntb_link_custom *ntb_link);
 
+
+/**
+ * For epoll msg handling from ntm  
+ * 
+ */
+int ntp_handle_epoll_msg(struct ntb_link_custom *ntb_link, epoll_msg *req_msg);
+
+
 #endif /* NTP_FUNC_H_ */

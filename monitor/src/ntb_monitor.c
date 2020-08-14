@@ -14,25 +14,20 @@
 #include <unistd.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include "ntb_monitor.h"
 #include "config.h"
 #include "ntm_shmring.h"
 #include "ntm_shm.h"
-#include "nt_log.h"
 #include "nt_errno.h"
 
+#include "epoll_event_queue.h"
+#include "epoll_msg.h"
+#include "nt_log.h"
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 #define MSG "Hello NT-Monitor! I am libnts app. Nice to meet you!"
-
-static void *nts_recv_thread(void *arg);
-
-static void *nts_send_thread(void *arg);
-
-static void *ntp_recv_thread(void *arg);
-
-static void *ntp_send_thread(void *arg);
 
 static inline bool try_close_ntm_listener(ntm_conn_ctx_t ntm_conn_ctx);
 
@@ -46,129 +41,6 @@ static inline void destroy_client_nt_socket_conn(nt_socket_t client_socket, nts_
 static inline void destroy_client_nt_socket_conn_with_sock(nt_socket_t client_socket);
 static inline void destroy_client_nt_socket_conn_with_nts_shm_conn(nts_shm_conn_t nts_shm_conn);
 
-static inline void test_ntm_ring()
-{
-	
-	ntm_shmring_handle_t ns_handle;
-	char *ntm_name = "/ntm-shm-ring";
-
-	ns_handle = ntm_shmring_init(ntm_name, sizeof(ntm_name));
-	// ntm_shmring_push(ns_handle, &msg);
-
-	// ntm_shmring_free(ns_handle, 0);
-	// if (!ns_handle) {
-	// 	printf("free ntm shmring pass \n\n");
-	// }
-
-	// ns_handle = ntm_get_shmring(ntm_name, sizeof(ntm_name));
-	// if (ns_handle) {
-	// 	printf("ntm get shmring pass \n");
-	// }
-
-	ntm_msg incoming_msg;
-
-	bool retval;
-	int i;
-	for (i = 0; i < 10; i++)
-	{
-		retval = ntm_shmring_pop(ns_handle, &incoming_msg);
-		printf("retval=%d\n", retval);
-
-		printf("pop an element: msg_id-%ld, msg_type=%d, sockid=%d, domain=%d, protocol=%d, sock_type=%d shmaddr=%s, nts_shm_addrlen=%d \n",
-			   incoming_msg.msg_id, incoming_msg.msg_type,
-			   incoming_msg.sockid, incoming_msg.domain,
-			   incoming_msg.protocol, incoming_msg.sock_type,
-			   incoming_msg.nts_shm_name, incoming_msg.nts_shm_addrlen);
-	}
-
-	ntm_shmring_free(ns_handle, 1);
-}
-
-static inline void test_ntm_shm()
-{
-	//	ntm_shm_context_t ns_ctx;
-	//	char *ntm_name = "/ntm-shm-ring";
-	//
-	//	ns_ctx = ntm_shm();
-	//	ntm_shm_accept(ns_ctx, ntm_name, sizeof(ntm_name));
-	//
-	//	ntm_shm_send(ns_ctx, MSG, sizeof(MSG));
-	//	char data[50];
-	//	size_t len = 50;
-	//	len = ntm_shm_recv(ns_ctx, data, len);
-	//	printf("recv data: %s \n", data);
-	//
-	//	ntm_shm_close(ns_ctx);
-	//	ntm_shm_destroy(ns_ctx);
-}
-
-static inline void test_nts_shm()
-{
-	//	ntm_shm_context_t ns_ctx;
-	//	char *ntm_name = "/ntm-shm-ring";
-	//
-	//	ns_ctx = ntm_shm();
-	//	ntm_shm_accept(ns_ctx, ntm_name, sizeof(ntm_name));
-	//
-	//	getchar();
-	//	printf("Start to receive messages from libnts app...\n");
-	//
-	//	char data[50];
-	//	size_t len = 50;
-	//	int recv_msg_len;
-	//	for (int i = 0; i < 10; i++) {
-	//		recv_msg_len = ntm_shm_recv(ns_ctx, data, len);
-	//		printf("recv msg %d with length %d : %s \n", i + 1, recv_msg_len, data);
-	//	}
-	//
-	//	getchar();
-	//	ntm_shm_close(ns_ctx);
-	//	ntm_shm_destroy(ns_ctx);
-}
-
-void *nts_recv_thread(void *arg)
-{
-	assert(ntm_mgr->nts_ctx->shm_recv_ctx);
-
-	// ntm_nts_context_t nts_ctx;
-	// nts_ctx = ntm_mgr->nts_ctx;
-
-	DEBUG("nts_recv_thread ready...");
-
-	//	char data[50];
-	//	size_t len = 50;
-	//	int recv_msg_len;
-	//	for (int i = 0; i < 10; i++) {
-	//		recv_msg_len = ntm_shm_recv(ntm_mgr->nts_ctx->shm_recv_ctx, data, len);
-	//		printf("recv msg %d with length %d : %s \n", i+1, recv_msg_len, data);
-	//	}
-
-	DEBUG("nts_recv_thread end!");
-
-	return 0;
-}
-
-void *nts_send_thread(void *arg)
-{
-
-	DEBUG("nts_send_thread ready...");
-
-	DEBUG("nts_send_thread end!");
-
-	return 0;
-}
-
-void *ntp_recv_thread(void *arg)
-{
-
-	return 0;
-}
-
-void *ntp_send_thread(void *arg)
-{
-
-	return 0;
-}
 
 ntm_manager_t get_ntm_manager()
 {
@@ -318,7 +190,48 @@ int ntm_init(const char *config_file)
 		goto FAIL;
 	}
 
+	
+	/**
+	 *	for epoll manager
+	 */
+	ntm_mgr->epoll_mgr = (epoll_manager_t)calloc(1, sizeof(struct epoll_manager));
+	if (!ntm_mgr->epoll_mgr)
+	{
+		perror(err_msg);
+		ERR("Failed to allocate epoll_manager.");
+		goto FAIL;
+	}
+	// hashmap for the mapping between epoll-fd and epoll_context
+	ntm_mgr->epoll_mgr->epoll_ctx_map = createHashMap(NULL, NULL);
 
+	// connect/init the 'ntp_ep_send_queue' and 'ntp_ep_recv_queue' epoll ring queue.
+	epoll_sem_shm_ctx_t ntp_ep_send_ctx;
+	ntp_ep_send_ctx = epoll_sem_shm();
+	if (!ntp_ep_send_ctx) {
+		perror(err_msg);
+		ERR("Failed to allocate memory for 'epoll_sem_shm_ctx_t ntp_ep_send_ctx'.");
+		goto FAIL;
+	}
+	ret = epoll_sem_shm_connect(ntp_ep_send_ctx, NTP_EP_SEND_QUEUE, strlen(NTP_EP_SEND_QUEUE));
+	if (ret != 0) {
+		ERR("Failed to epoll_sem_shm_connect for 'epoll_sem_shm_ctx_t ntp_ep_send_ctx'.");
+		goto FAIL;
+	}
+	ntm_mgr->epoll_mgr->ntp_ep_send_ctx = ntp_ep_send_ctx;
+
+	epoll_sem_shm_ctx_t ntp_ep_recv_ctx;
+	ntp_ep_recv_ctx = epoll_sem_shm();
+	if (!ntp_ep_recv_ctx) {
+		perror(err_msg);
+		ERR("Failed to allocate memory for 'epoll_sem_shm_ctx_t ntp_ep_recv_ctx'.");
+		goto FAIL;
+	}
+	ret = epoll_sem_shm_connect(ntp_ep_recv_ctx, NTP_EP_RECV_QUEUE, strlen(NTP_EP_RECV_QUEUE));
+	if (ret != 0) {
+		ERR("Failed to epoll_sem_shm_connect for 'epoll_sem_shm_ctx_t ntp_ep_recv_ctx'.");
+		goto FAIL;
+	}
+	ntm_mgr->epoll_mgr->ntp_ep_recv_ctx = ntp_ep_recv_ctx;
 
 	/**
 	 * init the ntm shm ringbuffer to receive the messages from libnts apps
@@ -518,14 +431,14 @@ void ntm_destroy()
 	ntm_ntp_context_t ntp_ctx;
 	ntp_ctx = ntm_mgr->ntp_ctx;
 	if (ntp_ctx->shm_send_ctx && 
-				ntp_ctx->shm_send_ctx->shm_stat == SHM_READY) {
+				ntp_ctx->shm_send_ctx->shm_stat == SHM_STAT_READY) {
 		DEBUG("ntp_ctx->shm_send_ctx close");
 		ntm_ntp_shm_ntm_close(ntp_ctx->shm_send_ctx);
 		DEBUG("ntm_ntp_shm_destroy");
 		ntm_ntp_shm_destroy(ntp_ctx->shm_send_ctx);
 	}
 	if (ntp_ctx->shm_recv_ctx &&
-				ntp_ctx->shm_recv_ctx->shm_stat == SHM_READY) {
+				ntp_ctx->shm_recv_ctx->shm_stat == SHM_STAT_READY) {
 		DEBUG("ntp_ctx->shm_recv_ctx close");
 		ntp_ntm_shm_ntm_close(ntp_ctx->shm_recv_ctx);
 		ntp_ntm_shm_destroy(ntp_ctx->shm_recv_ctx);
@@ -626,7 +539,6 @@ static inline void handle_stop_confirm_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg
 
 
 inline void handle_nt_syn_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
-
 	ntm_sock_msg outgoing_msg;
 	outgoing_msg.src_addr = msg.dst_addr;
 	outgoing_msg.dport = msg.sport;
@@ -776,6 +688,20 @@ inline void handle_nt_syn_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 		goto FAIL;
 	}
 
+	// after backlog_push, check whether epoll or not
+	int rc;
+	nts_shm_conn_t listen_conn;
+	listen_conn = listener_wrapper->nts_shm_conn;
+	if(listen_conn->socket->epoll && (listen_conn->socket->epoll & NTS_EPOLLIN)) {
+		nts_epoll_event_int event;
+		event.sockid = listen_conn->socket->sockid;
+		event.ev.data = listen_conn->socket->sockid;
+		event.ev.events = NTS_EPOLLIN;
+		rc = ep_event_queue_push(listen_conn->epoll_ctx->ep_io_queue_ctx, &event);
+		if (rc) {
+			ERR("ep_event_queue_push failed for listener socket NTS_EPOLLIN event");
+		}
+	}
 
 	// set the allocated nt_port sin_port of accepted nt_socket as source port in `outgoing_msg.sport`
 	// outgoing_msg.sport = client_socket->saddr.sin_port;
@@ -818,7 +744,7 @@ inline void handle_nt_syn_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 		free_socket(ntm_mgr->nt_sock_ctx, client_socket->sockid, 1);
 	}
 
-	if (new_nts_shm_conn != NULL) {
+	if (new_nts_shm_conn) {
 		free(new_nts_shm_conn);
 	}
 
@@ -845,7 +771,7 @@ inline void handle_nt_syn_ack_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 	HashMapIterator iter = createHashMapIterator(ntm_mgr->port_sock_map);
 	while(hasNextHashMapIterator(iter)) {
 		iter = nextHashMapIterator(iter);
-		nt_socket_t tmp_sock = (nt_socket_t)iter->entry->value;
+		// nt_socket_t tmp_sock = (nt_socket_t)iter->entry->value;
 		DEBUG("{ key = %d }", *(int *) iter->entry->key);
 	}
 	freeHashMapIterator(&iter);
@@ -1000,7 +926,8 @@ inline int handle_nt_client_syn_ack_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 	// 2. if valid:
 	// 	 i. update corresponding client nt_socket state as `ESTABLISHED`
 	// 	 ii. forward `CLIENT_SYN_ACK` nts_msg into corresponding server listening nt_socket via nts_shm
-	nt_socket_t client_socket = (nt_socket_t) Get(listener_wrapper->accepted_conn_map, &msg.sockid);
+	nt_socket_t client_socket;
+	client_socket = (nt_socket_t) Get(listener_wrapper->accepted_conn_map, &msg.sockid);
 	client_socket->state = ESTABLISHED;
 
 
@@ -1032,61 +959,33 @@ inline int handle_nt_client_syn_ack_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 inline void handle_nt_invalid_port_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 
 	DEBUG("handle NT_INVALID_PORT message success");
-	return;
 
-	FAIL: 
-
-	return;
 }
 
  
 inline void handle_nt_listener_not_found_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 
-
 	DEBUG("handle NT_LISTENER_NOT_FOUND message success");
 
-	return;
-
-	FAIL: 
-	
-	return;
 }
 
 inline void handle_nt_listener_not_ready_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 
 	DEBUG("handle NT_LISTENER_NOT_READY message success");
 
-	return;
-
-	FAIL: 
-	
-	return;
 }
 
 inline void handle_backlog_is_full_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 
 	DEBUG("handle NT_BACKLOG_IS_FULL success");
 
-	return;
-
-	FAIL: 
-	
-	return;
 }
 
 
 inline void handle_nt_fin_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 
-	
-
-
 	DEBUG("handle NT_FIN success");
-
-	return;
-
-	FAIL: 
 	
-	return;
 }
 
 inline void handle_nt_fin_ack_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
@@ -1202,28 +1101,15 @@ inline void handle_nt_fin_ack_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 
 
 inline void handle_connect_ok_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
-
 	
 	DEBUG("handle_connect_ok_msg success");
-
-	return;
-
-	FAIL: 
-	
-	return;
 
 }
 
 inline void handle_failure_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 
-
 	DEBUG("handle_failure_msg success");
 
-	return;
-
-	FAIL: 
-	
-	return;
 }
 
 inline void handle_stop_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
@@ -1277,12 +1163,6 @@ inline void handle_stop_confirm_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 
 	DEBUG("handle_stop_confirm_msg success");
 
-	return;
-
-	FAIL: 
-	
-	return;
-
 }
 
 
@@ -1297,11 +1177,6 @@ inline void send_connect_ok_msg(ntm_conn_t ntm_conn)
 
 	DEBUG("send CONNECT_OK message success");
 
-	return;
-
-	FAIL: 
-	
-	return;
 }
 
 void *ntm_sock_listen_thread(void *args)
@@ -1591,6 +1466,12 @@ static inline void handle_msg_nts_close(ntm_manager_t ntm_mgr, ntm_msg msg);
 static inline void handle_msg_nts_fin(ntm_manager_t ntm_mgr, ntm_msg msg);
 static inline void handle_msg_err(ntm_manager_t ntm_mgr, ntm_msg msg);
 
+static inline void handle_msg_nts_epoll_create(ntm_manager_t ntm_mgr, ntm_msg msg);
+static inline void handle_msg_nts_epoll_ctl(ntm_manager_t ntm_mgr, ntm_msg msg);
+static inline void handle_msg_nts_epoll_wait(ntm_manager_t ntm_mgr, ntm_msg msg);
+static inline void handle_msg_nts_epoll_close(ntm_manager_t ntm_mgr, ntm_msg msg);
+
+
 inline void handle_msg_nts_new_socket(ntm_manager_t ntm_mgr, ntm_msg msg)
 {
 	// receive a nts shm ring buffer channel, create nts shm context to
@@ -1859,7 +1740,7 @@ inline void handle_msg_nts_connect(ntm_manager_t ntm_mgr, ntm_msg msg)
 
 	FAIL:
 	if(nts_shm_conn->socket->state == CLOSED) {
-		if (port != NULL)
+		if (port)
 		{
 			nts_shm_conn->socket->saddr.sin_port = htons(0);
 			free_port(ntm_mgr->nt_port_ctx, port->port_id, 1);
@@ -2220,7 +2101,8 @@ inline void handle_msg_nts_close(ntm_manager_t ntm_mgr, ntm_msg msg)
 	 * 		backlog context, nt_port, nt_sock, nts_shm_conn
 	 */
 	// destroy nt_listener_wrapper
-	nt_listener_wrapper_t listener_wrapper = (nt_listener_wrapper_t)
+	nt_listener_wrapper_t listener_wrapper;
+	listener_wrapper = (nt_listener_wrapper_t)
 				Get(ntm_mgr->nt_listener_ctx->listener_map, &nts_shm_conn->port);
 
 	// free backlog context
@@ -2228,10 +2110,11 @@ inline void handle_msg_nts_close(ntm_manager_t ntm_mgr, ntm_msg msg)
 
 	// free/destroy listener_wrapper->accepted_conn_map
 	//TODO: free the accepted client nt_socket in accepted_conn_map
-	HashMapIterator iter = createHashMapIterator(listener_wrapper->accepted_conn_map);
+	HashMapIterator iter;
+	iter = createHashMapIterator(listener_wrapper->accepted_conn_map);
 	while(hasNextHashMapIterator(iter)) {
 		iter = nextHashMapIterator(iter);
-		nt_socket_t tmp_socket = (nt_socket_t)iter->entry->value;
+		// nt_socket_t tmp_socket = (nt_socket_t)iter->entry->value;
 		DEBUG("Destroy/free { key = %d }", *(int *) iter->entry->key);
 	}
 	freeHashMapIterator(&iter);
@@ -2340,10 +2223,11 @@ inline void handle_msg_nts_fin(ntm_manager_t ntm_mgr, ntm_msg msg) {
 	ntm_conn_t ntm_conn;
 	ntm_conn = nts_shm_conn->ntm_conn;
 	DEBUG("msg.address='%s'.", msg.address);
-	HashMapIterator iter = createHashMapIterator(ntm_mgr->ntm_conn_ctx->conn_map);
+	HashMapIterator iter;
+	iter = createHashMapIterator(ntm_mgr->ntm_conn_ctx->conn_map);
 	while(hasNextHashMapIterator(iter)) {
 		iter = nextHashMapIterator(iter);
-		ntm_conn_t * tmp_ntm_conn = (ntm_conn_t *)iter->entry->value;
+		// ntm_conn_t * tmp_ntm_conn = (ntm_conn_t *)iter->entry->value;
 		DEBUG("{ key = %d }", *(int *) iter->entry->key);
 	}
 	freeHashMapIterator(&iter);
@@ -2385,19 +2269,447 @@ inline void handle_msg_err(ntm_manager_t ntm_mgr, ntm_msg msg)
 {
 
 	DEBUG("handle_msg_err success");
-	return;
-
-	FAIL: 
 
 	return;
 }
+
+inline void handle_msg_nts_epoll_create(ntm_manager_t ntm_mgr, ntm_msg msg) {
+
+	if (msg.msg_id < 0) {
+		ERR("Invalid msg id for NTM_MSG_EPOLL_CREATE msg");
+		return;
+	}
+
+	if (msg.nts_shm_addrlen < 0) {
+		ERR("Invalid shm address length for epoll shm ringbuffer");
+		return;
+	}
+
+	if (msg.io_queue_size < 0) {
+		ERR("Invalid Epoll I/O queue size");
+		return;
+	}
+
+	if (msg.sock_type != NT_SOCK_EPOLL) {
+		ERR("Invalid Epoll Socket Type, require NT_SOCK_EPOLL type.");
+		return;
+	}
+
+	/**
+	 * 1. create epoll context and allocate EPOLL socket
+	 * 2. create/init epoll shm ringbuffer
+	 * 3. create SHM-based ready I/O queue
+	 * 4. instruct ntp to create epoll_context
+	 * 5. send back response msg to libnts
+	 * 6. create HashMap to cache the epoll-enabled listener nt_socket_t
+	 */
+
+	// 1. create epoll context and allocate EPOLL socket
+	epoll_context_t epoll_ctx;
+	epoll_ctx = (epoll_context_t) calloc(1, sizeof(struct epoll_context));
+	if (!epoll_ctx) {
+		perror(MALLOC_ERR_MSG);
+		ERR("calloc epoll_context_t failed");
+		return;
+	}
+	 
+	// allocate socket 
+	DEBUG("allocate free NT_SOCK_EPOLL socket");
+	epoll_ctx->socket = allocate_socket(ntm_mgr->nt_sock_ctx, msg.sock_type, 1);
+	if (!epoll_ctx->socket) {
+		free(epoll_ctx);
+		ERR("allocate free NT_SOCK_EPOLL socket failed");
+		return;
+	}
+
+	epoll_ctx->epoll_shmlen = msg.nts_shm_addrlen;
+	memcpy(epoll_ctx->epoll_shmaddr, msg.nts_shm_name, epoll_ctx->epoll_shmlen);
+
+	// 2. create/init epoll shm ringbuffer
+	epoll_ctx->epoll_shm_ctx = epoll_shm();
+	int retval = epoll_shm_connect(epoll_ctx->epoll_shm_ctx, 
+			epoll_ctx->epoll_shmaddr, epoll_ctx->epoll_shmlen);
+	if (retval) {
+		free_socket(ntm_mgr->nt_sock_ctx, epoll_ctx->socket->sockid, 1);
+		free(epoll_ctx);
+		ERR("new epoll context connect epoll shm ringbuffer failed");
+		return;
+	}
+
+	// 3. create SHM-based ready I/O queue
+	epoll_ctx->io_queue_size = msg.io_queue_size;
+	sprintf(epoll_ctx->io_queue_shmaddr, "%s%d", 
+			EP_SHM_QUEUE_PREFIX, epoll_ctx->socket->sockid);
+	epoll_ctx->io_queue_shmlen = strlen(epoll_ctx->io_queue_shmaddr);
+
+	// TODO: Init SHM-based ready I/O queue
+	epoll_ctx->ep_io_queue_ctx = ep_event_queue_create(
+							epoll_ctx->io_queue_shmaddr, 
+							epoll_ctx->io_queue_shmlen, 
+							epoll_ctx->io_queue_size);
+	if (!epoll_ctx->ep_io_queue_ctx) {
+		epoll_shm_slave_close(epoll_ctx->epoll_shm_ctx);
+		epoll_shm_destroy(epoll_ctx->epoll_shm_ctx);
+		free_socket(ntm_mgr->nt_sock_ctx, epoll_ctx->socket->sockid, 1);
+		free(epoll_ctx);
+		ERR("epoll_shm_send failed for response to EPOLL_MSG_CREATE");
+		return;
+	}
+	epoll_ctx->ep_io_queue = epoll_ctx->ep_io_queue_ctx->shm_queue;
+
+	//TODO: 4. instruct ntp to create epoll_context
+	epoll_msg req_ep_msg;
+	req_ep_msg.id = msg.msg_id;
+	req_ep_msg.sockid = epoll_ctx->socket->sockid;
+	req_ep_msg.sock_type = NT_SOCK_EPOLL;
+	req_ep_msg.msg_type = EPOLL_MSG_CREATE;
+	req_ep_msg.io_queue_size = msg.io_queue_size;
+	req_ep_msg.shm_addrlen = epoll_ctx->io_queue_shmlen;
+	memcpy(req_ep_msg.shm_name, epoll_ctx->io_queue_shmaddr, epoll_ctx->io_queue_shmlen);
+	retval = epoll_sem_shm_send(ntm_mgr->epoll_mgr->ntp_ep_recv_ctx, &req_ep_msg);
+	if (retval) {
+		ep_event_queue_free(epoll_ctx->ep_io_queue_ctx, true);
+		epoll_shm_slave_close(epoll_ctx->epoll_shm_ctx);
+		epoll_shm_destroy(epoll_ctx->epoll_shm_ctx);
+		free_socket(ntm_mgr->nt_sock_ctx, epoll_ctx->socket->sockid, 1);
+		free(epoll_ctx);
+		ERR("epoll_sem_shm_send failed to send EPOLL_MSG_CREATE request to ntp");
+		return;
+	}
+
+	//TODO: wait for the response epoll_msg from ntp
+	epoll_msg resp_ep_msg;
+	retval = epoll_sem_shm_recv(ntm_mgr->epoll_mgr->ntp_ep_send_ctx, &resp_ep_msg);
+	if (retval || (retval == 0 && resp_ep_msg.retval != 0)) {
+		ep_event_queue_free(epoll_ctx->ep_io_queue_ctx, true);
+		epoll_shm_slave_close(epoll_ctx->epoll_shm_ctx);
+		epoll_shm_destroy(epoll_ctx->epoll_shm_ctx);
+		free_socket(ntm_mgr->nt_sock_ctx, epoll_ctx->socket->sockid, 1);
+		free(epoll_ctx);
+		ERR("epoll_sem_shm_recv failed to recv EPOLL_MSG_CREATE from ntp");
+		return;
+	}
+
+	// 5. send back response msg to libnts
+	epoll_msg resp_msg;
+	resp_msg.id = msg.msg_id;
+	resp_msg.retval = 0;
+	resp_msg.sockid = epoll_ctx->socket->sockid;
+	resp_msg.msg_type = EPOLL_MSG_CREATE;
+	resp_msg.shm_addrlen = epoll_ctx->io_queue_shmlen;
+	memcpy(resp_msg.shm_name, epoll_ctx->io_queue_shmaddr, epoll_ctx->io_queue_shmlen);
+	retval = epoll_shm_send(epoll_ctx->epoll_shm_ctx, &resp_msg);
+	if (retval) {
+		ep_event_queue_free(epoll_ctx->ep_io_queue_ctx, true);
+		epoll_shm_slave_close(epoll_ctx->epoll_shm_ctx);
+		epoll_shm_destroy(epoll_ctx->epoll_shm_ctx);
+		free_socket(ntm_mgr->nt_sock_ctx, epoll_ctx->socket->sockid, 1);
+		free(epoll_ctx);
+		ERR("epoll_shm_send failed for response to EPOLL_MSG_CREATE");
+		return;
+	}
+
+	// 6. create HashMap to cache the epoll-enabled listener nt_socket_t
+	epoll_ctx->ep_socket_map = createHashMap(NULL, NULL);
+
+	// push new epoll context into hashmap
+	Put(ntm_mgr->epoll_mgr->epoll_ctx_map, &epoll_ctx->socket->sockid, epoll_ctx);
+	epoll_ctx->socket->state = CLOSED;
+
+	DEBUG("handle EPOLL_MSG_CREATE success");
+	return;
+}
+
+inline void handle_msg_nts_epoll_ctl(ntm_manager_t ntm_mgr, ntm_msg msg) {
+	
+	if (msg.msg_id < 0) {
+		ERR("Invalid msg id for NTM_MSG_EPOLL_CTL msg");
+		return;
+	}
+
+	if (msg.sockid < 0) {
+		ERR("Invalid socket id for NTM_MSG_EPOLL_CTL msg");
+		return;
+	}
+
+	if (msg.epid < 0) {
+		ERR("Invalid epoll socket id for NTM_MSG_EPOLL_CTL msg");
+		return;
+	}
+
+	if (msg.sock_type == NT_SOCK_UNUSED || msg.sock_type == NT_SOCK_EPOLL) {
+		ERR("Invalid socket type for NTM_MSG_EPOLL_CTL msg");
+		return;
+	}
+      
+	if (msg.epoll_op != NTS_EPOLL_CTL_ADD && 
+			msg.epoll_op != NTS_EPOLL_CTL_DEL && 
+			msg.epoll_op != NTS_EPOLL_CTL_MOD) {
+		ERR("Invalid epoll operation type for NTM_MSG_EPOLL_CTL msg");
+		return;
+	}	
+
+
+	/**
+	 *	1. get the corresponding epoll_context
+	 *  2. get the sockid-corresponding socket, and check the validity
+	 *  3. according to the epoll_op, take corresponding actions:
+	 * 		case NTS_EPOLL_CTL_ADD: 
+	 * 			socket->ep_data = msg.ep_data;
+	 * 			socket->events = msg.events;
+	 * 			instruct ntp to update socket-corresponding ntb-conn epoll state;
+	 * 		case NTS_EPOLL_CTL_MOD:
+	 * 			socket->ep_data = msg.ep_data;
+	 * 			socket->events = msg.events;
+	 * 			instruct ntp to update socket-corresponding ntb-conn epoll state;
+	 * 		case NTS_EPOLL_CTL_DEL:
+	 * 			socket->epoll = NTS_EPOLLNONE;
+	 * 			instruct ntp to update socket-corresponding ntb-conn epoll state into NONE;
+	 * 	4. recv the corresponding recv epoll_msg from ntp;
+	 * 	5. send the response epoll_msg into libnts;
+	 * 	
+	 */
+
+	// 1. get the corresponding epoll_context
+	epoll_context_t epoll_ctx;
+	epoll_ctx = (epoll_context_t) Get(ntm_mgr->epoll_mgr->epoll_ctx_map, &msg.epid);
+	if (epoll_ctx == NULL) {
+		ERR("Non-existing epoll_context for epoll_id[%d]", msg.epid);
+		return;
+	} 
+
+	// 2. get the sockid-corresponding socket, and check the validity
+	nts_shm_conn_t nts_shm_conn;
+	nts_shm_conn = (nts_shm_conn_t) Get(ntm_mgr->nts_ctx->nts_shm_conn_map, &msg.sockid);
+	if (!nts_shm_conn)
+	{
+		ERR("nts_shm_conn not found");
+		return;
+	}
+	nt_socket_t socket = nts_shm_conn->socket;
+
+	// 3. according to the epoll_op, take corresponding actions:
+	int rc;
+	epoll_msg resp_to_nts_msg;
+	resp_to_nts_msg.id = msg.msg_id;
+	resp_to_nts_msg.msg_type = EPOLL_MSG_CTL;
+	resp_to_nts_msg.epoll_op = msg.epoll_op;
+
+	if (msg.epoll_op == NTS_EPOLL_CTL_ADD) {
+		if (socket->epoll) {
+			resp_to_nts_msg.retval = -1;
+			resp_to_nts_msg.nt_errno = EEXIST;
+			rc = epoll_shm_send(epoll_ctx->epoll_shm_ctx, &resp_to_nts_msg);
+			if (rc != 0) {
+				ERR("epoll_shm_send failed to send response to EPOLL_MSG_CREATE");
+			}
+			return;
+		}
+
+		socket->ep_data = msg.ep_data;
+		socket->epoll = msg.events;
+
+	} else if (msg.epoll_op == NTS_EPOLL_CTL_MOD) {
+		if (!socket->epoll) {
+			resp_to_nts_msg.retval = -1;
+			resp_to_nts_msg.nt_errno = ENOENT;
+			rc = epoll_shm_send(epoll_ctx->epoll_shm_ctx, &resp_to_nts_msg);
+			if (rc != 0) {
+				ERR("epoll_shm_send failed to send EPOLL_MSG_CTL response to libnts");
+			}
+			return;
+		}
+
+		socket->ep_data = msg.ep_data;
+		socket->epoll = msg.events;
+
+	} else if (msg.epoll_op == NTS_EPOLL_CTL_DEL) {
+		if (!socket->epoll) {
+			resp_to_nts_msg.retval = -1;
+			resp_to_nts_msg.nt_errno = ENOENT;
+			rc = epoll_shm_send(epoll_ctx->epoll_shm_ctx, &resp_to_nts_msg);
+			if (rc != 0) {
+				ERR("epoll_shm_send failed to send EPOLL_MSG_CTL response to libnts");
+			}
+			return;
+		}
+
+		socket->epoll = NTS_EPOLLNONE;
+	}
+
+	if (socket->socktype == NT_SOCK_LISTENER) {  
+		resp_to_nts_msg.retval = 0;
+		rc = epoll_shm_send(epoll_ctx->epoll_shm_ctx, &resp_to_nts_msg);
+		if (rc != 0) {
+			ERR("epoll_shm_send failed to send EPOLL_MSG_CTL response to libnts");
+		}
+		if (msg.epoll_op == NTS_EPOLL_CTL_ADD) {
+			Put(epoll_ctx->ep_socket_map, &socket->sockid, socket);
+			nts_shm_conn->epoll_ctx = epoll_ctx;
+
+		} else if (msg.epoll_op == NTS_EPOLL_CTL_DEL) {
+			Remove(epoll_ctx->ep_socket_map, &socket->sockid);
+			nts_shm_conn->epoll_ctx = NULL;
+
+		}
+		return;
+	}
+
+	// instruct ntp to update socket-corresponding ntb-conn epoll state
+	epoll_msg req_to_ntp_msg;
+	req_to_ntp_msg.id = msg.msg_id;
+	req_to_ntp_msg.sockid = msg.sockid;
+	req_to_ntp_msg.msg_type = EPOLL_MSG_CTL;
+	req_to_ntp_msg.epid = msg.epid;
+	req_to_ntp_msg.epoll_op = msg.epoll_op;
+	if (msg.epoll_op == NTS_EPOLL_CTL_ADD) {
+		req_to_ntp_msg.src_port = htons(nts_shm_conn->port);
+		req_to_ntp_msg.dst_port = nts_shm_conn->peer_sin_port;
+	}
+	if (msg.epoll_op == NTS_EPOLL_CTL_ADD 
+			|| msg.epoll_op == NTS_EPOLL_CTL_MOD) {
+		req_to_ntp_msg.ep_data = msg.ep_data;
+		req_to_ntp_msg.events = msg.events;
+	}
+	rc = epoll_sem_shm_send(ntm_mgr->epoll_mgr->ntp_ep_recv_ctx, &req_to_ntp_msg);
+	if (rc) {
+		ERR("epoll_sem_shm_send failed to send EPOLL_MSG_CTL request to ntp");
+		return;
+	}
+
+	// 4. recv the corresponding recv epoll_msg from ntp
+	// wait for the response epoll_msg from ntp
+	epoll_msg resp_ep_msg;
+	rc = epoll_sem_shm_recv(ntm_mgr->epoll_mgr->ntp_ep_send_ctx, &resp_ep_msg);
+	if (rc || (rc == 0 && resp_ep_msg.retval != 0)) { 
+		ERR("epoll_sem_shm_recv failed to recv EPOLL_MSG_CTL response from ntp");
+		return;
+	}
+
+	// 5. send the response epoll_msg into libnts
+	resp_to_nts_msg.retval = 0;
+	rc = epoll_shm_send(epoll_ctx->epoll_shm_ctx, &resp_to_nts_msg);
+	if (rc != 0) {
+		ERR("epoll_shm_send failed to send EPOLL_MSG_CTL response to libnts");
+	}
+	return;
+}
+
+inline void handle_msg_nts_epoll_wait(ntm_manager_t ntm_mgr, ntm_msg msg) {
+
+}
+
+inline void handle_msg_nts_epoll_close(ntm_manager_t ntm_mgr, ntm_msg msg) {
+	
+	if (msg.msg_id < 0) {
+		ERR("Invalid msg id for NTM_MSG_EPOLL_CTL msg");
+		return;
+	}
+
+	if (msg.epid < 0 || msg.sock_type != NT_SOCK_EPOLL) {
+		ERR("Invalid socket id or epoll socket type for NTM_MSG_EPOLL_CTL msg");
+		return;
+	}
+
+	/**
+	 * 1. get the corresponding epoll_context
+	 * 2. get the sockid-corresponding socket, and check the validity
+	 * 3. remove the epoll_fd-including listen socket within epoll_socket
+	 * 4. instruct ntp to remove the epoll of all client socket within
+	 * 		epoll_socket, destroy the corresponding epoll_context, and 
+	 *  	disconnect the corresponding event queue.
+	 * 5. destory shm-based event_queue thoroughly
+	 * 6. send EPOLL_CLOSE ack to libnts
+	 * 7. disconnect the epoll_shm_ring created by libnts 
+	 * 8. destroy epoll_context and free epoll_socket
+	 */
+
+	// 1. get the corresponding epoll_context
+	epoll_context_t epoll_ctx;
+	epoll_ctx = (epoll_context_t) Get(ntm_mgr->epoll_mgr->epoll_ctx_map, &msg.epid);
+	if (epoll_ctx == NULL) {
+		ERR("Non-existing epoll_context for epoll_id[%d]", msg.epid);
+		return;
+	} 
+
+	// 2. get the sockid-corresponding socket, and check the validity
+	if (!epoll_ctx->socket || epoll_ctx->socket->sockid < 0) {
+		ERR("Non-existing epoll_socket in epoll_context");
+		Remove(ntm_mgr->epoll_mgr->epoll_ctx_map, &msg.epid);
+		return;
+	}
+
+	// 3. remove the epoll_fd-including listen socket within epoll_socket
+	HashMapIterator iter = createHashMapIterator(epoll_ctx->ep_socket_map);
+	while (hasNextHashMapIterator(iter))
+	{
+		iter = nextHashMapIterator(iter);
+		nt_socket_t listen_sock = (nt_socket_t) (iter->entry->value);
+		listen_sock->epoll = NTS_EPOLLNONE;
+	}
+	freeHashMapIterator(&iter);
+	Clear(epoll_ctx->ep_socket_map);
+	epoll_ctx->ep_socket_map = NULL;
+
+
+	// 4. instruct ntp to remove the epoll of all client socket within
+	// 	epoll_socket, destroy the corresponding epoll_context, and 
+	//  disconnect the corresponding event queue.
+	epoll_msg req_ep_msg;
+	req_ep_msg.id = msg.msg_id;
+	req_ep_msg.sock_type = NT_SOCK_EPOLL;
+	req_ep_msg.msg_type = EPOLL_MSG_CLOSE;
+	req_ep_msg.epid = msg.epid;
+	int rc;
+	rc = epoll_sem_shm_send(ntm_mgr->epoll_mgr->ntp_ep_recv_ctx, &req_ep_msg);
+	if (rc) {
+		ERR("epoll_sem_shm_send failed to send EPOLL_MSG_CLOSE request to ntp");
+		return;
+	}
+
+	// recv the corresponding epoll_msg from ntp
+	epoll_msg resp_ep_msg;
+	rc = epoll_sem_shm_recv(ntm_mgr->epoll_mgr->ntp_ep_send_ctx, &resp_ep_msg);
+	if (rc || (rc == 0 && resp_ep_msg.retval != 0)) {
+		ERR("epoll_sem_shm_recv failed to recv EPOLL_MSG_CLOSE response from ntp");
+		return;
+	}
+
+	// 5. destory shm-based event_queue thoroughly
+	ep_event_queue_free(epoll_ctx->ep_io_queue_ctx, true);
+	epoll_ctx->ep_io_queue = NULL;
+
+	// 6. send EPOLL_CLOSE ack to libnts
+	epoll_msg resp_msg;
+	resp_msg.id = msg.msg_id;
+	resp_msg.retval = 0;
+	resp_msg.epid = msg.epid;
+	resp_msg.msg_type = EPOLL_MSG_CLOSE;
+	rc = epoll_shm_send(epoll_ctx->epoll_shm_ctx, &resp_msg);
+	// if epoll_shm_send failed, 
+	// 	continue to destroy the epoll context.
+	if (rc) {
+		ERR("epoll_shm_send failed for response to EPOLL_MSG_CLOSE");
+	}
+
+	// 7. disconnect the epoll_shm_ring created by libnts 
+	epoll_shm_slave_close(epoll_ctx->epoll_shm_ctx);
+	epoll_shm_destroy(epoll_ctx->epoll_shm_ctx);
+
+	// 8. destroy epoll_context and free epoll_socket
+	Remove(ntm_mgr->epoll_mgr->epoll_ctx_map, &epoll_ctx->socket->sockid);	
+	free_socket(ntm_mgr->nt_sock_ctx, epoll_ctx->socket->sockid, 1);
+	free(epoll_ctx);
+	epoll_ctx = NULL;
+}
+
 
 void *nts_shm_recv_thread(void *args)
 {
 	assert(ntm_mgr);
 	assert(ntm_mgr->nts_ctx->shm_recv_ctx);
 
-	DEBUG("nts_recv_thread ready...");
+	DEBUG("nts_shm_recv_thread ready...");
 	ntm_nts_context_t nts_ctx;
 	nts_ctx = ntm_mgr->nts_ctx;
 	
@@ -2422,7 +2734,7 @@ void *nts_shm_recv_thread(void *args)
 		}
 	}
 
-	DEBUG("nts_recv_thread end!");
+	DEBUG("nts_shm_recv_thread end!");
 
 	return NULL;
 }
@@ -2489,6 +2801,18 @@ void nts_shm_handle_msg(ntm_manager_t ntm_mgr, ntm_msg msg)
 
 		handle_msg_nts_fin(ntm_mgr, msg);
 	}
+	else if (msg.msg_type & NTM_MSG_EPOLL_CREATE)
+	{
+		DEBUG("handle NTM_MSG_EPOLL_CREATE");
+	}
+	else if (msg.msg_type & NTM_MSG_EPOLL_CTL)
+	{
+		DEBUG("handle NTM_MSG_EPOLL_CTL");
+	}
+	else if (msg.msg_type & NTM_MSG_EPOLL_CLOSE)
+	{
+		DEBUG("handle NTM_MSG_EPOLL_CLOSE");
+	}
 	else
 	{
 		DEBUG("Error NTM Message Type");
@@ -2501,9 +2825,6 @@ int print_monitor()
 {
 	printf("Hello Ntb Monitor.\n");
 
-		test_ntm_ring();
-	//	test_ntm_shm();
-	//	test_nts_shm();
 	printf("Bye, Ntb Monitor.\n");
 
 	return 0;
@@ -2570,8 +2891,6 @@ inline void destroy_client_nt_socket_conn(nt_socket_t client_socket,
 	if (client_socket) {
 		free_socket(ntm_mgr->nt_sock_ctx, client_socket->sockid, 1);
 	}
-
-
 }
 
 inline void destroy_client_nt_socket_conn_with_sock(nt_socket_t client_socket) {
@@ -2653,7 +2972,4 @@ inline void destroy_client_nt_socket_conn_with_nts_shm_conn(nts_shm_conn_t nts_s
 		}
 	}
 	
-
-
 }
-

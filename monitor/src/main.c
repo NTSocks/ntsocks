@@ -52,7 +52,7 @@ void test_nts_shm() {
 			// sched_yield();
 			ret = nts_shmring_pop(handle, &msg);
 		}
-		printf("msg_id=%d, msg_type=%d, sockid=%d, retval=%d\n", 
+		printf("msg_id=%lu, msg_type=%d, sockid=%d, retval=%d\n", 
 					msg.msg_id, msg.msg_type, msg.sockid, msg.retval);
 		
 	}
@@ -94,6 +94,7 @@ int main(int argc, char **argv) {
 			break;
 		case 'c':
 			conf_file = (char *) strdup(optarg);
+			printf("config file: %s\n", conf_file);
 			break;
 		default:
 			usage(argv[0]);

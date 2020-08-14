@@ -16,7 +16,7 @@
  * debug control, you can switch on (delete 'x' suffix)
  * to enable log output and assert mechanism
  */
-#define CONFIG_ENABLE_DEBUG
+// #define ENABLE_DEBUG
 
 /*
  * debug level,
@@ -32,7 +32,7 @@ enum debug_level {
     DEBUG_LEVEL_DEBUG
 };
 
-#ifdef CONFIG_ENABLE_DEBUG
+#ifdef ENABLE_DEBUG
 
 /* it can be change to others, such as file operations */
 #include <stdio.h>
@@ -83,7 +83,7 @@ do {                                                    \
 	} while(0)
 
 
-#else   /* CONFIG_ENABLE_DEBUG  */
+#else   /* ENABLE_DEBUG  */
 
 #define DEBUG_SET_LEVEL(x)
 #define ASSERT()
@@ -91,6 +91,6 @@ do {                                                    \
 #define INFO(fmt, ...)
 #define DEBUG(fmt, ...)
 
-#endif  /* CONFIG_ENABLE_DEBUG  */
+#endif  /* ENABLE_DEBUG  */
 
 #endif //NT_LOG_H_

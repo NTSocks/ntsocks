@@ -11,6 +11,7 @@
 #include <assert.h>
 
 #include "shm_mempool.h"
+#include "utils.h"
 #include "nt_log.h"
 
 DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
@@ -203,17 +204,16 @@ shm_mp_handler_t shm_mp_init(unsigned int block_len, unsigned int block_count, c
         tmp_mem += block_len;
     }
 
-    
-
+#ifdef ENABLE_DEBUG
     HashMapIterator iter = createHashMapIterator(mp_handler->mp_node_map);
     while(hasNextHashMapIterator(iter)) {
         iter = nextHashMapIterator(iter);
         int idx = *(int *) iter->entry->value;
-        // printf("{ key = %s, value = %d, hashcode=%d }\n", (char *)iter->entry->key, idx, iter->hashCode);
-
+        printf("{ key = %s, value = %d, hashcode=%d }\n", (char *)iter->entry->key, idx, iter->hashCode);
     }
     freeHashMapIterator(&iter);
-
+#endif  //ENABLE_DEBUG
+   
 
     ret = sem_post(mp_handler->sem_mutex);
     if (ret == -1) {
@@ -260,9 +260,7 @@ shm_mp_handler_t shm_mp_init(unsigned int block_len, unsigned int block_count, c
 
     }
 
-
     return NULL;
-
 }
 
 shm_mempool_node * shm_mp_malloc(shm_mp_handler_t mp_handler, unsigned int size) {
@@ -276,11 +274,10 @@ shm_mempool_node * shm_mp_malloc(shm_mp_handler_t mp_handler, unsigned int size)
     int ret;
 
     ret = sem_wait(mp_handler->sem_mutex);
-    if (ret == -1) {
+    if (UNLIKELY(ret == -1)) {
         perror("sem_wait: sem_mutex");
         return NULL;
     }
-
 
     shm_mempool_node * node = NULL;
 
@@ -290,7 +287,7 @@ shm_mempool_node * shm_mp_malloc(shm_mp_handler_t mp_handler, unsigned int size)
 
 
     int node_idx = mp_handler->shm_mp->free_header_idx;
-    if(node_idx == -1) {
+    if(UNLIKELY(node_idx == -1)) {
         ERR("no free shm-mempool node with free_header_idx=%d, free_tail_idx=%d", 
             mp_handler->shm_mp->free_header_idx, mp_handler->shm_mp->free_tail_idx);
         shm_mp_runtime_print(mp_handler);
@@ -309,7 +306,7 @@ shm_mempool_node * shm_mp_malloc(shm_mp_handler_t mp_handler, unsigned int size)
     // mp_handler->shm_mp->used_header_idx = node->node_idx;
 
     ret = sem_post(mp_handler->sem_mutex);
-    if (ret == -1) {
+    if (UNLIKELY(ret == -1)) {
         perror("sem_post: sem_mutex");
         return NULL;
     }
@@ -326,7 +323,6 @@ shm_mempool_node * shm_mp_malloc(shm_mp_handler_t mp_handler, unsigned int size)
 shm_mempool_node * shm_mp_node(shm_mp_handler_t mp_handler, unsigned int node_idx) {
 
     if(node_idx < mp_handler->shm_mp->total_count) {
-
         return &mp_handler->shm_mp_nodes[node_idx];   
     }
 
@@ -337,8 +333,6 @@ shm_mempool_node * shm_mp_node_by_shmaddr(shm_mp_handler_t mp_handler, char *shm
     assert(shmaddr);
 
     int * node_idx;
-    shm_mempool_node * mp_node;
-
     uint64_t offset = shmaddr - mp_handler->shm_mem;
     DEBUG("\n offset=%ld\n", offset);
     char offset_str[30] = {0};
@@ -362,7 +356,7 @@ char * shm_offset_mem(shm_mp_handler_t mp_handler, int node_idx) {
     //             mp_handler->shm_mp->column, mp_handler->shm_mp->total_count, 
     //             mp_handler->shm_mp->used_count, mp_handler->shm_mp->block_len);
 
-    if ( node_idx >= 0 && node_idx < mp_handler->shm_mp->total_count){
+    if (LIKELY(node_idx >= 0 && node_idx < mp_handler->shm_mp->total_count)){
         DEBUG("shm_offset_mem success [node_idx=%d].\n", node_idx);
         return (mp_handler->shm_mem + mp_handler->shm_mp_nodes[node_idx].shm_offset);
     }
@@ -462,7 +456,7 @@ int shm_mp_destroy(shm_mp_handler_t mp_handler, int is_unlink) {
                 mp_handler->shm_mp->column, mp_handler->shm_mp->total_count, 
                 mp_handler->shm_mp->used_count, mp_handler->shm_mp->block_len);
 
-    int block_count;
+    int block_count = 0;
     int block_len, shm_mp_size;
 
     if (mp_handler->shm_mp || mp_handler->shm_mem) {
@@ -471,7 +465,6 @@ int shm_mp_destroy(shm_mp_handler_t mp_handler, int is_unlink) {
         block_len = mp_handler->shm_mp->block_len;
         shm_mp_size = sizeof(shm_mempool) + sizeof(shm_mempool_node) * block_count;
         
-
         DEBUG("munmap and close base_shm_mp (shm mempool), shm_mp_size=%d, block_count=%d\n", shm_mp_size, block_count);
         munmap(mp_handler->base_shm_mp, (size_t)(shm_mp_size));
         DEBUG("close shm_mp_fd\n");
@@ -490,7 +483,6 @@ int shm_mp_destroy(shm_mp_handler_t mp_handler, int is_unlink) {
             shm_unlink(mp_handler->shm_mem_name);
             sem_unlink(mp_handler->sem_mutex_name);
         }
-
     }
 
     if (mp_handler->shm_mp_name) {
@@ -518,18 +510,16 @@ int shm_mp_destroy(shm_mp_handler_t mp_handler, int is_unlink) {
         mp_handler->node_idxs = NULL;
     }
 
-    if (block_count >0 && mp_handler->offset_strs) {
+    if (block_count > 0 && mp_handler->offset_strs) {
         for (size_t i = 0; i < block_count; i++)
         {
             free(mp_handler->offset_strs[i]);
         }
         free(mp_handler->offset_strs);
-
     }
 
     free(mp_handler);
     mp_handler = NULL;
-
     DEBUG("shm_mp_destroy success \n");
 
     return SMP_OK;

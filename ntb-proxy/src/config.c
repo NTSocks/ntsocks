@@ -12,6 +12,7 @@
 #include "nt_log.h"
 #include <unistd.h>
 #include <string.h>
+#include <stdio.h>
 
 #define MAX_BUF_LEN 1024
 #define MAX_KEY_LEN 64

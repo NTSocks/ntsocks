@@ -32,7 +32,7 @@ typedef enum socket_type {
 	NT_SOCK_STREAM,  			// default, for connect-based socket
 	NT_SOCK_PROXY,
 	NT_SOCK_LISTENER,			// for listener socket
-	NT_SOCK_EPOLL,
+	NT_SOCK_EPOLL,				// for epoll socket
 	NT_SOCK_PIPE				// for accepted-based socket
 } socket_type;
 
@@ -63,10 +63,14 @@ struct nt_socket {
 
 	union {
 		struct nt_listener *listener;
+		struct _nts_epoll *ep;
 	};
 
-	TAILQ_ENTRY (nt_socket) free_ntsock_link;
+	uint32_t epoll;
+	uint32_t events;
+	uint64_t ep_data;
 
+	TAILQ_ENTRY (nt_socket) free_ntsock_link;
 } nt_socket;
 
 typedef struct nt_socket * nt_socket_t;

@@ -43,13 +43,11 @@ int main() {
     if (tmp_mp_node) {
         printf("[section 1] node_idx=%d, tmp_mp_node.node_idx=%d\n", node_idx, tmp_mp_node->node_idx);
     }
-
-
     printf("[section 1] send msg payload: %s \n", shm_mem);
     /* end shm mempool */
 
     /* start shmring */
-    shmring_handle = shmring_init(RING_NAME, strlen(RING_NAME));
+    shmring_handle = shmring_create((char *)RING_NAME, strlen(RING_NAME), sizeof(node_idx), DEFAULT_MAX_BUFS);
     
     ret = shmring_push(shmring_handle, (char *)(int*) &node_idx, sizeof(node_idx));
     while(!ret) {
@@ -57,21 +55,19 @@ int main() {
         ret = shmring_push(shmring_handle, (char *)(int*) &node_idx, sizeof(node_idx));
     }
 
-    shmring_free(shmring_handle, 0);
+    shmring_free(shmring_handle, false);
     /* end shmring */
 
     shm_mp_runtime_print(mp_handler);
     shm_mp_destroy(mp_handler, 0);
     /* end section 1 */
 
-
-    
     /* section 2 */
     shm_mempool_node * tmp_node;
     char * tmp_shmmem;
 
     /* shm mempool */
-    mp_handler = shm_mp_init(256, 10, MP_NAME, strlen(MP_NAME));
+    mp_handler = shm_mp_init(256, 10, (char *) MP_NAME, strlen(MP_NAME));
     if (mp_handler == NULL) {
         perror("shm_mp_init failed.\n");
         return -1;
@@ -79,11 +75,10 @@ int main() {
 
     // tmp_node = shm_mp_node(node_idx);
     // char * tmp_shmmem = shm_offset_mem(node_idx);
-
     /* end shm mempool */
 
     /* shmring */
-    shmring_handle = get_shmring(RING_NAME, strlen(RING_NAME));
+    shmring_handle = shmring_init((char *)RING_NAME, strlen(RING_NAME), sizeof(node_idx), DEFAULT_MAX_BUFS);
 
     int recv_idx;
     ret = shmring_pop(shmring_handle, (char*)(int*)&recv_idx, sizeof(recv_idx));
@@ -101,7 +96,7 @@ int main() {
 
     shm_mp_free(mp_handler, tmp_node);
 
-    shmring_free(shmring_handle, 1);
+    shmring_free(shmring_handle, true);
     /* end shmring */
 
     shm_mp_runtime_print(mp_handler);

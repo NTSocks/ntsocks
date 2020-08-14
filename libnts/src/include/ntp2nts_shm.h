@@ -43,7 +43,6 @@ extern "C"
         // for shm mempool
         shm_mp_handler * mp_handler;
 
-
 	};
 
 	typedef struct ntp_shm_context *ntp_shm_context_t;
