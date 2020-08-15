@@ -27,6 +27,8 @@ struct nts_config NTS_CONFIG = {
 
 nts_context_t nts_ctx = NULL;
 
+HashMap fd_table = NULL;
+
 
 static int trim(char s[])
 {

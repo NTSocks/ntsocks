@@ -11,13 +11,11 @@ DEBUG = -g -O2
 CFLAGS += $(DEBUG) -Wall -std=c11 -D_BSD_SOURCE -DHAVE_GCC_C11_ATOMICS 
 LDFLAGS+= -L$(LIB_PATH) -l$(LIB_NAME)
 
-TARGET=shmring ntp2nts-shm
+TARGET=shmring ntp2nts-shm hash_map
 
-all: clean $(LIB_OBJS) fdu_utils_static_lib fdu_utils_shared_lib local-install shmring ntp2nts-shm
+all: clean $(LIB_OBJS) fdu_utils_static_lib fdu_utils_shared_lib local-install shmring ntp2nts-shm hash_map
 	rm -f *.o 
 	mv $(TARGET) $(BIN_PATH)
-
-
 
 
 shmring: shmring_main.c 
@@ -28,6 +26,8 @@ ntp2nts-shm: shm_main.c
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS) -I$(INC_PATH)
 	# mv $(TARGET) $(BIN_PATH)
 
+hash_map: hashmap_main.c
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS) -I$(INC_PATH)
 
 fdu_utils_static_lib: $(LIB_OBJS)
 	ar cq lib$(LIB_NAME).a $^ 

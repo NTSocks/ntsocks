@@ -138,7 +138,6 @@ nts_shmring_handle_t nts_shmring_init(char *shm_addr, size_t addrlen) {
     shmring_handle->max_size = NTS_MAX_BUFS;
     DEBUG("nts shmring init success!");
 
-
     return shmring_handle;
 
     FAIL:

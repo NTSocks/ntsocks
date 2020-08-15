@@ -140,10 +140,16 @@ int nts_init(const char *config_file) {
 	nts_context_init(config_file);
 	nts_ctx->init_flag = 1;
 
+	// init FD remmaping table
+	fd_table = createHashMap(NULL, NULL);
+
 	return 0;
 }
 
 void nts_destroy() {
+	Clear(fd_table);
+	fd_table = NULL;
+
 	nts_context_destroy();
 }
 
@@ -650,6 +656,14 @@ int nts_accept(int sockid, const struct sockaddr *addr, socklen_t *addrlen) {
 	return -1;
 
 }
+
+int nts_accept4(int sockfd, struct sockaddr *addr, socklen_t *addrlen, int flags) {
+	DEBUG("nts_accept start...");
+	assert(nts_ctx);
+
+	return -1;
+}
+
 
 int nts_connect(int sockid, const struct sockaddr *name, socklen_t namelen) {
 	DEBUG("nts_connect start...");
@@ -1568,9 +1582,19 @@ int nts_dup2(int oldfd, int newfd) {
 
 
 /* Tests if fd is used by NTSock */
-int nts_fdisused(int fd) {
+bool nts_fdisused(int fd) {
+	assert(nts_ctx);
+	assert(fd_table);
+	
+	return Exists(fd_table, &fd);
+}
 
-	return 0;
+bool nts_fd_remap(int fd) {
+	assert(nts_ctx);
+	assert(fd_table);
+
+	Put(fd_table, &fd, NULL);
+	return true;
 }
 
 int nts_getmaxfd(void) {
