@@ -1059,14 +1059,6 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 	 */
 
 	// 1. get/pop `nt_sock_context` from `HashMap nt_sock_map` using sockid.
-	HashMapIterator iter = createHashMapIterator(nts_ctx->nt_sock_map);
-	while(hasNextHashMapIterator(iter)) {
-		iter = nextHashMapIterator(iter);
-		nt_sock_context_t tmp_sock_ctx = (nt_sock_context_t)iter->entry->value;
-		DEBUG("{ key = %d }", *(int *) iter->entry->key);
-	}
-	freeHashMapIterator(&iter);
-
 	nt_sock_context_t nt_sock_ctx;
 	nt_sock_ctx = (nt_sock_context_t) Get(nts_ctx->nt_sock_map, &sockid);
 	if(!nt_sock_ctx) {
@@ -1141,7 +1133,8 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 	// check whether there is data in ntp_buf[char[253]] of nt_sock_ctx
 	char *payload;
 	int payload_len;
-	bool is_cached = false;
+	bool is_cached; 
+	is_cached = false;
 	if (nt_sock_ctx->ntp_buflen > 0) {
 		payload = nt_sock_ctx->ntp_buf;
 		payload_len = nt_sock_ctx->ntp_buflen;

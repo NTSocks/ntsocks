@@ -19,7 +19,7 @@
 #include <unistd.h>
 #include <assert.h>
 #include <sys/epoll.h>
-#include <linux/fcntl.h>
+#include <fcntl.h>
 
 #define __USE_GNU
 #include <sched.h>
@@ -382,11 +382,8 @@ int fcntl(int sockfd, int cmd, void *p) {
 		return real_fcntl(sockfd, cmd, p);
 	}
 
-	if (nts_fdisused(sockfd)) {
-		return nts_fcntl(sockfd, cmd, p);
-	} else {
-		return real_fcntl(sockfd, cmd, p);
-	}
+
+	return nts_fcntl(sockfd, cmd, p);
 }
 
 int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
