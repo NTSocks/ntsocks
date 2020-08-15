@@ -26,7 +26,7 @@
 #include "nt_atomic.h"
 #include "nt_log.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
 
 // #define NTS_SHM_TEST "nts-test-shm"
 
@@ -138,7 +138,6 @@ nts_shmring_handle_t nts_shmring_init(char *shm_addr, size_t addrlen) {
     shmring_handle->max_size = NTS_MAX_BUFS;
     DEBUG("nts shmring init success!");
 
-
     return shmring_handle;
 
     FAIL:
@@ -237,7 +236,6 @@ bool nts_shmring_push(nts_shmring_handle_t self, nts_msg *element) {
     DEBUG("push nts shmring success!");
 
     return true;
-
 }
 
 bool nts_shmring_pop(nts_shmring_handle_t self, nts_msg *element) {
@@ -265,7 +263,6 @@ bool nts_shmring_pop(nts_shmring_handle_t self, nts_msg *element) {
                                mask_increment(r_idx, self->MASK), ATOMIC_MEMORY_ORDER_RELEASE);
 
     DEBUG("pop nts shmring success!");
-
     return true;
 }
 
