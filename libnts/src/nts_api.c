@@ -812,17 +812,7 @@ int nts_close(int sockid) {
 	 * 8. then set the socket state as `CLOSED` and destroy local ntb socket resources
 	 */
 
-	// 1. get/pop `nt_sock_context` from `HashMap nt_sock_map` using sockid.
-	HashMapIterator iter = createHashMapIterator(nts_ctx->nt_sock_map);
-	while(hasNextHashMapIterator(iter)) {
-		iter = nextHashMapIterator(iter);
-		nt_sock_context_t tmp_sock_ctx;
-		tmp_sock_ctx = (nt_sock_context_t) iter->entry->value;
-		printf("{ key[sockid]=%d, sock_ctx->sockid=%d, hashcode=%d } \n", *(int *) iter->entry->key, iter->hashCode);
-
-	}
-	freeHashMapIterator(&iter);
-	
+	// 1. get/pop `nt_sock_context` from `HashMap nt_sock_map` using sockid.	
 	nt_sock_context_t nt_sock_ctx;
 	nt_sock_ctx = (nt_sock_context_t) Get(nts_ctx->nt_sock_map, &sockid);
 	if(!nt_sock_ctx) {
@@ -1060,14 +1050,6 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 	 */
 
 	// 1. get/pop `nt_sock_context` from `HashMap nt_sock_map` using sockid.
-	HashMapIterator iter = createHashMapIterator(nts_ctx->nt_sock_map);
-	while(hasNextHashMapIterator(iter)) {
-		iter = nextHashMapIterator(iter);
-		nt_sock_context_t tmp_sock_ctx = (nt_sock_context_t)iter->entry->value;
-		DEBUG("{ key = %d }", *(int *) iter->entry->key);
-	}
-	freeHashMapIterator(&iter);
-
 	nt_sock_context_t nt_sock_ctx;
 	nt_sock_ctx = (nt_sock_context_t) Get(nts_ctx->nt_sock_map, &sockid);
 	if(!nt_sock_ctx) {
@@ -1088,34 +1070,38 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 	// 3. else, then check whether msg_type is `NTP_NTS_MSG_FIN`
 	int retval;
 	ntp_msg * incoming_data;
-	DEBUG("[out] ntp_shm_front");
-	// TODO: ntp_shm_recv is replaced with ntp_shm_front() method
-	incoming_data = ntp_shm_front(nt_sock_ctx->ntp_recv_ctx);
-	while (incoming_data == NULL)
-	{
-		sched_yield();
+
+	// If there is cached data in ntp_buf of nt_sock_ctx [nt_sock_ctx->ntp_buflen > 0], skip ntp_shm_front to check NTP_NTS_MSG_FIN
+	if (nt_sock_ctx->ntp_buflen <= 0) {
+		DEBUG("[out] ntp_shm_front");
+		// TODO: ntp_shm_recv is replaced with ntp_shm_front() method
 		incoming_data = ntp_shm_front(nt_sock_ctx->ntp_recv_ctx);
-	}
-	DEBUG("[out] ntp_shm_front end");
+		while (incoming_data == NULL)
+		{
+			sched_yield();
+			incoming_data = ntp_shm_front(nt_sock_ctx->ntp_recv_ctx);
+		}
+		DEBUG("[out] ntp_shm_front end");
 
 
-	// 4. if is `NTP_NTS_MSG_FIN`, then set the socket state to `WAIT_FIN` 
-	// 	    and start to passively close nt_socket
-	// two solution to destroy client socket-related resources in libnts and ntm
-	// solution 1: nts send `NTM_MSG_FIN` message into ntm, then: 
-	// 			set socket state to `CLOSED`, destroy local resources, 
-	//			nts_shm_ntm_close()/nts_shm_close()[??] to close nts_shm.
-	// solution 2: nts send `NTM_MSG_FIN` message into ntm, then:
-	//			set socket state to `WAIT_FIN`, wait for the response ACK from ntm,
-	//			set socket state to `CLOSED`, destroy local resources, 
-	//			nts_shm_close() to unlink nts_shm.
-	// To the end, we determine to use solution 1.
-	if (incoming_data->msg_type == NTP_NTS_MSG_FIN) {
-		DEBUG("Detect NTP_NTS_MSG_FIN msg to close ntb connection");
-		handle_ntp_fin_msg(nt_sock_ctx, sockid);
-		// set errno
-		INFO("handle ntp fin msg success.");
-		goto FAIL;
+		// 4. if is `NTP_NTS_MSG_FIN`, then set the socket state to `WAIT_FIN` 
+		// 	    and start to passively close nt_socket
+		// two solution to destroy client socket-related resources in libnts and ntm
+		// solution 1: nts send `NTM_MSG_FIN` message into ntm, then: 
+		// 			set socket state to `CLOSED`, destroy local resources, 
+		//			nts_shm_ntm_close()/nts_shm_close()[??] to close nts_shm.
+		// solution 2: nts send `NTM_MSG_FIN` message into ntm, then:
+		//			set socket state to `WAIT_FIN`, wait for the response ACK from ntm,
+		//			set socket state to `CLOSED`, destroy local resources, 
+		//			nts_shm_close() to unlink nts_shm.
+		// To the end, we determine to use solution 1.
+		if (incoming_data->msg_type == NTP_NTS_MSG_FIN) {
+			DEBUG("Detect NTP_NTS_MSG_FIN msg to close ntb connection");
+			handle_ntp_fin_msg(nt_sock_ctx, sockid);
+			// set errno
+			INFO("handle ntp fin msg success.");
+			goto FAIL;
+		}
 	}
 
 
@@ -1167,7 +1153,7 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 
 	ptr = (char *) buf;	// point the recv buf
 	buf_avail_bytes = nbytes;		// indicate the available bytes in recv buf
-	bytes_left = payload_len;	// indicate the left payload length
+	bytes_left = payload_len;	// indicate the remaining waiting-for-copy payload length
 	bytes_read = 0;				// indicate the bytes which have been copied into buf
 	
 	while (bytes_left > 0)
@@ -1180,7 +1166,7 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 				bytes_read += bytes_left;
 
 				if (is_cached) { // if the payload is copied from ntp_buf
-					// memset(nt_sock_ctx->ntp_buf, 0, nt_sock_ctx->ntp_buflen);
+					memset(nt_sock_ctx->ntp_buf, 0, nt_sock_ctx->ntp_buflen);
 					nt_sock_ctx->ntp_buflen = 0;
 				}
 
@@ -1192,7 +1178,6 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 				}
 
 				DEBUG("bytes_read =%d, bytes_left = %d", bytes_read, bytes_left);
-				
 				break;
 
 			} else {
@@ -1240,7 +1225,7 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 				bytes_read += bytes_left;
 
 				if (is_cached) { // if the payload is copied from ntp_buf
-					// memset(nt_sock_ctx->ntp_buf, 0, nt_sock_ctx->ntp_buflen);
+					memset(nt_sock_ctx->ntp_buf, 0, nt_sock_ctx->ntp_buflen);
 					nt_sock_ctx->ntp_buflen = 0;
 				}
 
@@ -1355,13 +1340,6 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 	 */
 
 	// get/pop `nt_sock_context` from `HashMap nt_sock_map` using sockid.
-	HashMapIterator iter = createHashMapIterator(nts_ctx->nt_sock_map);
-	while(hasNextHashMapIterator(iter)) {
-		iter = nextHashMapIterator(iter);
-		nt_sock_context_t tmp_sock_ctx = (nt_sock_context_t)iter->entry->value;
-		DEBUG("{ key = %d }", *(int *) iter->entry->key);
-	}
-	freeHashMapIterator(&iter);
 
 	int retval;
 	int write_bytes;
