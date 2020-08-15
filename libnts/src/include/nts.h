@@ -167,6 +167,10 @@ typedef struct nts_context* nts_context_t;
 extern nts_context_t nts_ctx;
 extern struct nts_config NTS_CONFIG;
 
+// FD remapping table, maintain nt_socket_id in this remapping table
+// key: sock_fd
+// value: NULL
+extern HashMap fd_table;
 
 /*----------------------------------------------------------------------------*/
 /* Related methods definitions for libnts */
