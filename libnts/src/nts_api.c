@@ -140,16 +140,11 @@ int nts_init(const char *config_file) {
 	nts_context_init(config_file);
 	nts_ctx->init_flag = 1;
 
-	// init FD remmaping table
-	fd_table = createHashMap(NULL, NULL);
-
 	return 0;
 }
 
 void nts_destroy() {
-	Clear(fd_table);
-	fd_table = NULL;
-
+	
 	nts_context_destroy();
 }
 
@@ -1584,16 +1579,20 @@ int nts_dup2(int oldfd, int newfd) {
 /* Tests if fd is used by NTSock */
 bool nts_fdisused(int fd) {
 	assert(nts_ctx);
-	assert(fd_table);
+	assert(nts_ctx->fd_table);
 	
-	return Exists(fd_table, &fd);
+	return Exists(nts_ctx->fd_table, &fd);
 }
 
 bool nts_fd_remap(int fd) {
 	assert(nts_ctx);
-	assert(fd_table);
+	assert(nts_ctx->fd_table);
 
-	Put(fd_table, &fd, NULL);
+	int * shadow_fd;
+	shadow_fd = (int *) calloc(1, sizeof(int));
+	*shadow_fd = fd;
+
+	Put(nts_ctx->fd_table, shadow_fd, NULL);
 	return true;
 }
 

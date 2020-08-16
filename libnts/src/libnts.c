@@ -139,7 +139,6 @@ void ntsocket_init(void) {
 	DEBUG("ntsocket init pass!!!");
 	nts_init(NTS_CONFIG_FILE);
 	inited = 1;
-	// test_ntm_ring();
 	
 	print_conf();
 	return;
