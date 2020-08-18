@@ -120,7 +120,7 @@ typedef struct epoll_manager * epoll_manager_t;
 /**
  * Definitions for the shm communication between nt-monitor and nts app.
  */
-
+#define IPADDR_LEN 16
 struct nts_shm_conn {
 	nt_sock_id sockid;
 	nt_socket_t socket;
@@ -140,7 +140,7 @@ struct nts_shm_conn {
 
 	int port;
 	int addrlen;
-	char ip[16];
+	char ip[IPADDR_LEN];
 
 	int shm_addrlen;
 	char nts_shm_name[SHM_NAME_LEN];

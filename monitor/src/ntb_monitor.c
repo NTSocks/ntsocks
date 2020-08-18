@@ -1635,8 +1635,9 @@ inline void handle_msg_nts_connect(ntm_manager_t ntm_mgr, ntm_msg msg)
 	 */
 	nts_shm_conn->port = msg.port;
 	nts_shm_conn->addrlen = msg.addrlen;
+	memset(nts_shm_conn->ip, 0, IPADDR_LEN);
 	memcpy(nts_shm_conn->ip, msg.address, msg.addrlen);
-	DEBUG("ready to connect remote ntb-based server with %s:%d, addrlen=%d", msg.address, msg.port, msg.addrlen);
+	DEBUG("ready to connect remote ntb-based server with %s:%d, addrlen=%d", nts_shm_conn->ip, msg.port, msg.addrlen);
 	
 	
 	/**
@@ -1646,13 +1647,13 @@ inline void handle_msg_nts_connect(ntm_manager_t ntm_mgr, ntm_msg msg)
 	 */
 	assert(ntm_mgr->ntm_conn_ctx);
 	ntm_conn_t ntm_conn;
-	if (Exists(ntm_mgr->ntm_conn_ctx->conn_map, msg.address)) {
-		ntm_conn = (ntm_conn_t) Get(ntm_mgr->ntm_conn_ctx->conn_map, msg.address);
+	if (Exists(ntm_mgr->ntm_conn_ctx->conn_map, nts_shm_conn->ip)) {
+		ntm_conn = (ntm_conn_t) Get(ntm_mgr->ntm_conn_ctx->conn_map, nts_shm_conn->ip);
 	}
 	else {
-		DEBUG("try to create connection with remote monitor of %s", msg.address);
+		DEBUG("try to create connection with remote monitor of %s", nts_shm_conn->ip);
 		ntm_socket_t client_sock = ntm_sock_create();
-		retval = ntm_connect_to_tcp_server(client_sock, NTM_LISTEN_PORT, msg.address);
+		retval = ntm_connect_to_tcp_server(client_sock, NTM_LISTEN_PORT, nts_shm_conn->ip);
 		if (retval) {
 			ntm_close_socket(client_sock);
 
@@ -1673,10 +1674,10 @@ inline void handle_msg_nts_connect(ntm_manager_t ntm_mgr, ntm_msg msg)
 		ntm_conn->client_sock = client_sock;
 		ntm_conn->sockfd = client_sock->socket_fd;
 		ntm_conn->port = NTM_LISTEN_PORT;
-		ntm_conn->addrlen = strlen(msg.address);
-		memcpy(ntm_conn->ip, msg.address, ntm_conn->addrlen);
+		ntm_conn->addrlen = strlen(nts_shm_conn->ip);
+		memcpy(ntm_conn->ip, nts_shm_conn->ip, ntm_conn->addrlen);
 
-		DEBUG("setup connection to remote monitor %s:%d", msg.address, msg.port);
+		DEBUG("setup connection to remote monitor %s:%d", nts_shm_conn->ip, msg.port);
 
 		pthread_create(&ntm_conn->recv_thr, NULL, 
 						ntm_sock_recv_thread, ntm_conn);
@@ -1684,7 +1685,7 @@ inline void handle_msg_nts_connect(ntm_manager_t ntm_mgr, ntm_msg msg)
 		// cache the established ntm connection into hashmap
 		// key: the ip address of remote monitor
 		// value: struct ntm_conn
-		Put(ntm_mgr->ntm_conn_ctx->conn_map, msg.address, ntm_conn);
+		Put(ntm_mgr->ntm_conn_ctx->conn_map, nts_shm_conn->ip, ntm_conn);
 		nts_shm_conn->ntm_conn = ntm_conn;
 	}
 	

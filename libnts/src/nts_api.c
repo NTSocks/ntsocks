@@ -412,7 +412,7 @@ int nts_bind(int sockid, const struct sockaddr *addr, socklen_t addrlen){
 	outgoing_msg.port = ntohs(sock->sin_port);
 	struct in_addr in = sock->sin_addr;
 	inet_ntop(AF_INET, &in, outgoing_msg.address, sizeof(outgoing_msg.address));
-	outgoing_msg.addrlen = strlen(outgoing_msg.address);
+	outgoing_msg.addrlen = strlen(outgoing_msg.address) + 1;
 	DEBUG("the bind ip:port = %s:%d, with addrlen=%d", outgoing_msg.address, outgoing_msg.port, outgoing_msg.addrlen);
 	
 
@@ -604,7 +604,7 @@ int nts_accept(int sockid, const struct sockaddr *addr, socklen_t *addrlen) {
 	outgoing_msg.sockid = client_socket->sockid;
 	outgoing_msg.msg_type = NTM_MSG_ACCEPT_ACK;
 	outgoing_msg.nts_shm_addrlen = client_sock_ctx->nts_shmlen;
-	memcpy(outgoing_msg.nts_shm_name, client_sock_ctx->nts_shmaddr, client_sock_ctx->nts_shmlen);
+	memcpy(outgoing_msg.nts_shm_name, client_sock_ctx->nts_shmaddr, client_sock_ctx->nts_shmlen + 1);
 	DEBUG("ntm_shm_send NTM_MSG_ACCEPT_ACK with sockid=%d", client_socket->sockid);
 	retval = ntm_shm_send(nts_ctx->ntm_ctx->shm_send_ctx, &outgoing_msg);
 	if(retval) {
@@ -695,7 +695,7 @@ int nts_connect(int sockid, const struct sockaddr *name, socklen_t namelen) {
 	outgoing_msg.port = ntohs(sock->sin_port);
 	struct in_addr in = sock->sin_addr;
 	inet_ntop(AF_INET, &in, outgoing_msg.address, sizeof(outgoing_msg.address));
-	outgoing_msg.addrlen = strlen(outgoing_msg.address);
+	outgoing_msg.addrlen = strlen(outgoing_msg.address) + 1;
 	DEBUG("nt_connect: %s:%d with sockid=%d, addrlen=%d", outgoing_msg.address, outgoing_msg.port, sockid, outgoing_msg.addrlen);
 
 
