@@ -238,9 +238,9 @@ int nts_raise_pending_stream_events(nts_epoll *ep, nt_socket_t socket) {
 
 // not thread-safe
 int nts_epoll_create(int size) { 
-    DEBUG("entering nts_epoll_create()...");
+    DEBUG("entering nts_epoll_create()... with size %d", size);
     assert(nts_ctx);
-
+    DEBUG("assert nts_ctx pass");
     if (size < 0) {
         errno = EINVAL;
         return -1;
@@ -259,7 +259,7 @@ int nts_epoll_create(int size) {
      * 7. push `nt_epoll_context` into `HashMap nt_epoll_map`,
      *      then return epoll socket_id
      */
-
+    DEBUG("start calloc nt_epoll_context_t");
     nt_epoll_context_t nt_epoll_ctx;
     nt_epoll_ctx = (nt_epoll_context_t) calloc(1, sizeof(struct nt_epoll_context));
     if (nt_epoll_ctx) {

@@ -88,8 +88,9 @@ int main(int argc, char * argv[]) {
 
     // create epoll instance
     int epoll_fd = epoll_create(EPOLL_SIZE);
+    printf("epoll_fd: %d\n", epoll_fd);
     if (epoll_fd < 0) {
-        perror("epoll_create");
+        perror("epoll_create failed");
         return 4;
     }
 
