@@ -43,7 +43,7 @@ static inline epoll_event_queue_t _ep_event_queue_init(
     queue->addrlen = addrlen;
     memcpy(queue->shm_addr, shm_addr, addrlen);
     queue->capacity = capacity;
-    queue->queue_bytes = sizeof(epoll_event_queue) + capacity * DEFAULT_EP_EVENT_QUEUE_ELE_SIZE;
+    queue->queue_bytes = sizeof(nts_event_queue) + capacity * DEFAULT_EP_EVENT_QUEUE_ELE_SIZE;
 
     sprintf(queue->mutex_sem_name, "%s%s", EP_SEM_MUTEX_PREFIX, shm_addr);
     sprintf(queue->full_sem_name, "%s%s", EP_SEM_FULL_PREFIX, shm_addr);
@@ -97,7 +97,7 @@ static inline epoll_event_queue_t _ep_event_queue_init(
         queue->shm_queue->num_events = 0;
     }
     queue->shm_queue->size = capacity;
-    queue->shm_queue->events = (nts_epoll_event_int *) ((uint8_t *)queue->shm_queue + sizeof(epoll_event_queue));
+    queue->shm_queue->events = (nts_epoll_event_int *) ((uint8_t *)queue->shm_queue + sizeof(nts_event_queue));
 
     // store old, umask for world-writable access of semaphores (mutex_sem, buf_count_sem, spool_signal_sem)
     mode_t old_umask; 

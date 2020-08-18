@@ -215,7 +215,7 @@ int ntm_init(const char *config_file)
 		ERR("Failed to allocate memory for 'epoll_sem_shm_ctx_t ntp_ep_send_ctx'.");
 		goto FAIL;
 	}
-	ret = epoll_sem_shm_connect(ntp_ep_send_ctx, NTP_EP_SEND_QUEUE, strlen(NTP_EP_SEND_QUEUE));
+	ret = epoll_sem_shm_connect(ntp_ep_send_ctx, NTP_EP_SEND_QUEUE, strlen(NTP_EP_SEND_QUEUE) + 1);
 	if (ret != 0) {
 		ERR("Failed to epoll_sem_shm_connect for 'epoll_sem_shm_ctx_t ntp_ep_send_ctx'.");
 		goto FAIL;
@@ -229,7 +229,7 @@ int ntm_init(const char *config_file)
 		ERR("Failed to allocate memory for 'epoll_sem_shm_ctx_t ntp_ep_recv_ctx'.");
 		goto FAIL;
 	}
-	ret = epoll_sem_shm_connect(ntp_ep_recv_ctx, NTP_EP_RECV_QUEUE, strlen(NTP_EP_RECV_QUEUE));
+	ret = epoll_sem_shm_connect(ntp_ep_recv_ctx, NTP_EP_RECV_QUEUE, strlen(NTP_EP_RECV_QUEUE) + 1);
 	if (ret != 0) {
 		ERR("Failed to epoll_sem_shm_connect for 'epoll_sem_shm_ctx_t ntp_ep_recv_ctx'.");
 		goto FAIL;
@@ -1224,7 +1224,7 @@ void *ntm_sock_listen_thread(void *args)
 		client_conn->sockfd = client_sock->socket_fd;
 		client_conn->port = ntohs(client_sock->remote.sin_port);
 		tmp_ip = inet_ntoa(client_sock->remote.sin_addr);
-		client_conn->addrlen = strlen(tmp_ip);
+		client_conn->addrlen = strlen(tmp_ip) + 1;
 		memcpy(client_conn->ip, tmp_ip, client_conn->addrlen);
 
 		DEBUG("accept connection from %s:%d", tmp_ip, client_conn->port);
@@ -1674,7 +1674,7 @@ inline void handle_msg_nts_connect(ntm_manager_t ntm_mgr, ntm_msg msg)
 		ntm_conn->client_sock = client_sock;
 		ntm_conn->sockfd = client_sock->socket_fd;
 		ntm_conn->port = NTM_LISTEN_PORT;
-		ntm_conn->addrlen = strlen(nts_shm_conn->ip);
+		ntm_conn->addrlen = strlen(nts_shm_conn->ip) + 1;
 		memcpy(ntm_conn->ip, nts_shm_conn->ip, ntm_conn->addrlen);
 
 		DEBUG("setup connection to remote monitor %s:%d", nts_shm_conn->ip, msg.port);
@@ -2347,7 +2347,7 @@ inline void handle_msg_nts_epoll_create(ntm_manager_t ntm_mgr, ntm_msg msg) {
 	epoll_ctx->io_queue_size = msg.io_queue_size;
 	sprintf(epoll_ctx->io_queue_shmaddr, "%s%d", 
 			EP_SHM_QUEUE_PREFIX, epoll_ctx->socket->sockid);
-	epoll_ctx->io_queue_shmlen = strlen(epoll_ctx->io_queue_shmaddr);
+	epoll_ctx->io_queue_shmlen = strlen(epoll_ctx->io_queue_shmaddr) + 1;
 
 	// TODO: Init SHM-based ready I/O queue
 	DEBUG("Init SHM-based ready I/O queue");
