@@ -63,7 +63,7 @@ int ntm_init(const char *config_file)
 	 * read conf file and init ntm params
 	 */
 	DEBUG("load the ntm config file");
-	// load_conf(config_file);
+	load_conf(config_file);
 
 	ntm_nts_context_t nts_ctx;
 	ntm_ntp_context_t ntp_ctx;

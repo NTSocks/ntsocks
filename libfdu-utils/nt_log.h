@@ -16,7 +16,7 @@
  * debug control, you can switch on (delete 'x' suffix)
  * to enable log output and assert mechanism
  */
-// #define ENABLE_DEBUG
+#define ENABLE_DEBUG
 
 /*
  * debug level,
