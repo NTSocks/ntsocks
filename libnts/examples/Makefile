@@ -2,7 +2,7 @@ CROSS =
 CC = $(CROSS)gcc
 CXX = $(CROSS)g++
 DEBUG = -g -O2
-CFLAGS += $(DEBUG) -Wall -std=c11 -c -D_BSD_SOURCE -DHAVE_GCC_C11_ATOMICS
+CFLAGS += $(DEBUG) -Wall -std=c11 -c -D_BSD_SOURCE -DHAVE_GCC_C11_ATOMICS -DENABLE_DEBUG
 CFLAGS += -I/usr/local/include 
 RM = rm -rf
 BIN_PATH=./bin
