@@ -52,7 +52,7 @@ struct nt_port_context{
 typedef struct nt_port_context * nt_port_context_t;
 
 // init port resources
-void init_port_context(nt_port_context_t nt_port_ctx, int max_port);
+int init_port_context(nt_port_context_t nt_port_ctx, int max_port);
 
 // allocate one port number to use
 nt_port_t allocate_port(nt_port_context_t nt_port_ctx, int need_lock);

@@ -32,7 +32,7 @@
 #include "nts_config.h"
 #include "nt_log.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 #define __GNU_SOURCE
 

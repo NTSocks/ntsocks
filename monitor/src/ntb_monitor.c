@@ -153,7 +153,11 @@ int ntm_init(const char *config_file)
 		ERR("Failed to allocate port_context");
 		goto FAIL;
 	}
-	init_port_context(ntm_mgr->nt_port_ctx, NTM_CONFIG.max_port);
+	ret = init_port_context(ntm_mgr->nt_port_ctx, NTM_CONFIG.max_port);
+	if (ret == -1) {
+		ERR("init_port_context failed");
+		goto FAIL;
+	}
 
 
 

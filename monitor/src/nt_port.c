@@ -14,20 +14,20 @@
 
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
-void init_port_context(nt_port_context_t nt_port_ctx, int max_port)
+int init_port_context(nt_port_context_t nt_port_ctx, int max_port)
 {
     int i;
     if (max_port <= 0)
     {
         ERR("max port must be positive.");
-        return;
+        return -1;
     }
 
     nt_port_ctx->ntport = (nt_port_t)calloc(max_port, sizeof(struct nt_port));
     if (!nt_port_ctx->ntport)
     {
         ERR("Failed to allocate memory for nt_port.");
-        return;
+        return -1;
     }
     TAILQ_INIT(&nt_port_ctx->free_ntport);
     for (i = 0; i < max_port; ++i)
@@ -36,6 +36,7 @@ void init_port_context(nt_port_context_t nt_port_ctx, int max_port)
         nt_port_ctx->ntport[i].status = NT_PORT_UNUSED;
         TAILQ_INSERT_TAIL(&nt_port_ctx->free_ntport, &nt_port_ctx->ntport[i], free_ntport_link);
     }
+    return 0;
 }
 
 nt_port_t allocate_port(nt_port_context_t nt_port_ctx, int need_lock)

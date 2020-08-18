@@ -40,7 +40,7 @@
 #include "config.h"
 #include "nt_log.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_DISABLE);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 int trans_data_link_cur_index(struct ntb_data_link *data_link)
 {

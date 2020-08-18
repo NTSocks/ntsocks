@@ -53,7 +53,7 @@
 #include "ntp_ntm_shm.h"
 
 #include "nt_log.h"
-DEBUG_SET_LEVEL(DEBUG_LEVEL_INFO);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 #define XEON_LINK_STATUS_OFFSET 0x01a2
 #define RTE_RAWDEV_MAX_DEVS 64
