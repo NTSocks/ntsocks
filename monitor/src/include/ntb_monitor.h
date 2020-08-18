@@ -91,7 +91,7 @@ typedef struct epoll_context {
 	 */
 	HashMap ep_socket_map;
 
-} epoll_context;
+}__attribute__((packed)) epoll_context;
 
 typedef struct epoll_context * epoll_context_t;
 

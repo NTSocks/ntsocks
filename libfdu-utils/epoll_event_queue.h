@@ -43,10 +43,10 @@ typedef struct _epoll_event_queue {
     // uint64_t ele_size;      // the size of each element, default sizeof(nts_epoll_event_int)
     uint64_t queue_bytes;   // = sizeof(struct _epoll_event_queue) + sizeof(nts_epoll_event_int) * capacity
 
-    char shm_addr[EPOLL_MAX_ADDRLEN];
     char mutex_sem_name[EPOLL_MAX_ADDRLEN];
     char full_sem_name[EPOLL_MAX_ADDRLEN];
     char empty_sem_name[EPOLL_MAX_ADDRLEN];
+    char *shm_addr;
 
     sem_t *mutex_sem;
     sem_t *full_sem;

@@ -27,7 +27,7 @@ static inline uint64_t next_index(uint64_t current_idx, uint64_t max_size)
     return ret;
 }
 
-static inline epoll_event_queue_t _ep_event_queue_init(
+static epoll_event_queue_t _ep_event_queue_init(
             char *shm_addr, size_t addrlen, size_t capacity, bool is_owner)
 {
     assert(shm_addr);
@@ -41,7 +41,7 @@ static inline epoll_event_queue_t _ep_event_queue_init(
         return NULL;
     }
     queue->addrlen = addrlen;
-    memcpy(queue->shm_addr, shm_addr, addrlen);
+    queue->shm_addr = shm_addr;
     queue->capacity = capacity;
     queue->queue_bytes = sizeof(epoll_event_queue) + capacity * DEFAULT_EP_EVENT_QUEUE_ELE_SIZE;
 

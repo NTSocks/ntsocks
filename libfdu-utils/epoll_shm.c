@@ -75,7 +75,7 @@ int epoll_shm_connect(epoll_shm_context_t shm_ctx, char *shm_addr, size_t addrle
     shm_ctx->stat = SHM_READY;
     DEBUG("epoll_shm_connect() pass.");
 
-    return -1;
+    return 0;
 }
 
 int epoll_shm_send(epoll_shm_context_t shm_ctx, epoll_msg *msg)
