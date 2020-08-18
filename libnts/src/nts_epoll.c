@@ -278,14 +278,17 @@ int nts_epoll_create(int size) {
         return -1;
     }
     nt_epoll_ctx->epoll_shmlen = strlen(nt_epoll_ctx->epoll_shmaddr);
+    DEBUG("generate epoll_shm-uuid shm name `%s`", nt_epoll_ctx->epoll_shmaddr);
 
     // init/create epoll-corresponding epoll_shm_ring
+    DEBUG("init/create epoll-corresponding epoll_shm_ring");
     nt_epoll_ctx->epoll_shm_ctx = epoll_shm();
     if(!nt_epoll_ctx->epoll_shm_ctx) {
         ERR("epoll_shm() failed");
         free(nt_epoll_ctx);
         return -1;
     }
+    DEBUG("start epoll_shm_accept");
     retval = epoll_shm_accept(nt_epoll_ctx->epoll_shm_ctx, 
             nt_epoll_ctx->epoll_shmaddr, nt_epoll_ctx->epoll_shmlen);
     if(retval != 0) {
@@ -298,6 +301,7 @@ int nts_epoll_create(int size) {
 
     // pack the `NTM_MSG_EPOLL_CREATE` ntm_msg and 
     //      `ntm_shm_send()` the message into ntm
+    DEBUG("start ntm_shm_send NTM_MSG_EPOLL_CREATE");
     ntm_msg req_msg;
     req_msg.msg_id = nt_epoll_ctx->epoll_msg_id;
     req_msg.msg_type = NTM_MSG_EPOLL_CREATE;
@@ -315,6 +319,7 @@ int nts_epoll_create(int size) {
     }
 
     // poll and wait for the epoll_create response message from ntm
+    DEBUG("poll and wait for the epoll_create response message from ntm");
     epoll_msg resp_msg;
     retval = epoll_shm_recv(nt_epoll_ctx->epoll_shm_ctx, &resp_msg);
     while(retval) {
@@ -323,6 +328,7 @@ int nts_epoll_create(int size) {
     }
 
     // parse the response epoll_msg
+    DEBUG("parse the response epoll_msg");
     if (req_msg.msg_id != resp_msg.id 
             || resp_msg.retval == -1 
             || resp_msg.shm_addrlen <= 0) {
@@ -351,6 +357,7 @@ int nts_epoll_create(int size) {
     nt_epoll_ctx->epoll_msg_id ++;
     
     // sync epoll I/O queue shm name
+    DEBUG("sync epoll I/O queue shm name");
     nt_epoll_ctx->io_queue_shmlen = resp_msg.shm_addrlen;
     nt_epoll_ctx->io_queue_size = size;
     memcpy(nt_epoll_ctx->io_queue_shmaddr, 
@@ -368,6 +375,7 @@ int nts_epoll_create(int size) {
 
     //TODO: create/init SHM-based epoll I/O queue
     // init the epoll ready I/O queue, which is SHM-based.
+    DEBUG("create/init SHM-based epoll I/O queue");
     ep->usr_queue_ctx = ep_event_queue_init(
                     nt_epoll_ctx->io_queue_shmaddr, nt_epoll_ctx->io_queue_shmlen, size);
     if (!ep->usr_queue_ctx) {
@@ -403,6 +411,7 @@ int nts_epoll_create(int size) {
 
     // Insert new `nt_epoll_context_t` into HashMap
     Put(nts_ctx->nt_epoll_map, &ep_socket->sockid, nt_epoll_ctx);
+    DEBUG("nts_epoll_create success");
 
     return ep_socket->sockid;
 }
