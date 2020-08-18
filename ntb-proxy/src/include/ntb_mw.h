@@ -66,7 +66,7 @@ struct ntb_ctrl_link
 {
     //remote cum ptr,write to local
     volatile uint64_t *local_cum_ptr;
-    //local cum ptr,wirte to remote
+    //local cum ptr,write to remote
     volatile uint64_t *remote_cum_ptr;
     struct ntb_ring_buffer *local_ring;
     struct ntb_ring_buffer *remote_ring;
@@ -76,7 +76,7 @@ struct ntb_data_link // data ntb link for send/recv data msg
 {
     //remote cum ptr,write to local		// read_index direction: peer ==> local
     volatile uint64_t *local_cum_ptr; //	local ntb node record the read_index of ntb buffer on peer ntb node
-    //local cum ptr,wirte to remote
+    //local cum ptr,write to remote
     // read_index direction: local ==> peer
     volatile uint64_t *remote_cum_ptr;   // 	[] remote peer ntb node get/poll the read_index of local ntb node
                                          //	the target location (memory address) which is used

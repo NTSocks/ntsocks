@@ -78,7 +78,7 @@ ntb_send_thread(__attribute__((unused)) void *arg)
 	while (1)
 	{
 		curr_node = pre_node->next_node;
-		if (curr_node == ntb_link->send_list.ring_head)	// indicate non-existing ntb connection when head node in ntb-conn list is EMPTY.
+		if (curr_node == ntb_link->send_list.ring_head) // indicate non-existing ntb connection when head node in ntb-conn list is EMPTY.
 		{
 			pre_node = curr_node;
 			continue;
@@ -88,10 +88,11 @@ ntb_send_thread(__attribute__((unused)) void *arg)
 		{
 			DEBUG("conn close,remove and free node");
 			// conn->state 不为READY，队列均已Close，移除map、list并free就可
-			Remove(ntb_link->port2conn, &curr_node->conn->conn_id);		// remove ntb conn from hash map
+			Remove(ntb_link->port2conn, &curr_node->conn->conn_id); // remove ntb conn from hash map
 			// destory_conn_ack(ntb_link, next_node->conn->name);
-			pre_node->next_node = curr_node->next_node;	// remove ntb conn from traseval list
-			if(curr_node == ntb_link->send_list.ring_tail){
+			pre_node->next_node = curr_node->next_node; // remove ntb conn from traseval list
+			if (curr_node == ntb_link->send_list.ring_tail)
+			{
 				ntb_link->send_list.ring_tail = pre_node;
 			}
 			ntp_shm_nts_close(curr_node->conn->nts_recv_ring);
@@ -106,8 +107,8 @@ ntb_send_thread(__attribute__((unused)) void *arg)
 		// INFO("send conn name = %s",curr_node->conn->name);
 		// counter: is used to DEBUG/test
 		// DEBUG("send buff conn_id = %d,shm name = %s",curr_node->conn->conn_id,curr_node->conn->nts_send_ring->shm_addr);
-		ntp_send_buff_data(ntb_link->data_link, curr_node->conn->nts_send_ring,curr_node->conn);
-		pre_node = curr_node;	// move the current point to next ntb conn
+		ntp_send_buff_data(ntb_link->data_link, curr_node->conn->nts_send_ring, curr_node->conn);
+		pre_node = curr_node; // move the current point to next ntb conn
 	}
 	return 0;
 }
