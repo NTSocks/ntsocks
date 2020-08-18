@@ -2329,6 +2329,8 @@ inline void handle_msg_nts_epoll_create(ntm_manager_t ntm_mgr, ntm_msg msg) {
 	memcpy(epoll_ctx->epoll_shmaddr, msg.nts_shm_name, epoll_ctx->epoll_shmlen);
 
 	// 2. create/init epoll shm ringbuffer
+	DEBUG("create/init epoll shm ringbuffer, shmaddr=%s, shmlen=%d", 
+					epoll_ctx->epoll_shmaddr, epoll_ctx->epoll_shmlen);
 	epoll_ctx->epoll_shm_ctx = epoll_shm();
 	int retval = epoll_shm_connect(epoll_ctx->epoll_shm_ctx, 
 			epoll_ctx->epoll_shmaddr, epoll_ctx->epoll_shmlen);
@@ -2340,12 +2342,14 @@ inline void handle_msg_nts_epoll_create(ntm_manager_t ntm_mgr, ntm_msg msg) {
 	}
 
 	// 3. create SHM-based ready I/O queue
+	DEBUG(" create SHM-based ready I/O queue, %d",msg.io_queue_size);
 	epoll_ctx->io_queue_size = msg.io_queue_size;
 	sprintf(epoll_ctx->io_queue_shmaddr, "%s%d", 
 			EP_SHM_QUEUE_PREFIX, epoll_ctx->socket->sockid);
 	epoll_ctx->io_queue_shmlen = strlen(epoll_ctx->io_queue_shmaddr);
 
 	// TODO: Init SHM-based ready I/O queue
+	DEBUG("Init SHM-based ready I/O queue");
 	epoll_ctx->ep_io_queue_ctx = ep_event_queue_create(
 							epoll_ctx->io_queue_shmaddr, 
 							epoll_ctx->io_queue_shmlen, 
@@ -2361,6 +2365,7 @@ inline void handle_msg_nts_epoll_create(ntm_manager_t ntm_mgr, ntm_msg msg) {
 	epoll_ctx->ep_io_queue = epoll_ctx->ep_io_queue_ctx->shm_queue;
 
 	//TODO: 4. instruct ntp to create epoll_context
+	DEBUG("instruct ntp to create epoll_context");
 	epoll_msg req_ep_msg;
 	req_ep_msg.id = msg.msg_id;
 	req_ep_msg.sockid = epoll_ctx->socket->sockid;
@@ -2381,6 +2386,7 @@ inline void handle_msg_nts_epoll_create(ntm_manager_t ntm_mgr, ntm_msg msg) {
 	}
 
 	//TODO: wait for the response epoll_msg from ntp
+	DEBUG("wait for the response epoll_msg from ntp");
 	epoll_msg resp_ep_msg;
 	retval = epoll_sem_shm_recv(ntm_mgr->epoll_mgr->ntp_ep_send_ctx, &resp_ep_msg);
 	if (retval || (retval == 0 && resp_ep_msg.retval != 0)) {
@@ -2394,6 +2400,7 @@ inline void handle_msg_nts_epoll_create(ntm_manager_t ntm_mgr, ntm_msg msg) {
 	}
 
 	// 5. send back response msg to libnts
+	DEBUG("send back response msg to libnts");
 	epoll_msg resp_msg;
 	resp_msg.id = msg.msg_id;
 	resp_msg.retval = 0;
@@ -2413,6 +2420,7 @@ inline void handle_msg_nts_epoll_create(ntm_manager_t ntm_mgr, ntm_msg msg) {
 	}
 
 	// 6. create HashMap to cache the epoll-enabled listener nt_socket_t
+	DEBUG("create HashMap to cache the epoll-enabled listener nt_socket_t");
 	epoll_ctx->ep_socket_map = createHashMap(NULL, NULL);
 
 	// push new epoll context into hashmap

@@ -103,7 +103,8 @@ void ntm_msgcopy(ntm_msg *src_msg, ntm_msg *target_msg) {
 	}
 	else if (target_msg->msg_type & NTM_MSG_EPOLL_CLOSE)
 	{
-		
+		target_msg->epid = src_msg->epid;
+		target_msg->sock_type = src_msg->sock_type;
 	}
 	
 
