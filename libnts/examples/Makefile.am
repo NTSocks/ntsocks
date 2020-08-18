@@ -37,7 +37,3 @@ hello_ntsock_CPPFLAGS = -I$(top_srcdir)/include
 client_ntsock_CPPFLAGS = -I$(top_srcdir)/include
 # hello_ntsock_server_CPPFLAGS = -I$(top_srcdir)/include
 # hello_ntsock_client_CPPFLAGS = -I$(top_srcdir)/include
-
-
-
-
