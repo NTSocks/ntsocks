@@ -24,14 +24,13 @@ struct ntm_config NTM_CONFIG = {
 		/* set default configuration */
 		.remote_ntm_tcp_timewait = 0,
 		.remote_ntm_tcp_timeout = 1000,
-		.listen_ip = NTM_LISTEN_IP,
-		.listen_port = NTM_LISTEN_PORT,
-		.ipaddr_len = sizeof(NTM_LISTEN_IP),
 		.max_concurrency = 1024,
 		.max_port = 1024,
 		.nt_max_conn_num = 1024,
-		.nt_max_port_num = 65536
-
+		.nt_max_port_num = 65536,
+		.listen_ip = NTM_LISTEN_IP,
+		.listen_port = NTM_LISTEN_PORT,
+		.ipaddr_len = sizeof(NTM_LISTEN_IP)
 };
 
 ntm_manager_t ntm_mgr = NULL;
@@ -123,7 +122,7 @@ int load_conf(const char *fname)
 		}else if(strcmp(_paramk, "max_port") == 0){
 			NTM_CONFIG.max_port = atoi(_paramv);
 		}else {
-			return 1;
+			return -1;
 		}
 	}
 	return 0;

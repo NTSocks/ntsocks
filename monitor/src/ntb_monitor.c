@@ -63,7 +63,7 @@ int ntm_init(const char *config_file)
 	 * read conf file and init ntm params
 	 */
 	DEBUG("load the ntm config file");
-	load_conf(config_file);
+	// load_conf(config_file);
 
 	ntm_nts_context_t nts_ctx;
 	ntm_ntp_context_t ntp_ctx;
@@ -71,6 +71,7 @@ int ntm_init(const char *config_file)
 	nt_listener_context_t nt_listener_ctx;
 	int ret;
 
+	DEBUG("start calloc ntm_manager_t");
 	ntm_mgr = (ntm_manager_t)calloc(1, sizeof(struct ntm_manager));
 	const char *err_msg = "malloc";
 	if (!ntm_mgr)
