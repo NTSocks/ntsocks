@@ -23,6 +23,8 @@ int init_port_context(nt_port_context_t nt_port_ctx, int max_port)
         return -1;
     }
 
+    // Set a smaller max_port???
+    DEBUG("Start calloc ntport with %d", max_port);
     nt_port_ctx->ntport = (nt_port_t)calloc(max_port, sizeof(struct nt_port));
     if (!nt_port_ctx->ntport)
     {

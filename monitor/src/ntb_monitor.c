@@ -80,6 +80,32 @@ int ntm_init(const char *config_file)
 		goto FAIL;
 	}
 
+	/**
+	 *	init global socket and port resources
+	 *	TODO:
+	 */
+	DEBUG("Init global socket and port resources");
+	ntm_mgr->nt_sock_ctx = (nt_sock_context_t) calloc (1, sizeof(struct nt_sock_context));
+	if(!ntm_mgr->nt_sock_ctx) {
+		perror(err_msg);
+		ERR("Failed to allocate sock_context.");
+		goto FAIL;
+	}
+	init_socket_context(ntm_mgr->nt_sock_ctx, NTM_CONFIG.max_concurrency);
+
+	ntm_mgr->nt_port_ctx = (nt_port_context_t) calloc (1, sizeof(struct nt_port_context));
+	if(!ntm_mgr->nt_port_ctx) {
+		perror(err_msg);
+		ERR("Failed to allocate port_context");
+		goto FAIL;
+	}
+	ret = init_port_context(ntm_mgr->nt_port_ctx, NTM_CONFIG.max_port);
+	if (ret == -1) {
+		ERR("init_port_context failed");
+		goto FAIL;
+	}
+	
+
 	// hash map for the mapping relationship between port and client nt_socket
 	ntm_mgr->port_sock_map = createHashMap(NULL, NULL);
 
@@ -131,34 +157,6 @@ int ntm_init(const char *config_file)
 	nt_listener_ctx = ntm_mgr->nt_listener_ctx;
 	// hash map for holding all nt_listener indexed by port
 	nt_listener_ctx->listener_map = createHashMap(NULL, NULL);
-
-
-
-	/**
-	 *	init global socket and port resources
-	 *	TODO:
-	 */
-	DEBUG("Init global socket and port resources");
-	ntm_mgr->nt_sock_ctx = (nt_sock_context_t) calloc (1, sizeof(struct nt_sock_context));
-	if(!ntm_mgr->nt_sock_ctx) {
-		perror(err_msg);
-		ERR("Failed to allocate sock_context.");
-		goto FAIL;
-	}
-	init_socket_context(ntm_mgr->nt_sock_ctx, NTM_CONFIG.max_concurrency);
-
-	ntm_mgr->nt_port_ctx = (nt_port_context_t) calloc (1, sizeof(struct nt_port_context));
-	if(!ntm_mgr->nt_port_ctx) {
-		perror(err_msg);
-		ERR("Failed to allocate port_context");
-		goto FAIL;
-	}
-	ret = init_port_context(ntm_mgr->nt_port_ctx, NTM_CONFIG.max_port);
-	if (ret == -1) {
-		ERR("init_port_context failed");
-		goto FAIL;
-	}
-
 
 
 	/**
