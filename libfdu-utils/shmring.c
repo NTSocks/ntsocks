@@ -277,21 +277,21 @@ void shmring_free(shmring_handle_t handle, bool is_unlink) {
 }
 
 
-uint64_t ntp_get_read_idx(shmring_handle_t self)
+uint64_t ntp_get_read_index(shmring_handle_t self)
 {
     const uint64_t r_idx = nt_atomic_load64_explicit(
         &self->queue->read_idx, ATOMIC_MEMORY_ORDER_RELAXED);
     return r_idx;
 }
 
-uint64_t ntp_get_peer_read_idx(shmring_handle_t self)
+uint64_t ntp_get_peer_read_index(shmring_handle_t self)
 {
     const uint64_t op_idx = nt_atomic_load64_explicit(
         &self->peer_read_idx, ATOMIC_MEMORY_ORDER_RELAXED);
     return op_idx;
 }
 
-int ntp_set_peer_read_idx(shmring_handle_t self, uint64_t read_idx)
+int ntp_set_peer_read_index(shmring_handle_t self, uint64_t read_idx)
 {
     nt_atomic_store64_explicit(&self->peer_read_idx,
                                read_idx, ATOMIC_MEMORY_ORDER_RELAXED);
