@@ -27,7 +27,7 @@ static inline uint64_t next_index(uint64_t current_idx, uint64_t max_size)
     return ret;
 }
 
-static epoll_event_queue_t _ep_event_queue_init(
+static inline epoll_event_queue_t _ep_event_queue_init(
             char *shm_addr, size_t addrlen, size_t capacity, bool is_owner)
 {
     assert(shm_addr);
@@ -35,13 +35,13 @@ static epoll_event_queue_t _ep_event_queue_init(
     capacity = LIKELY(capacity > 0) ? capacity : DEFAULT_EP_EVENT_QUEUE_SIZE;
 
     epoll_event_queue_t queue;
-    queue = (epoll_event_queue_t) calloc(1, sizeof(nts_event_queue));
+    queue = (epoll_event_queue_t) calloc(1, sizeof(struct _epoll_event_queue));
     if (UNLIKELY(!queue)) {
         ERR("malloc for nts_event_queue_t failed");
         return NULL;
     }
     queue->addrlen = addrlen;
-    queue->shm_addr = shm_addr;
+    memcpy(queue->shm_addr, shm_addr, addrlen);
     queue->capacity = capacity;
     queue->queue_bytes = sizeof(epoll_event_queue) + capacity * DEFAULT_EP_EVENT_QUEUE_ELE_SIZE;
 
