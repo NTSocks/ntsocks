@@ -262,7 +262,7 @@ int nts_epoll_create(int size) {
     DEBUG("start calloc nt_epoll_context_t");
     nt_epoll_context_t nt_epoll_ctx;
     nt_epoll_ctx = (nt_epoll_context_t) calloc(1, sizeof(struct nt_epoll_context));
-    if (nt_epoll_ctx) {
+    if (!nt_epoll_ctx) {
         return -1;
     }
     nt_epoll_ctx->epoll_sockets = createHashMap(NULL, NULL);

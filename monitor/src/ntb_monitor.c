@@ -2807,14 +2807,17 @@ void nts_shm_handle_msg(ntm_manager_t ntm_mgr, ntm_msg msg)
 	else if (msg.msg_type & NTM_MSG_EPOLL_CREATE)
 	{
 		DEBUG("handle NTM_MSG_EPOLL_CREATE");
+		handle_msg_nts_epoll_create(ntm_mgr, msg);
 	}
 	else if (msg.msg_type & NTM_MSG_EPOLL_CTL)
 	{
 		DEBUG("handle NTM_MSG_EPOLL_CTL");
+		handle_msg_nts_epoll_ctl(ntm_mgr, msg);
 	}
 	else if (msg.msg_type & NTM_MSG_EPOLL_CLOSE)
 	{
 		DEBUG("handle NTM_MSG_EPOLL_CLOSE");
+		handle_msg_nts_epoll_close(ntm_mgr, msg);
 	}
 	else
 	{
