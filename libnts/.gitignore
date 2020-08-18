@@ -80,7 +80,7 @@ config.h
 .libs
 .deps
 libmlx4.spec
-Makefile
+#Makefile
 config.status
 stamp-h1
 libtool
