@@ -24,6 +24,7 @@
 #define __USE_GNU
 #include <sched.h>
 #include <dlfcn.h>
+#include <stdarg.h>
 
 #include "libnts.h"
 #include "nts_api.h"
@@ -67,7 +68,7 @@ static ssize_t (*real_read)(int, void *, size_t);
 static ssize_t (*real_readv)(int, const struct iovec *, int);
 
 static int (*real_ioctl)(int, int, void *);
-static int (*real_fcntl)(int, int, void *);
+static int (*real_fcntl)(int, int, ...);
 
 static int (*real_select)(int, fd_set *, fd_set *, fd_set *, struct timeval *);
 
@@ -376,14 +377,21 @@ int ioctl(int sockfd, int request, void *p) {
 	}
 }
 
-int fcntl(int sockfd, int cmd, void *p) {
+int fcntl(int sockfd, int cmd, ... /*arg*/) {
+	int rc;
+	va_list args;
+	va_start(args, cmd);
+
 	if (unlikely(inited == 0)) {
 		INIT_FUNCTION(fcntl);
-		return real_fcntl(sockfd, cmd, p);
+		rc = real_fcntl(sockfd, cmd, args);
+		va_end(args);
+		return rc;
 	}
 
-
-	return nts_fcntl(sockfd, cmd, p);
+	rc = nts_fcntl(sockfd, cmd, args);
+	va_end(args);
+	return rc;
 }
 
 int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
