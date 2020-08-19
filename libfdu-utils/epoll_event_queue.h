@@ -21,9 +21,9 @@ extern "C" {
 #define EP_SHM_QUEUE_PREFIX "epoll-io-queue-"      // like epoll-io-queue-[epoll socket id]
 
 typedef struct _nts_epoll_event_int {
-	nts_epoll_event ev;
 	int sockid;
-} nts_epoll_event_int;
+	nts_epoll_event ev;
+}__attribute__((packed)) nts_epoll_event_int;
 
 #define DEFAULT_EP_EVENT_QUEUE_ELE_SIZE sizeof(struct _nts_epoll_event_int)
 
@@ -32,7 +32,6 @@ typedef struct _nts_event_queue {
 	volatile uint64_t end;        // write_idx
 	uint64_t size;       // capacity of event_queue
 	uint64_t num_events; // number of current active events in event_queue
-	nts_epoll_event_int *events;
 } nts_event_queue;
 typedef struct _nts_event_queue * nts_event_queue_t;
 
@@ -47,6 +46,8 @@ typedef struct _epoll_event_queue {
     char mutex_sem_name[EPOLL_MAX_ADDRLEN];
     char full_sem_name[EPOLL_MAX_ADDRLEN];
     char empty_sem_name[EPOLL_MAX_ADDRLEN];
+
+    nts_epoll_event_int *events;    // point events array triggerred by listener_socket and client_socket
 
     sem_t *mutex_sem;
     sem_t *full_sem;

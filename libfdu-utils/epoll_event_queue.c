@@ -97,7 +97,7 @@ static inline epoll_event_queue_t _ep_event_queue_init(
         queue->shm_queue->num_events = 0;
     }
     queue->shm_queue->size = capacity;
-    queue->shm_queue->events = (nts_epoll_event_int *) ((uint8_t *)queue->shm_queue + sizeof(nts_event_queue));
+    queue->events = (nts_epoll_event_int *) ((uint8_t *)queue->shm_queue + sizeof(nts_event_queue));
 
     // store old, umask for world-writable access of semaphores (mutex_sem, buf_count_sem, spool_signal_sem)
     mode_t old_umask; 
@@ -229,7 +229,7 @@ int ep_event_queue_push(epoll_event_queue_t ctx, nts_epoll_event_int *event)
     /* Critical Section */
     uint64_t write_idx;
     write_idx = ctx->shm_queue->end;
-    memcpy((void *)&ctx->shm_queue->events[write_idx], (void *)event, DEFAULT_EP_EVENT_QUEUE_ELE_SIZE);
+    memcpy((void *)&ctx->events[write_idx], (void *)event, DEFAULT_EP_EVENT_QUEUE_ELE_SIZE);
     __WRITE_BARRIER__;
     ctx->shm_queue->end = next_index(ctx->shm_queue->end, ctx->shm_queue->size);
     ctx->shm_queue->num_events ++;
@@ -273,7 +273,7 @@ int ep_event_queue_pop(epoll_event_queue_t ctx, nts_epoll_event_int *event)
     // we don't use 'mutex_sem' to sync state
     uint64_t read_idx;
     read_idx = ctx->shm_queue->start;
-    memcpy((void *)event, (void *)&ctx->shm_queue->events[read_idx], DEFAULT_EP_EVENT_QUEUE_ELE_SIZE);
+    memcpy((void *)event, (void *)&ctx->events[read_idx], DEFAULT_EP_EVENT_QUEUE_ELE_SIZE);
     __WRITE_BARRIER__;
     ctx->shm_queue->start = next_index(ctx->shm_queue->start, ctx->shm_queue->size);
     ctx->shm_queue->num_events --;
@@ -300,7 +300,7 @@ int ep_event_queue_front(epoll_event_queue_t ctx, nts_epoll_event_int *event)
     }
     uint64_t read_idx;
     read_idx = ctx->shm_queue->start;
-    memcpy((void *)event, (void *)&ctx->shm_queue->events[read_idx], DEFAULT_EP_EVENT_QUEUE_ELE_SIZE);
+    memcpy((void *)event, (void *)&ctx->events[read_idx], DEFAULT_EP_EVENT_QUEUE_ELE_SIZE);
     __WRITE_BARRIER__;
 
     DEBUG("front event queue success");

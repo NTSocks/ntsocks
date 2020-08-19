@@ -50,9 +50,9 @@ typedef union _nts_epoll_data {
 } nts_epoll_data;
 
 typedef struct _nts_epoll_event {
-	uint32_t events;
 	uint64_t data;
-} nts_epoll_event;
+	uint32_t events;
+}__attribute__((packed)) nts_epoll_event;
 
 int nts_epoll_create(int size);
 int nts_epoll_ctl(int epid, int op, int sockid, nts_epoll_event *event);
