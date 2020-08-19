@@ -2576,7 +2576,7 @@ inline void handle_msg_nts_epoll_ctl(ntm_manager_t ntm_mgr, ntm_msg msg) {
 	req_to_ntp_msg.epid = msg.epid;
 	req_to_ntp_msg.epoll_op = msg.epoll_op;
 	if (msg.epoll_op == NTS_EPOLL_CTL_ADD) {
-		req_to_ntp_msg.src_port = htons(nts_shm_conn->port);
+		req_to_ntp_msg.src_port = nts_shm_conn->socket->saddr.sin_port; // nts_shm_conn->socket->saddr.sin_port
 		req_to_ntp_msg.dst_port = nts_shm_conn->peer_sin_port;
 	}
 	if (msg.epoll_op == NTS_EPOLL_CTL_ADD 
