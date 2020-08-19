@@ -207,6 +207,7 @@ int ep_event_queue_push(epoll_event_queue_t ctx, nts_epoll_event_int *event)
     assert(ctx);
     assert(event);
 
+
     int retval;
     // get a buffer: P (empty_sem)
     retval = sem_wait(ctx->empty_sem);

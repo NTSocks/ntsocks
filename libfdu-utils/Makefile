@@ -18,9 +18,9 @@ DEBUG = -g -O2
 CFLAGS += $(DEBUG) -Wall -std=c11 -D_BSD_SOURCE -DHAVE_GCC_C11_ATOMICS -DENABLE_DEBUG
 LDFLAGS+= -L$(LIB_PATH) -l$(LIB_NAME)
 
-TARGET=shmring ntp2nts-shm sem_shmring hashmap_main ep_eq_main
+TARGET=shmring ntp2nts-shm sem_shmring hashmap_main ep_eq_main ep_eqserver ep_eqclient
 
-all: clean $(LIB_OBJS) fdu_utils_static_lib fdu_utils_shared_lib local-install shmring ntp2nts-shm sem_shmring hashmap_main ep_eq_main
+all: clean $(LIB_OBJS) fdu_utils_static_lib fdu_utils_shared_lib local-install shmring ntp2nts-shm sem_shmring hashmap_main ep_eq_main ep_eqserver ep_eqclient
 	rm -f *.o 
 	mv $(TARGET) $(BIN_PATH)
 	cp lib$(LIB_NAME).* $(LIB_PATH)
@@ -42,6 +42,12 @@ hashmap_main: hashmap_main.c
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS) -I$(INC_PATH)
 
 ep_eq_main: ep_eventqueue_main.c
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS) -I$(INC_PATH)
+
+ep_eqserver: ep_eqserver_main.c
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS) -I$(INC_PATH)
+
+ep_eqclient: ep_eqclient_main.c
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS) -I$(INC_PATH)
 
 fdu_utils_static_lib: $(LIB_OBJS)

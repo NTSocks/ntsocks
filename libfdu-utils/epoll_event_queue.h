@@ -47,13 +47,13 @@ typedef struct _epoll_event_queue {
     char full_sem_name[EPOLL_MAX_ADDRLEN];
     char empty_sem_name[EPOLL_MAX_ADDRLEN];
 
-    nts_epoll_event_int *events;    // point events array triggerred by listener_socket and client_socket
-
     sem_t *mutex_sem;
     sem_t *full_sem;
     sem_t *empty_sem;
 
     nts_event_queue_t shm_queue;
+    nts_epoll_event_int *events;    // point events array triggerred by listener_socket and client_socket
+
 } epoll_event_queue;
 typedef struct _epoll_event_queue * epoll_event_queue_t;
 
