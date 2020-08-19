@@ -187,7 +187,7 @@ int socket(int domain, int type, int protocol) {
 		return ret;
 	}
 
-	ret = nts_socket(domain, type, protocol);
+	ret = nts_socket(domain, NT_SOCK_STREAM, protocol);
 
 	return ret;
 }

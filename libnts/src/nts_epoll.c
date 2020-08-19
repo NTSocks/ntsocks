@@ -460,6 +460,11 @@ int nts_epoll_ctl(int epid, int op, int sockid, nts_epoll_event *event) {
     }
     nt_socket_t socket = sock_ctx->socket;
     DEBUG("socket_type: %d", socket->socktype);
+    if (socket->socktype == NT_SOCK_UNUSED || socket->socktype == NT_SOCK_EPOLL) {
+		ERR("Invalid socket type for NTM_MSG_EPOLL_CTL msg");
+		return -1;
+	}
+
     if (op == NTS_EPOLL_CTL_ADD) {
         if (socket->epoll) {
             errno = EEXIST;
