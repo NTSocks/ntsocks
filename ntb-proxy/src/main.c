@@ -17,7 +17,7 @@
 #include <rte_io.h>
 #include <rte_eal.h>
 #include <rte_pci.h>
-// #include <rte_bus_pci.h>
+#include <rte_bus_pci.h>
 #include <rte_rawdev.h>
 #include <rte_rawdev_pmd.h>
 #include <rte_memcpy.h>
@@ -35,7 +35,7 @@
 #include <rte_memory.h>
 #include <rte_lcore.h>
 #include <rte_bus.h>
-// #include <rte_bus_vdev.h>
+#include <rte_bus_vdev.h>
 #include <rte_memzone.h>
 #include <rte_mempool.h>
 #include <rte_rwlock.h>

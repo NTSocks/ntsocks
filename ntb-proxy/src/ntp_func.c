@@ -660,8 +660,8 @@ static int handle_epoll_ctl_msg(struct ntb_link_custom *ntb_link, epoll_msg *req
 
     // 2. query the corresponding ntb-conn with sockid or [src_port]-[dst_port]
     ntb_conn_t conn;
+    int src_port, dst_port;
     if (req_msg->epoll_op == NTS_EPOLL_CTL_ADD) {
-        int src_port, dst_port;
         src_port = ntohs(req_msg->src_port);
         dst_port = ntohs(req_msg->dst_port);
         uint32_t conn_id;
@@ -681,7 +681,7 @@ static int handle_epoll_ctl_msg(struct ntb_link_custom *ntb_link, epoll_msg *req
     } else {
         conn = Get(epoll_ctx->ep_conn_map, &req_msg->sockid);
         if (!conn) {
-            ERR("Invalid socket id (conn id) or Non-existing ntb_conn with src_port=%d, dst_port=%d", src_port, dst_port);
+            ERR("Invalid socket id (conn id) or Non-existing ntb_conn with sockid=%d", req_msg->sockid);
             resp_msg.retval = -1;
             goto FAIL;
         }
