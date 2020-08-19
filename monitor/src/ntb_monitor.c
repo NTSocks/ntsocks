@@ -2449,6 +2449,7 @@ inline void handle_msg_nts_epoll_ctl(ntm_manager_t ntm_mgr, ntm_msg msg) {
 		return;
 	}
 
+	DEBUG("socket_type: %d", msg.sock_type);
 	if (msg.sock_type == NT_SOCK_UNUSED || msg.sock_type == NT_SOCK_EPOLL) {
 		ERR("Invalid socket type for NTM_MSG_EPOLL_CTL msg");
 		return;
@@ -2604,6 +2605,9 @@ inline void handle_msg_nts_epoll_ctl(ntm_manager_t ntm_mgr, ntm_msg msg) {
 	if (rc != 0) {
 		ERR("epoll_shm_send failed to send EPOLL_MSG_CTL response to libnts");
 	}
+
+	DEBUG("handle_msg_nts_epoll_ctl EPOLL_MSG_CTL success");
+
 	return;
 }
 

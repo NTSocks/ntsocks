@@ -92,7 +92,7 @@ int epoll_shm_send(epoll_shm_context_t shm_ctx, epoll_msg *msg)
         retval = shmring_push(shm_ctx->handle, (char *)msg, EPOLL_MSG_SIZE);
     }
 
-    DEBUG("epoll_shm_send() pass with ret=%d", retval);
+    DEBUG("epoll_shm_send() success");
     return retval ? 0 : -1;
 }
 

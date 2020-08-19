@@ -459,6 +459,7 @@ int nts_epoll_ctl(int epid, int op, int sockid, nts_epoll_event *event) {
         return -1;
     }
     nt_socket_t socket = sock_ctx->socket;
+    DEBUG("socket_type: %d", socket->socktype);
     if (op == NTS_EPOLL_CTL_ADD) {
         if (socket->epoll) {
             errno = EEXIST;

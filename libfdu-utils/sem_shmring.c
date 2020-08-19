@@ -299,7 +299,7 @@ int sem_shmring_push(sem_shmring_handle_t handle, char *element, size_t ele_len)
         ERR("[sem_shmring_push()] sem_post: spool_signal_sem");
         goto FAIL;
     }
-	DEBUG("push ntm shmring successfully!");
+	DEBUG("sem_shmring_push success!");
     return 0;
 
 FAIL: 
@@ -322,7 +322,7 @@ int sem_shmring_pop(sem_shmring_handle_t handle, char *element, size_t ele_len) 
 
     DEBUG("write_idx=%ld, read_idx=%ld", handle->queue->write_idx, handle->queue->read_idx);
     memcpy(element, handle->data[handle->queue->read_idx], ele_len);
-    DEBUG("element=%s", element);
+
     handle->queue->is_full = 0;
     handle->queue->read_idx = next_index(handle->queue->read_idx, handle->capacity);
 

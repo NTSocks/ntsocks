@@ -32,7 +32,8 @@ static: build/$(APP)-static
 
 CFLAGS += -D_FILE_OFFSET_BITS=64 
 CFLAGS += -D_BSD_SOURCE 
-CFLAGS += -DHAVE_GCC_C11_ATOMICS -DENABLE_DEBUG
+CFLAGS += -DHAVE_GCC_C11_ATOMICS 
+CFLAGS += -DENABLE_DEBUG
 
 
 PC_FILE := $(shell pkg-config --path libdpdk)
@@ -81,6 +82,7 @@ CFLAGS += -DHAVE_GCC_C11_ATOMICS
 CFLAGS += -DALLOW_EXPERIMENTAL_API
 CFLAGS += -pthread  
 CFLAGS += -I$(SRCDIR)/utils/include -I$(SRCDIR)/include -I/usr/local/include
+CFLAGS += -DENABLE_DEBUG
 
 LDLIBS += -L/usr/local/lib -lfdu-utils -L$(RTE_SDK)/$(RTE_TARGET)/build/lib
 

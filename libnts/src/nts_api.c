@@ -257,7 +257,7 @@ int nts_socket(int domain, int type, int protocol) {
 
 	// push `nt_sock_context` into `HashMap nt_sock_map`, then return sockid
 	Put(nts_ctx->nt_sock_map, &socket->sockid, nt_sock_ctx);
-	DEBUG("nts_socket() pass with sockid=%d", socket->sockid);
+	DEBUG("nts_socket() pass with sockid=%d, socktype=%d", socket->sockid, socket->socktype);
 
 	return socket->sockid;
 
