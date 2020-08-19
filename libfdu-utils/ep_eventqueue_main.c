@@ -73,6 +73,7 @@ int main(int argc, char *argv[]) {
     ep_event_queue_free(ep_queue, true);
 
     printf("sizeof(nts_epoll_event_int): %lu, sizeof(nts_epoll_event): %lu \n", sizeof(nts_epoll_event_int), sizeof(nts_epoll_event));
+    printf("sizeof(epoll_event_queue): %lu\n", sizeof(struct _epoll_event_queue));
 
 
     return 0;

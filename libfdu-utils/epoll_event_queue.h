@@ -53,7 +53,6 @@ typedef struct _epoll_event_queue {
 
     nts_event_queue_t shm_queue;
     nts_epoll_event_int *events;    // point events array triggerred by listener_socket and client_socket
-
 } epoll_event_queue;
 typedef struct _epoll_event_queue * epoll_event_queue_t;
 

@@ -654,6 +654,7 @@ int nts_epoll_wait(int epid, nts_epoll_event *events, int maxevents, int timeout
     int cnt = 0;
     do {
         nts_event_queue_t eq = ep->usr_queue;
+        epoll_event_queue_t eq_ctx = ep->usr_queue_ctx;
         // nts_event_queue_t eq_shadow = ep->usr_shadow_queue;
 
         while (eq->num_events == 0 
@@ -709,7 +710,7 @@ int nts_epoll_wait(int epid, nts_epoll_event *events, int maxevents, int timeout
         uint8_t validity;
         int num_events = eq->num_events;
         for(i = 0; i < num_events && cnt <= maxevents; i++) {
-            nt_sock_context_t event_sock_ctx = (nt_sock_context_t) Get(nts_ctx->nt_sock_map, &eq->events[eq->start].sockid);
+            nt_sock_context_t event_sock_ctx = (nt_sock_context_t) Get(nts_ctx->nt_sock_map, &eq_ctx->events[eq->start].sockid);
             if (!event_sock_ctx || event_sock_ctx->socket->sockid == 0) {
                 eq->start++;
                 eq->num_events--;
@@ -726,27 +727,27 @@ int nts_epoll_wait(int epid, nts_epoll_event *events, int maxevents, int timeout
             validity = 1;
             if (event_socket->socktype == NT_SOCK_UNUSED) 
                 validity = 0;
-            if (!(event_socket->epoll & eq->events[eq->start].ev.events))
+            if (!(event_socket->epoll & eq_ctx->events[eq->start].ev.events))
                 validity = 0;
-            // if (!(event_socket->events & eq->events[eq->start].ev.events))
+            // if (!(event_socket->events & eq_ctx->events[eq->start].ev.events))
             //     validity = 0;
 
             if (validity) {
-                events[cnt++] = eq->events[eq->start].ev;
-                assert(eq->events[eq->start].sockid >= 0);
+                events[cnt++] = eq_ctx->events[eq->start].ev;
+                assert(eq_ctx->events[eq->start].sockid >= 0);
 
                 DEBUG("Socket %d: Handled event. event: %s, start: %u, end: %u, num: %u", 
                             event_socket->sockid, 
-                            EventToString(eq->events[eq->start].ev.events), 
+                            EventToString(eq_ctx->events[eq->start].ev.events), 
                             eq->start, eq->end, eq->num_events);
                 ep->stat.handled ++;
             } else {
                 DEBUG("Socket %d: event %s invalidated.\n", 
-						eq->events[eq->start].sockid, 
-						EventToString(eq->events[eq->start].ev.events));
+						eq_ctx->events[eq->start].sockid, 
+						EventToString(eq_ctx->events[eq->start].ev.events));
                 ep->stat.invalidated ++;
             }
-            event_socket->events &= (~eq->events[eq->start].ev.events);
+            event_socket->events &= (~eq_ctx->events[eq->start].ev.events);
 
             eq->start++;
             eq->num_events--;
