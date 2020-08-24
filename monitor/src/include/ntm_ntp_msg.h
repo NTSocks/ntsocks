@@ -53,9 +53,10 @@ typedef struct {
     uint64_t dst_port;
     
     uint8_t msg_type;
+    uint8_t partition_id;   // the corresponding partition id for specified connection
     uint16_t msg_len;
-    char msg[13];
-} ntp_ntm_msg;
+    char msg[16];
+}__attribute__((packed)) ntp_ntm_msg;
 
 void ntp_ntm_msgcopy(ntp_ntm_msg *src_msg, ntp_ntm_msg *target_msg);
 
@@ -66,9 +67,10 @@ typedef struct {
     uint64_t dst_port;
     
     uint8_t msg_type;
+    uint8_t partition_id;   // the corresponding partition id for specified connection
     uint16_t msg_len;
-    char msg[13];
-} ntm_ntp_msg;
+    char msg[16];
+}__attribute__((packed)) ntm_ntp_msg;
 
 void ntm_ntp_msgcopy(ntm_ntp_msg *src_msg, ntm_ntp_msg *target_msg);
 

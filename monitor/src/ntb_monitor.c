@@ -707,6 +707,7 @@ inline void handle_nt_syn_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 	ntp_outgoing_msg.src_ip = msg.dst_addr;
 	ntp_outgoing_msg.src_port = msg.dport;
 	ntp_outgoing_msg.msg_type = 1;
+	ntp_outgoing_msg.partition_id = -1;
 	ntp_outgoing_msg.msg_len = 0;
 	retval = ntm_ntp_shm_send(ntm_mgr->ntp_ctx->shm_send_ctx, &ntp_outgoing_msg);
 	while (retval == -1) {
@@ -788,6 +789,7 @@ inline void handle_nt_syn_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 	// send `SYN_ACK` with local client nt_socket id back to source monitor.
 	outgoing_msg.sockid = client_socket->sockid;
 	outgoing_msg.type = NT_SYN_ACK;
+	outgoing_msg.partition_id = ntp_incoming_msg.partition_id;	// for ntb_partition
 	ntm_send_tcp_msg(ntm_conn->client_sock, 
 				(char*)&outgoing_msg, sizeof(outgoing_msg));
 
@@ -871,7 +873,8 @@ inline void handle_nt_syn_ack_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 	ntp_outgoing_msg.dst_port = msg.sport;
 	ntp_outgoing_msg.src_ip = msg.dst_addr;
 	ntp_outgoing_msg.src_port = msg.dport;
-	ntp_outgoing_msg.msg_type = 1;
+	ntp_outgoing_msg.msg_type = 1;	// CREATE_CONN
+	ntp_outgoing_msg.partition_id = msg.partition_id;	
 	ntp_outgoing_msg.msg_len = 0;
 	retval = ntm_ntp_shm_send(ntm_mgr->ntp_ctx->shm_send_ctx, &ntp_outgoing_msg);
 	while (retval == -1) {

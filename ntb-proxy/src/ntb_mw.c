@@ -32,6 +32,9 @@
 #include <rte_mempool.h>
 #include <rte_rwlock.h>
 
+#include <time.h>
+#include <sched.h>
+
 #include "ntb_mw.h"
 
 #include "ntb.h"
@@ -116,9 +119,16 @@ int ntb_ctrl_msg_enqueue(struct ntb_link_custom *ntlink, struct ntb_ctrl_msg *ms
 
     uint64_t next_index = r->cur_index + 1 < r->capacity ? r->cur_index + 1 : 0;
     //looping send
+    int full_cnt = 0;
+    int sleep_us = 100, cnt_window = 50;
     while (next_index == *ntlink->ctrl_link->local_cum_ptr)
     {
         INFO("ntb_ctrl_msg_enqueue looping");
+        full_cnt++;
+        if (full_cnt % cnt_window == 0) {
+            usleep(100);   
+        }
+        sched_yield();
     }
     if ((next_index - *ntlink->ctrl_link->local_cum_ptr) & 0x3ff == 0)
     {
@@ -139,11 +149,18 @@ int ntb_pure_data_msg_enqueue(struct ntb_data_link *data_link, uint8_t *msg, int
     struct ntb_ring_buffer *r = data_link->remote_ring;
     uint64_t next_index = r->cur_index + 1 < r->capacity ? r->cur_index + 1 : 0;
     //looping send
+    int full_cnt = 0;
+    int sleep_us = 100, cnt_window = 50;
     while (next_index == *data_link->local_cum_ptr)
     {
+        full_cnt++;
+        if (full_cnt % cnt_window == 0) {
+            usleep(100);   
+        }
+        sched_yield();
     }
-    //ptr = r->start_addr + r->cur_index * NTB_DATA_MSG_TL ,NTB_DATA_MSG_TL = 128
-    uint8_t *ptr = r->start_addr + (r->cur_index << 7);
+    //ptr = r->start_addr + r->cur_index * NTP_CONFIG.data_packet_size
+    uint8_t *ptr = r->start_addr + (r->cur_index << NTP_CONFIG.ntb_packetbits_size);
     rte_memcpy(ptr, msg, data_len);
     // DEBUG("ntb_pure_data_msg_enqueue end");
     r->cur_index = next_index;
@@ -160,27 +177,37 @@ int ntb_data_msg_enqueue(struct ntb_data_link *data_link, struct ntb_data_msg *m
     uint64_t next_index = r->cur_index + 1 < r->capacity ? r->cur_index + 1 : 0;
     //looping send
     // DEBUG("next_index = %ld,*data_link->local_cum_ptr= %ld",next_index,*data_link->local_cum_ptr);
-    while (next_index == *data_link->local_cum_ptr)
+    int full_cnt = 0;
+    int sleep_us = 100, cnt_window = 50;
+    while (next_index == *data_link->local_cum_ptr) // compare the next write_index to current read_index, judge whether ntb ringbuffer is full
     {
         // DEBUG("next_index = %ld,*data_link->local_cum_ptr= %ld",next_index,*data_link->local_cum_ptr);
+        full_cnt++;
+        if (full_cnt % cnt_window == 0) {
+            usleep(100);   
+        }
+        sched_yield();
+       
     }
     uint8_t *ptr = r->start_addr + (r->cur_index << 7);
-    if (msg_len <= NTB_DATA_MSG_TL)
+    if (msg_len <= NTP_CONFIG.data_packet_size)
     {
-        if (((next_index - *data_link->local_cum_ptr) & 0x3ff) == 0)
+        // remote peer write_index, read_index, 0x3ff == 1023
+        if (UNLIKELY(((next_index - *data_link->local_cum_ptr) & 0x3ff) == 0))
         {
-            //PSH
-            msg->header.msg_len |= (1 << 15);
+            //PSH: update local shadow read_index using remote write by peer side
+            msg->header.msg_len |= (1 << 15);   
         }
         rte_memcpy(ptr, msg, msg_len);
     }
     else
     {
-        if (((next_index + (msg_len >> 7)) & 0xfc00) != (r->cur_index & 0xfc00))
+        // 0xfc00 == 1111 1100 0000 0000 
+        if (UNLIKELY(((next_index + (msg_len >> 7)) & 0xfc00) != (r->cur_index & 0xfc00)))    ///???
         {
             msg->header.msg_len |= (1 << 15);
         }
-        rte_memcpy(ptr, msg, NTB_DATA_MSG_TL);
+        rte_memcpy(ptr, msg, NTP_CONFIG.data_packet_size);
     }
     // DEBUG("enqueue cur_index = %ld",r->cur_index);
     r->cur_index = next_index;
@@ -201,25 +228,34 @@ ntb_ring_create(uint8_t *ptr, uint64_t ring_size, uint64_t msg_len)
     return r;
 }
 
+// init the ntb memory buffer for all ntb_partitions
 static int ntb_mem_formatting(struct ntb_link_custom *ntb_link, uint8_t *local_ptr, uint8_t *remote_ptr)
 {
+    uint8_t *data_local_ptr, *data_remote_ptr;
+
     ntb_link->ctrl_link->local_cum_ptr = (uint64_t *)local_ptr;
     ntb_link->ctrl_link->remote_cum_ptr = (uint64_t *)remote_ptr;
     *ntb_link->ctrl_link->local_cum_ptr = 0;
     ntb_link->ctrl_link->local_ring = ntb_ring_create(((uint8_t *)local_ptr + 8), CTRL_RING_SIZE, NTB_CTRL_MSG_TL);
     ntb_link->ctrl_link->remote_ring = ntb_ring_create(((uint8_t *)remote_ptr + 8), CTRL_RING_SIZE, NTB_CTRL_MSG_TL);
-    local_ptr = local_ptr + CTRL_RING_SIZE + 8;
-    remote_ptr = remote_ptr + CTRL_RING_SIZE + 8;
-    for (int i = 0; i < 1; i++)
+    data_local_ptr = local_ptr + CTRL_RING_SIZE + 8;
+    data_remote_ptr = remote_ptr + CTRL_RING_SIZE + 8;
+
+    for (int i = 0; i < ntb_link->num_partition; i++)
     {
-        ntb_link->data_link[i].local_cum_ptr = (uint64_t *)local_ptr;
-        ntb_link->data_link[i].remote_cum_ptr = (uint64_t *)remote_ptr;
-        *ntb_link->data_link[i].local_cum_ptr = 0;
-        ntb_link->data_link[i].local_ring = ntb_ring_create(((uint8_t *)local_ptr + 8), DATA_RING_SIZE, NTB_DATA_MSG_TL);
-        ntb_link->data_link[i].remote_ring = ntb_ring_create(((uint8_t *)remote_ptr + 8), DATA_RING_SIZE, NTB_DATA_MSG_TL);
-        local_ptr = local_ptr + DATA_RING_SIZE + 8;
-        remote_ptr = remote_ptr + DATA_RING_SIZE + 8;
+        ntb_link->partitions[i].data_link->local_cum_ptr = (uint64_t *)data_local_ptr;
+        ntb_link->partitions[i].data_link->remote_cum_ptr = (uint64_t *)data_remote_ptr;
+        *(ntb_link->partitions[i].data_link->local_cum_ptr) = 0;
+
+        ntb_link->partitions[i].data_link->local_ring = ntb_ring_create((uint8_t *)data_local_ptr + 8, 
+                                            NTP_CONFIG.data_ringbuffer_size, 1 << NTP_CONFIG.ntb_packetbits_size);
+        ntb_link->partitions[i].data_link->remote_ring = ntb_ring_create((uint8_t *)data_remote_ptr + 8, 
+                                            NTP_CONFIG.data_ringbuffer_size, 1 << NTP_CONFIG.ntb_packetbits_size);
+
+        data_local_ptr = data_local_ptr + NTP_CONFIG.data_ringbuffer_size + 8;
+        data_remote_ptr = data_remote_ptr + NTP_CONFIG.data_ringbuffer_size + 8;
     }
+    
     DEBUG("ntb_mem_formatting pass");
     return 0;
 }
@@ -233,12 +269,13 @@ ntb_start(uint16_t dev_id)
     dev = &rte_rawdevs[dev_id];
 
     load_conf(CONFIG_FILE);
+    NTP_CONFIG.data_packet_size = 1 << NTP_CONFIG.ntb_packetbits_size;
 
     struct ntb_link_custom *ntb_link = malloc(sizeof(*ntb_link));
     ntb_link->dev = dev;
     ntb_link->hw = dev->dev_private;
     ntb_link->ctrl_link = malloc(sizeof(struct ntb_ctrl_link));
-    ntb_link->data_link = malloc(sizeof(struct ntb_data_link) * 1);
+    // ntb_link->data_link = malloc(sizeof(struct ntb_data_link) * 1);
     int diag;
 
     if (dev->started != 0)
@@ -252,20 +289,32 @@ ntb_start(uint16_t dev_id)
 
     if (diag == 0)
         dev->started = 1;
-    DEBUG("ntb dev started,mem formatting");
+
+    // init the ntb_link partitions
+    ntb_link->num_partition = NTP_CONFIG.num_partition;
+    ntb_link->partitions = (struct ntb_partition *) calloc(ntb_link->num_partition, sizeof(struct ntb_partition));
+    ntb_link->round_robin_idx = 0;
+    for (int i = 0; i < ntb_link->num_partition; i++)
+    {   
+        ntb_link->partitions[i].id = i;
+        ntb_link->partitions[i].num_conns = 0;
+        ntb_link->partitions[i].data_link = (struct ntb_data_link *) malloc(sizeof(struct ntb_data_link));
+
+        //create the list to be send for each ntb_partition, add ring_head/ring_tail
+        ntp_send_list_node *send_list_node = malloc(sizeof(*send_list_node));
+        send_list_node->conn = NULL;
+        send_list_node->next_node = send_list_node;
+        ntb_link->partitions[i].send_list.ring_head = send_list_node;
+        ntb_link->partitions[i].send_list.ring_tail = send_list_node;
+    }
+
+    DEBUG("ntb dev started, NTB memory buffer formatting for ntb_partition, ctrl_ringbuffer");
 
     //get the NTB local&remote memory ptr,then formats them
     uint8_t *local_ptr = (uint8_t *)ntb_link->hw->mz[0]->addr;
     uint8_t *remote_ptr = (uint8_t *)ntb_link->hw->pci_dev->mem_resource[2].addr;
     DEBUG("mem formatting start");
     ntb_mem_formatting(ntb_link, local_ptr, remote_ptr);
-
-    //create the list to be send,add ring_head
-    ntp_send_list_node *send_list_node = malloc(sizeof(*send_list_node));
-    send_list_node->conn = NULL;
-    send_list_node->next_node = send_list_node;
-    ntb_link->send_list.ring_head = send_list_node;
-    ntb_link->send_list.ring_tail = send_list_node;
 
     //create the map to find ntb_connection based on port
     ntb_link->port2conn = createHashMap(NULL, NULL);

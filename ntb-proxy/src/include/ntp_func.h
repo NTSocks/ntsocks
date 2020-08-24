@@ -31,10 +31,12 @@
 
 int ntp_create_conn_handler(struct ntb_link_custom *ntb_link, ntm_ntp_msg *msg);
 
-int ntp_send_buff_data(struct ntb_data_link *data_link, ntp_shm_context_t ring, ntb_conn *conn);
+int ntp_send_buff_data(struct ntb_data_link *data_link, ntb_partition_t partition, ntp_shm_context_t ring, ntb_conn *conn);
 
-int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_custom *ntb_link);
+int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_custom *ntb_link, ntb_partition_t partition);
 
 int ntp_ctrl_msg_receive(struct ntb_link_custom *ntb_link);
+
+uint16_t ntp_allocate_partition(struct ntb_link_custom *ntb_link);
 
 #endif /* NTP_FUNC_H_ */

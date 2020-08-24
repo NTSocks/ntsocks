@@ -82,7 +82,7 @@ CFLAGS += -DALLOW_EXPERIMENTAL_API
 CFLAGS += -pthread  
 CFLAGS += -I$(SRCDIR)/utils/include -I$(SRCDIR)/include
 
-LDLIBS += -L/usr/local/lib -lfdu-utils
+LDLIBS += -L/usr/local/lib -lfdu-utils -lpthread
 
 
 include $(RTE_SDK)/mk/rte.extapp.mk
