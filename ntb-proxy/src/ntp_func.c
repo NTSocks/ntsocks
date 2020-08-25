@@ -43,7 +43,7 @@
 // uint64_t global_rece_msg = 0;
 // uint64_t global_send_msg = 0;
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_DISABLE);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 static char *int_to_char(uint16_t x)
 {
