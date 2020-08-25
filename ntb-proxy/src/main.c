@@ -151,22 +151,12 @@ ntb_ctrl_receive_thread(__attribute__((unused)) void *arg)
 	return 0;
 }
 
-static int
+void *
 ntm_ntp_receive_thread(__attribute__((unused)) void *arg)
 {
 	ntm_ntp_shm_context_t recv_shm = ntb_link->ntm_ntp;
 	ntm_ntp_msg recv_msg;
 	uint64_t loop_spin_cnt = 0;	// default sleep, when loop_spin_cnt > 10
-	
-
-	//test mode
-	// recv_msg.dst_port = 80;
-	// recv_msg.src_port = 80;
-	// recv_msg.msg_type = 1;
-	// recv_msg.dst_ip = 1000020;
-	// recv_msg.src_ip = 1000020;
-	// ntp_create_conn_handler(ntb_link, &recv_msg);
-	//test mode end
 
 	while (1)
 	{
@@ -190,7 +180,7 @@ ntm_ntp_receive_thread(__attribute__((unused)) void *arg)
 			}
 		}
 	}
-	return 0;
+	return nullptr;
 }
 
 int main(int argc, char **argv)
