@@ -87,6 +87,7 @@ int ntb_data_msg_add_header(struct ntb_data_msg *msg, uint16_t src_port, uint16_
     else
     {
         ERR("Error msg_type");
+        return -1;
     }
     return 0;
 }
@@ -166,6 +167,91 @@ int ntb_pure_data_msg_enqueue(struct ntb_data_link *data_link, uint8_t *msg, int
     r->cur_index = next_index;
     return 0;
 }
+
+int ntb_data_msg_enqueue2(struct ntb_data_link *data_link, ntp_msg *outgoing_msg, 
+                    uint16_t src_port, uint16_t dst_port, uint16_t payload_len, int msg_type) {
+    
+    // pack the ntb_data_msg header 
+    uint16_t msg_len = NTB_HEADER_LEN + payload_len;
+    if (msg_type == SINGLE_PKG) // 001 == single packet: only one packet to send one msg
+    {
+        msg_len |= (1 << 12);
+    }
+    else if (msg_type == MULTI_PKG) // 010 == multi packets: need multi-packets to send one msg
+    {
+        msg_len |= (1 << 13);
+    }
+    else if (msg_type == ENF_MULTI) // 011 == ENF_MULTI: indicate the end/tail packet for one multi-packets msg
+    {
+        msg_len |= (3 << 12);
+    }
+    else if (msg_type == DETECT_PKG) // 000 == DETECT_PKG: sync local (send buffer) read_index with remote (recv buffer) read_index
+    {                                //	request the read_index of recv buffer on the peer node(ntb endpoint)
+                                     // DETECT_PKG = 000,don't need to do bit operations
+    }
+    else if (msg_type == FIN_PKG) // 100 == FIN_PKG: indicate the NTB FIN between two ntb endpoints
+    {
+        msg_len |= (1 << 14);
+    }
+    else
+    {
+        ERR("Error msg_type");
+        return -1;
+    }
+
+    // remote write the peer data ringbuffer with write_index
+    struct ntb_ring_buffer * peer_dataring = data_link->remote_ring;
+    uint16_t tmp_msglen = msg_len;
+    tmp_msglen &= 0x0fff;
+
+    uint64_t next_write_idx;
+    next_write_idx = peer_dataring->cur_index + 1 < peer_dataring->capacity ? peer_dataring->cur_index + 1 : 0;
+
+    int full_cnt = 0;
+    int sleep_us = 100, cnt_window = 50;
+    while (next_write_idx == *data_link->local_cum_ptr)
+    {
+        full_cnt++;
+        if (full_cnt % cnt_window == 0) {
+            usleep(100);   
+        }
+        sched_yield();
+    }
+
+    uint8_t *write_addr = peer_dataring->start_addr + (peer_dataring->cur_index << 7);
+    rte_memcpy(write_addr, &src_port, 2);   // src_port: 2 bytes
+    rte_memcpy(write_addr + 2, &dst_port, 2);   // dst_port: 2 bytes
+    
+    if (tmp_msglen <= NTP_CONFIG.data_packet_size) {
+        // data_link->local_cum_ptr: local cached read_index, 
+        // when (next_write_idx - shadow_read_idx) % 1024 == 0, 
+        // request peer node update local read_idx by remote write
+        if (UNLIKELY(((next_write_idx - *data_link->local_cum_ptr) & 0x3ff) == 0)) {
+            // PSH: request to update local shadow read_index using remote write by peer side
+            msg_len != (1 << 15);
+        }
+       
+        rte_memcpy(write_addr + 4, &msg_len, 2);    // msg_len: 2 bytes
+        rte_memcpy(write_addr + NTB_HEADER_LEN, (uint8_t *)outgoing_msg->msg, payload_len);
+    }
+    else 
+    {
+        // 0xfc00 == 1111 1100 0000 0000 
+        if (((next_write_idx + (tmp_msglen >> 7)) & 0xfc00) 
+                        != (peer_dataring->cur_index & 0xfc00))
+        {
+            // PSH: request to update local shadow read_index using remote write by peer side
+            msg_len != (1 << 15);
+        }
+
+        rte_memcpy(write_addr + 4, &msg_len, 2);    // msg_len: 2 bytes
+        rte_memcpy(write_addr + NTB_HEADER_LEN, (uint8_t *)outgoing_msg->msg, NTP_CONFIG.data_packet_size);
+    }
+
+    peer_dataring->cur_index = next_write_idx;
+    return 0;
+}
+
 
 int ntb_data_msg_enqueue(struct ntb_data_link *data_link, struct ntb_data_msg *msg)
 {
