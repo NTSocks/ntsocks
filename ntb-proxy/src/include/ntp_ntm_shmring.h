@@ -20,8 +20,7 @@
 extern "C" {
 #endif
 
-#define NTS_LIKELY(x) __builtin_expect(!!(x), 1)
-#define NTS_UNLIKELY(x) __builtin_expect(!!(x), 0)
+
 
 typedef struct _ntp_ntm_shmring ntp_ntm_shmring_t;
 typedef ntp_ntm_shmring_t* ntp_ntm_shmring_handle_t;

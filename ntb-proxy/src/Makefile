@@ -80,7 +80,7 @@ CFLAGS += -DHAVE_GCC_C11_ATOMICS
 # CFLAGS += $(WERROR_FLAGS)
 CFLAGS += -DALLOW_EXPERIMENTAL_API
 CFLAGS += -pthread  
-CFLAGS += -I$(SRCDIR)/utils/include -I$(SRCDIR)/include
+CFLAGS += -I$(SRCDIR)/include -I/usr/local/include 
 
 LDLIBS += -L/usr/local/lib -lfdu-utils -lpthread
 

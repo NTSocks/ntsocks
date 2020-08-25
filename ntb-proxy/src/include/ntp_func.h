@@ -17,6 +17,7 @@
 #include "ntm_msg.h"
 #include "ntm_ntp_shm.h"
 #include "ntp_ntm_shm.h"
+#include "utils.h"
 
 #define CREATE_CONN_ACK 1
 

@@ -15,6 +15,7 @@
 #include "ntm_ntp_shm.h"
 #include "ntp_ntm_shm.h"
 #include "ntp2nts_shm.h"
+#include "utils.h"
 
 #define DATA_RING_SIZE 0x800000     // 8MB
 #define CTRL_RING_SIZE 0x40000      // 256KB

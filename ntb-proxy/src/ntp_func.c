@@ -184,12 +184,12 @@ int ntp_create_conn_handler(struct ntb_link_custom *ntb_link, ntm_ntp_msg *msg)
      */
     if (msg->partition_id >= 0) {   // connect side
         conn->partition_id = msg->partition_id;
-        conn->partition = ntb_link->partitions[conn->partition_id];
+        conn->partition = &ntb_link->partitions[conn->partition_id];
         
     } else {    // accept side
         uint16_t partition_idx = ntp_allocate_partition(ntb_link);
         conn->partition_id = partition_idx;
-        conn->partition = ntb_link->partitions[partition_idx];
+        conn->partition = &ntb_link->partitions[partition_idx];
     }
     
     add_conn_to_ntb_send_list(ntb_link, conn->partition, conn);
@@ -383,7 +383,7 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
             recv_dataring->cur_index = temp_index + 1 < recv_dataring->capacity ? temp_index + 1 : 0;
             continue;
         }
-        
+
         // switch to the libfdu-utils
         shm_mempool_node *mp_node;
         mp_node = shm_mp_malloc(conn->nts_recv_ring->mp_handler, sizeof(ntp_msg));
@@ -484,7 +484,7 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
         {
             ERR("msg_type error");
             msg->header.msg_len = 0;
-            recv_dataring->cur_index = recv_dataring->cur_index + 1 < recv_dataring->capacity ? r->cur_index + 1 : 0;
+            recv_dataring->cur_index = recv_dataring->cur_index + 1 < recv_dataring->capacity ? recv_dataring->cur_index + 1 : 0;
         }
     }
     return 0;

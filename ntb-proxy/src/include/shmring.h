@@ -13,8 +13,7 @@ extern "C" {
 
 #define NTP_SHM_NAME "/nts-shm-ring"
 
-#define NTS_LIKELY(x) __builtin_expect(!!(x), 1)
-#define NTS_UNLIKELY(x) __builtin_expect(!!(x), 0)
+
 
 typedef struct _shmring shmring_t;
 typedef shmring_t* shmring_handle_t;

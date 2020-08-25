@@ -40,6 +40,7 @@
 #include "ntb.h"
 #include "ntb_hw_intel.h"
 #include "config.h"
+#include "utils.h"
 #include "nt_log.h"
 
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DISABLE);
@@ -172,7 +173,7 @@ int ntb_data_msg_enqueue2(struct ntb_data_link *data_link, ntp_msg *outgoing_msg
                     uint16_t src_port, uint16_t dst_port, uint16_t payload_len, int msg_type) {
     
     // pack the ntb_data_msg header 
-    uint16_t msg_len = NTB_HEADER_LEN + total_msglen;
+    uint16_t msg_len = NTB_HEADER_LEN + payload_len;
     if (msg_type == SINGLE_PKG) // 001 == single packet: only one packet to send one msg
     {
         msg_len |= (1 << 12);
