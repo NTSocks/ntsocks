@@ -152,7 +152,7 @@ int ntb_pure_data_msg_enqueue(struct ntb_data_link *data_link, uint8_t *msg, int
     //looping send
     int full_cnt = 0;
     int sleep_us = 100, cnt_window = 50;
-    while (next_index == *data_link->local_cum_ptr)
+    while (UNLIKELY(next_index == *data_link->local_cum_ptr))
     {
         full_cnt++;
         if (full_cnt % cnt_window == 0) {
@@ -172,7 +172,7 @@ int ntb_data_msg_enqueue2(struct ntb_data_link *data_link, ntp_msg *outgoing_msg
                     uint16_t src_port, uint16_t dst_port, uint16_t payload_len, int msg_type) {
     
     // pack the ntb_data_msg header 
-    uint16_t msg_len = NTB_HEADER_LEN + payload_len;
+    uint16_t msg_len = NTB_HEADER_LEN + total_msglen;
     if (msg_type == SINGLE_PKG) // 001 == single packet: only one packet to send one msg
     {
         msg_len |= (1 << 12);

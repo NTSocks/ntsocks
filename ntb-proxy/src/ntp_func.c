@@ -263,16 +263,15 @@ int ntp_send_buff_data(struct ntb_data_link *data_link, ntb_partition_t partitio
         data_len = send_msg->msg_len;
         if (data_len <= DATA_MSG_LEN)
         {
-            rte_memcpy(packaged_msg.msg, (uint8_t *)send_msg->msg, data_len);
-            ntb_data_msg_add_header(&packaged_msg, src_port, dst_port, data_len, SINGLE_PKG);
-            ntb_data_msg_enqueue(data_link, &packaged_msg);
+            ntb_data_msg_enqueue2(data_link, send_msg, 
+                        src_port, dst_port, data_len, SINGLE_PKG);
         }
         else
         {
-            rte_memcpy(packaged_msg.msg, (uint8_t *)send_msg->msg, DATA_MSG_LEN);
-            ntb_data_msg_add_header(&packaged_msg, src_port, dst_port, data_len, MULTI_PKG);
+            ntb_data_msg_enqueue2(data_link, send_msg, 
+                        src_port, dst_port, data_len, MULTI_PKG);
+
             // DEBUG("multi pkg header,src_port = %d ,dst_port=%d,msg_len = %d", src_port, dst_port, data_len);
-            ntb_data_msg_enqueue(data_link, &packaged_msg);
             uint16_t sent = DATA_MSG_LEN;
             //下面为纯data包，NTB_DATA_MSG_TL不需要减去header长度
             while (data_len - sent > NTP_CONFIG.data_packet_size)
@@ -281,13 +280,17 @@ int ntp_send_buff_data(struct ntb_data_link *data_link, ntb_partition_t partitio
                 // DEBUG("add pure_data,sent_len = %d", sent);
                 sent += NTP_CONFIG.data_packet_size;
             }
+
             ntb_pure_data_msg_enqueue(data_link, (uint8_t *)(send_msg->msg + sent), data_len - sent);
+
             // DEBUG("add pure_data,sent_len = %d", sent);
             //发送ENF包表示多个包传输完毕
+            //TODO: can be optimized in the last data packet: with extended header 2 bits, header size(8)
             ntb_data_msg_add_header(&packaged_msg, src_port, dst_port, 0, ENF_MULTI); // the ENF_MULTI packet: empty data packet
             // DEBUG("ENF_MULTI pkg enqueue");
             ntb_data_msg_enqueue(data_link, &packaged_msg);
         }
+
         // global_send_data += send_msg->msg_len;
         // global_send_msg += 1;
         // DEBUG("send_msg counter = %ld,send_msg_len counter = %ld", global_send_msg, global_send_data);
@@ -298,6 +301,7 @@ int ntp_send_buff_data(struct ntb_data_link *data_link, ntb_partition_t partitio
             shm_mp_free(ring->mp_handler, tmp_node);
         }
     }
+
     i = 0;
     //如果当前send_window < 512 且 当前时间 - 上一次发送探测包时间 > 4us，则发送探测包
     uint64_t current_time = rte_rdtsc();
@@ -353,8 +357,8 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
             conn_id = create_conn_id(src_port, dst_port);
             conn = (ntb_conn *)Get(ntb_link->port2conn, &conn_id);
             // DEBUG("search conn_id = %d", conn_id);
-            // DEBUG("Get conn end");
         }
+
         //当前消息的端口号与上一条消息完全相等时，为同一条conn的消息，将不会重复进行get
         if (UNLIKELY(conn == NULL || conn->state == ACTIVE_CLOSE || conn->state == PASSIVE_CLOSE))
         { // if the ntb conn is close state, then drop current nt_packet
@@ -379,6 +383,7 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
             recv_dataring->cur_index = temp_index + 1 < recv_dataring->capacity ? temp_index + 1 : 0;
             continue;
         }
+        
         // switch to the libfdu-utils
         shm_mempool_node *mp_node;
         mp_node = shm_mp_malloc(conn->nts_recv_ring->mp_handler, sizeof(ntp_msg));

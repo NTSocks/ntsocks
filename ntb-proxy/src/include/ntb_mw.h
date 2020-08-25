@@ -193,6 +193,9 @@ int ntb_pure_data_msg_enqueue(struct ntb_data_link *data_link, uint8_t *msg, int
 
 int ntb_data_msg_enqueue(struct ntb_data_link *data_link, struct ntb_data_msg *msg);
 
+int ntb_data_msg_enqueue2(struct ntb_data_link *data_link, ntp_msg *outgoing_msg, 
+                    uint16_t src_port, uint16_t dst_port, uint16_t payload_len, int msg_type);
+
 //start the ntb device,and return a ntb_link
 struct ntb_link_custom *ntb_start(uint16_t dev_id);
 

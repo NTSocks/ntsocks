@@ -242,10 +242,10 @@ int main(int argc, char **argv)
 		for (int i = 0; i < ntb_link->num_partition; i += 2)
 		{
 			if (lcore_id == cpu_cores[i]) {
-				rte_eal_remote_launch(ntb_receive_thread, (void *) ntb_link->partitions[i], lcore_id);
+				rte_eal_remote_launch(ntb_receive_thread, (void *) &ntb_link->partitions[i], lcore_id);
 			}
 			if (lcore_id == cpu_cores[i+1]) {
-				rte_eal_remote_launch(ntb_send_thread, (void *) ntb_link->partitions[i], lcore_id);
+				rte_eal_remote_launch(ntb_send_thread, (void *) &ntb_link->partitions[i], lcore_id);
 			}
 		}
 
