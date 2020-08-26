@@ -387,12 +387,14 @@ ntb_start(uint16_t dev_id)
         ntb_link->partitions[i].num_conns = 0;
         ntb_link->partitions[i].data_link = (struct ntb_data_link *) malloc(sizeof(struct ntb_data_link));
 
+        ntb_link->partitions[i].send_list = (struct ntp_send_list *) calloc(1, sizeof(struct ntp_send_list));
+
         //create the list to be send for each ntb_partition, add ring_head/ring_tail
         ntp_send_list_node *send_list_node = malloc(sizeof(*send_list_node));
         send_list_node->conn = NULL;
         send_list_node->next_node = send_list_node;
-        ntb_link->partitions[i].send_list.ring_head = send_list_node;
-        ntb_link->partitions[i].send_list.ring_tail = send_list_node;
+        ntb_link->partitions[i].send_list->ring_head = send_list_node;
+        ntb_link->partitions[i].send_list->ring_tail = send_list_node;
     }
 
     DEBUG("ntb dev started, NTB memory buffer formatting for ntb_partition, ctrl_ringbuffer");

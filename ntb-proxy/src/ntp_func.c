@@ -92,11 +92,11 @@ static char *int_to_char(uint16_t x)
 
 static int add_conn_to_ntb_send_list(struct ntb_link_custom *ntb_link, ntb_partition_t partition, ntb_conn *conn)
 {
-    ntp_send_list_node *list_node = malloc(sizeof(*list_node));
+    ntp_send_list_node *list_node =  malloc(sizeof(*list_node));
     list_node->conn = conn;
-    list_node->next_node = partition->send_list.ring_head;
-    partition->send_list.ring_tail->next_node = list_node;
-    partition->send_list.ring_tail = list_node;
+    list_node->next_node = partition->send_list->ring_head;
+    partition->send_list->ring_tail->next_node = list_node;
+    partition->send_list->ring_tail = list_node;
     return 0;
 }
 

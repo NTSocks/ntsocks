@@ -141,7 +141,7 @@ typedef struct ntb_partition {
     uint16_t id;
     uint32_t num_conns; // the total number of assigned ntb_conn
 
-    struct ntp_send_list send_list; // to cache the assigned ntb_conn in send_list, 
+    struct ntp_send_list *send_list; // to cache the assigned ntb_conn in send_list, 
                                     // when forwarding packets, polling the send_list in round-robin manner
 
     struct ntb_data_link *data_link; // the send/recv buffer for the data message between local peer ntb nodes

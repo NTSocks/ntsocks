@@ -78,7 +78,7 @@ unsigned lcore_id;
 // define the CPU cores set for ntb_partitions as an array
 // 1. the array index indicates the ntb_partition id
 // 2. the array value indicates the assigned CPU cores lcore_id;
-int cpu_cores[8] = {8, 9, 10, 11, 12, 13, 14, 15};
+static int cpu_cores[8] = {8, 9, 10, 11, 12, 13, 14, 15};
 
 
 static int
@@ -90,13 +90,13 @@ ntb_send_thread(__attribute__((unused)) void *arg)
 	ntb_partition_t partition;
 	partition = (ntb_partition_t) arg;
 
-	ntp_send_list_node *pre_node = partition->send_list.ring_head;
+	ntp_send_list_node *pre_node = partition->send_list->ring_head;
 	ntp_send_list_node *curr_node = NULL;
 	uint64_t counter = 0;
 	while (1)
 	{
 		curr_node = pre_node->next_node;
-		if (curr_node == partition->send_list.ring_head) // indicate non-existing ntb connection when head node in ntb-conn list is EMPTY.
+		if (curr_node == partition->send_list->ring_head) // indicate non-existing ntb connection when head node in ntb-conn list is EMPTY.
 		{
 			pre_node = curr_node;
 			continue;
@@ -109,9 +109,9 @@ ntb_send_thread(__attribute__((unused)) void *arg)
 			Remove(ntb_link->port2conn, &curr_node->conn->conn_id); // remove ntb conn from hash map
 			// destory_conn_ack(ntb_link, next_node->conn->name);
 			pre_node->next_node = curr_node->next_node; // remove ntb conn from traseval list
-			if (curr_node == partition->send_list.ring_tail)
+			if (curr_node == partition->send_list->ring_tail)
 			{
-				partition->send_list.ring_tail = pre_node;
+				partition->send_list->ring_tail = pre_node;
 			}
 			ntp_shm_nts_close(curr_node->conn->nts_recv_ring);
 			ntp_shm_destroy(curr_node->conn->nts_recv_ring);
