@@ -8,7 +8,7 @@
 # The 'noinst_' prefix indicates that the following targets are not to be
 # installed.
 # noinst_PROGRAMS= hello-nts hello-ntsock-client hello-ntsock-server
-noinst_PROGRAMS= hello-ntsock client-ntsock
+noinst_PROGRAMS= hello-ntsock client-ntsock partition_server partition_client
 
 
 #######################################
@@ -20,6 +20,8 @@ noinst_PROGRAMS= hello-ntsock client-ntsock
 # Sources for the a.out 
 hello_ntsock_SOURCES = hello-nts.c
 client_ntsock_SOURCES = hello-nts-client.c
+partition_server_SOURCES = partition_server.c 
+partition_client_SOURCES = partition_client.c
 # hello_ntsock_client_SOURCES= hello-ntsock-client.c
 # hello_ntsock_server_SOURCES= hello-ntsock-server.c
 
@@ -35,6 +37,8 @@ client_ntsock_SOURCES = hello-nts-client.c
 # Compiler options for a.out
 hello_ntsock_CPPFLAGS = -I$(top_srcdir)/include
 client_ntsock_CPPFLAGS = -I$(top_srcdir)/include
+partition_server_CPPFLAGS = -I$(top_srcdir)/include
+partition_client_CPPFLAGS = -I$(top_srcdir)/include
 # hello_ntsock_server_CPPFLAGS = -I$(top_srcdir)/include
 # hello_ntsock_client_CPPFLAGS = -I$(top_srcdir)/include
 

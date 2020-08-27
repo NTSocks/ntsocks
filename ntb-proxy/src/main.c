@@ -89,6 +89,7 @@ ntb_send_thread(__attribute__((unused)) void *arg)
 
 	ntb_partition_t partition;
 	partition = (ntb_partition_t) arg;
+	DEBUG("enter partition %d", partition->id);
 
 	ntp_send_list_node *pre_node = partition->send_list.ring_head;
 	ntp_send_list_node *curr_node = NULL;
@@ -144,6 +145,7 @@ ntb_receive_thread(__attribute__((unused)) void *arg)
 
 	ntb_partition_t partition;
 	partition = (ntb_partition_t) arg;
+	DEBUG("enter partition %d", partition->id);
 
 	ntp_receive_data_to_buff(partition->data_link, ntb_link, partition);
 	return 0;
