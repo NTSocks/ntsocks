@@ -25,7 +25,9 @@ DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 #define DEFAULT_DATA_RING_SIZE 0x4000000 //8MB --> 64
 #define DEFAULT_CTRL_RING_SIZE 0x40000	 // 256KB
 #define MAX_NUM_PARTITION 4
-//536608760
+
+
+
 struct ntp_config NTP_CONFIG = {
 	/* set default configuration */
 	.sublink_number = 1,
@@ -37,7 +39,8 @@ struct ntp_config NTP_CONFIG = {
 	.ntb_packetbits_size = DEFAULT_NTPACKET_SIZE,
 	.ctrl_packet_size = DEFAULT_CTRL_PACKET_SIZE,
 	.data_ringbuffer_size = DEFAULT_DATA_RING_SIZE,
-	.ctrl_ringbuffer_size = DEFAULT_CTRL_RING_SIZE};
+	.ctrl_ringbuffer_size = DEFAULT_CTRL_RING_SIZE
+};
 
 static int trim(char s[])
 {
@@ -149,4 +152,8 @@ int load_conf(const char *fname)
 	}
 	fclose(file);
 	return 0;
+}
+
+void free_conf() {
+	
 }

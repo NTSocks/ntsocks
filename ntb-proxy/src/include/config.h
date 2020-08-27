@@ -17,7 +17,7 @@
 extern "C" {
 #endif
 
-#define NTM_LISTEN_IP "127.0.0.1"
+#define NTM_LISTEN_IP "0.0.0.0"
 #define NTM_LISTEN_PORT 9090
 
 #define CONFIG_FILE "/etc/ntp.cfg"
@@ -41,6 +41,8 @@ extern struct ntp_config NTP_CONFIG;
 
 /* load configuration from specified configuration file name */
 int load_conf(const char *fname);
+
+void free_conf();
 
 /* print setted configuration */
 void print_conf(void);
