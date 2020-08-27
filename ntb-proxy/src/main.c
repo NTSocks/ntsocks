@@ -236,12 +236,13 @@ int main(int argc, char **argv)
 
 	RTE_LCORE_FOREACH_SLAVE(lcore_id)
 	{
-		for (int i = 0; i < ntb_link->num_partition; i += 2)
+		for (int i = 0; i < ntb_link->num_partition; i++)
 		{
-			if (lcore_id == cpu_cores[i]) {
+			int j = i * 2;
+			if (lcore_id == cpu_cores[j]) {
 				rte_eal_remote_launch(ntb_receive_thread, (void *) &ntb_link->partitions[i], lcore_id);
 			}
-			if (lcore_id == cpu_cores[i+1]) {
+			if (lcore_id == cpu_cores[j+1]) {
 				rte_eal_remote_launch(ntb_send_thread, (void *) &ntb_link->partitions[i], lcore_id);
 			}
 		}
