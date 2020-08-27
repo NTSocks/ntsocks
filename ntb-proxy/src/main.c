@@ -105,6 +105,11 @@ ntb_send_thread(__attribute__((unused)) void *arg)
 		if (curr_node->conn->state == PASSIVE_CLOSE || curr_node->conn->state == ACTIVE_CLOSE)
 		{
 			DEBUG("conn close,remove and free node");
+
+			// remove ntb_partition
+			curr_node->conn->partition_id = -1;
+			curr_node->conn->partition = NULL;
+
 			// conn->state 不为READY，队列均已Close，移除map、list并free就可
 			Remove(ntb_link->port2conn, &curr_node->conn->conn_id); // remove ntb conn from hash map
 			// destory_conn_ack(ntb_link, next_node->conn->name);

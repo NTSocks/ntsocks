@@ -195,6 +195,7 @@ int ntp_create_conn_handler(struct ntb_link_custom *ntb_link, ntm_ntp_msg *msg)
         conn->partition_id = partition_idx;
         conn->partition = &ntb_link->partitions[partition_idx];
     }
+    conn->partition->num_conns++;
     
     add_conn_to_ntb_send_list(ntb_link, conn->partition, conn);
 

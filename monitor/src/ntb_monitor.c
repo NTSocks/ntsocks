@@ -2231,27 +2231,30 @@ inline void handle_msg_nts_close(ntm_manager_t ntm_mgr, ntm_msg msg)
 
 	// free/destroy listener_wrapper->accepted_conn_map
 	//TODO: free the accepted client nt_socket in accepted_conn_map
-	HashMapIterator iter = createHashMapIterator(listener_wrapper->accepted_conn_map);
-	while(hasNextHashMapIterator(iter)) {
-		iter = nextHashMapIterator(iter);
-		nt_socket_t tmp_socket = (nt_socket_t)iter->entry->value;
-		DEBUG("Destroy/free { key = %d }", *(int *) iter->entry->key);
-	}
-	freeHashMapIterator(&iter);
+	// HashMapIterator iter = createHashMapIterator(listener_wrapper->accepted_conn_map);
+	// while(hasNextHashMapIterator(iter)) {
+	// 	iter = nextHashMapIterator(iter);
+	// 	nt_socket_t tmp_socket = (nt_socket_t)iter->entry->value;
+	// 	DEBUG("Destroy/free { key = %d }", *(int *) iter->entry->key);
+	// }
+	// freeHashMapIterator(&iter);
 
 	Clear(listener_wrapper->accepted_conn_map);
 
 	// free nt_listener_t 
+	DEBUG("free nt_listener_t");
 	Remove(ntm_mgr->nt_listener_ctx->listener_map, &nts_shm_conn->port);
 	free(listener_wrapper->listener);
 	free(listener_wrapper);
 	
 
 	// Remove `nt_socket` from `ntm_mgr->port_sock_map`
+	DEBUG("Remove `nt_socket` from `ntm_mgr->port_sock_map`");
 	if (Exists(ntm_mgr->port_sock_map, &nts_shm_conn->port))
 		Remove(ntm_mgr->port_sock_map, &nts_shm_conn->port);
 
 	// free nt_port
+	DEBUG("free nt_port");
 	free_port(ntm_mgr->nt_port_ctx, nts_shm_conn->port, 1);
 
 
@@ -2260,6 +2263,7 @@ inline void handle_msg_nts_close(ntm_manager_t ntm_mgr, ntm_msg msg)
 
 
 	// overlap the nts shm communication with destroy nts_shm_context
+	DEBUG("overlap the nts shm communication with destroy nts_shm_context");
 	nts_msg resp_msg;
 	resp_msg.msg_id = msg.msg_id;
 	resp_msg.msg_type = NTS_MSG_CLOSE;
@@ -2276,6 +2280,7 @@ inline void handle_msg_nts_close(ntm_manager_t ntm_mgr, ntm_msg msg)
 
 	// close and destroy nts_shm_context_t in `nts_shm_conn`
 	// free nts_shm_conn
+	DEBUG("close and destroy nts_shm_context_t in `nts_shm_conn`");
 	if (nts_shm_conn->nts_shm_ctx) {
 		nts_shm_ntm_close(nts_shm_conn->nts_shm_ctx);
 		nts_shm_destroy(nts_shm_conn->nts_shm_ctx);
@@ -2288,6 +2293,7 @@ inline void handle_msg_nts_close(ntm_manager_t ntm_mgr, ntm_msg msg)
 
 
 	// free nt_socket
+	DEBUG("free nt_socket");
 	if(_socket) {
 		free_socket(ntm_mgr->nt_sock_ctx, _socket->sockid, 1);
 	}

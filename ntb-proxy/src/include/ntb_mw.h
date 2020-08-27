@@ -107,7 +107,7 @@ typedef struct ntb_partition * ntb_partition_t;
 typedef struct ntb_connection
 {
     ntb_partition_t partition;   // an assigned ntb_partition represents the context of ntb_connection
-    uint16_t partition_id;      // the corresponding id of the assigned ntb_partition
+    int16_t partition_id;      // the corresponding id of the assigned ntb_partition
     uint8_t state; //	READY = 1, ACTIVE_CLOSE = 2, PASSIVE = 3
 
     uint64_t detect_time; // the timestamp of send previous detect_pkg
@@ -138,7 +138,7 @@ struct ntp_send_list
  * All ntb_partitions share the same control ringbuffer for Flow Control. 
  */ 
 typedef struct ntb_partition {
-    uint16_t id;
+    int16_t id;
     uint32_t num_conns; // the total number of assigned ntb_conn
 
     struct ntp_send_list send_list; // to cache the assigned ntb_conn in send_list, 
