@@ -27,9 +27,9 @@ struct ntm_config NTM_CONFIG = {
 		.listen_ip = NTM_LISTEN_IP,
 		.listen_port = NTM_LISTEN_PORT,
 		.ipaddr_len = sizeof(NTM_LISTEN_IP),
-		.max_concurrency = 1024,
-		.max_port = 1024,
-		.nt_max_conn_num = 1024,
+		.max_concurrency = 65536,
+		.max_port = 65536,
+		.nt_max_conn_num = 65536,
 		.nt_max_port_num = 65536
 
 };

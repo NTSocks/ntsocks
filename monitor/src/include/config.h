@@ -15,7 +15,7 @@
 extern "C" {
 #endif
 
-#define NTM_LISTEN_IP "127.0.0.1"
+#define NTM_LISTEN_IP "0.0.0.0"
 #define NTM_LISTEN_PORT 9090
 
 /* load configuration from specified configuration file name */

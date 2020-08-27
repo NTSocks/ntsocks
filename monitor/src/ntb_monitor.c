@@ -1927,7 +1927,7 @@ inline void handle_msg_nts_bind(ntm_manager_t ntm_mgr, ntm_msg msg)
 	 * Check whether the bound port is valid and idle
 	 */
 	// check if the port in valid range
-	if (msg.port < 0) // or other invalid range
+	if (msg.port < 0 || msg.port >= ntm_mgr->nt_port_ctx->num_ports) // or other invalid range
 	{
 		response_msg.retval = -1;
 		response_msg.nt_errno = NT_ERR_INVALID_PORT;
@@ -1942,8 +1942,23 @@ inline void handle_msg_nts_bind(ntm_manager_t ntm_mgr, ntm_msg msg)
 
 	// check if the port is idle
 	// If used, nts_shm_send message to notify NT_ERR_INUSE_PORT
-	if (is_occupied(ntm_mgr->nt_port_ctx, msg.port, NTM_CONFIG.max_port) == 1)
+	if (is_occupied(ntm_mgr->nt_port_ctx, msg.port, NTM_CONFIG.max_port) != 0)
 	{
+		response_msg.retval = -1;
+		response_msg.nt_errno = NT_ERR_INUSE_PORT;
+		retval = nts_shm_send(nts_shm_conn->nts_shm_ctx, &response_msg);
+		if (retval)
+		{
+			ERR("nts_shm_send failed for response to NT_ERR_INVALID_PORT");
+		}
+
+		goto FAIL;
+	}
+
+	// allocate nt_port by the specified port `msg.port`
+	nt_port_t listen_port;
+	listen_port = allocate_specified_port(ntm_mgr->nt_port_ctx, msg.port, 1);
+	if (!listen_port) {
 		response_msg.retval = -1;
 		response_msg.nt_errno = NT_ERR_INUSE_PORT;
 		retval = nts_shm_send(nts_shm_conn->nts_shm_ctx, &response_msg);
