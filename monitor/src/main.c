@@ -108,9 +108,11 @@ int main(int argc, char **argv) {
 	// DEBUG("after load conf");
 	// print_conf();
 
-	// test_nts_shm();
+	if (!conf_file) {
+		conf_file = CONFIG_FILE;
+	}
 
-	ntm_init(CONFIG_FILE);
+	ntm_init(conf_file);
 
 	// getchar();
 
