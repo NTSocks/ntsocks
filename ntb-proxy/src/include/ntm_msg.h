@@ -39,7 +39,7 @@ typedef struct {
     uint64_t dst_port;
     
     uint8_t msg_type;
-    uint8_t partition_id;   // the corresponding partition id for specified connection
+    int8_t partition_id;   // the corresponding partition id for specified connection
     uint16_t msg_len;
     char msg[16];
 } __attribute__((packed)) ntp_ntm_msg;
@@ -53,7 +53,7 @@ typedef struct {
     uint64_t dst_port;
     
     uint8_t msg_type;       //msg_type==1:create conn
-    uint8_t partition_id;   // the corresponding partition id for specified connection
+    int8_t partition_id;   // the corresponding partition id for specified connection
     uint16_t msg_len;       //It can be any value, it doesn't matter
     char msg[16];           //It can be any value, it doesn't matter
 }__attribute__((packed)) ntm_ntp_msg;

@@ -33,6 +33,16 @@
 
 
 int main(int argc, char * argv[]) {
+
+	if (argc < 3) {
+		printf("Usage: %s <Server IP> <Port> \n", argv[0]);
+		return 0;
+	}
+
+	int port = atoi(argv[2]);
+	char * server_ip = argv[1];
+
+
 	printf("Hello libnts app!\n");
 
 	int sockfd;
@@ -51,8 +61,8 @@ int main(int argc, char * argv[]) {
 	socklen_t saddrlen;
 	struct sockaddr_in saddr;
 	saddr.sin_family = AF_INET;
-	saddr.sin_port = htons(PORT);
-	saddr.sin_addr.s_addr = inet_addr(SERVER_IP);
+	saddr.sin_port = htons(port);
+	saddr.sin_addr.s_addr = inet_addr(server_ip);
 	saddrlen = sizeof(saddr);
 	retval = bind(sockfd, (struct sockaddr*)&saddr, saddrlen);
 	if (retval == -1) {

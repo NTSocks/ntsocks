@@ -35,15 +35,14 @@
 #include <rte_rwlock.h>
 
 #include "ntp_func.h"
-#include "nt_log.h"
 #include "config.h"
+#include "nt_log.h"
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 // uint64_t global_rece_data = 0;
 // uint64_t global_send_data = 0;
 // uint64_t global_rece_msg = 0;
 // uint64_t global_send_msg = 0;
-
-DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 static char *int_to_char(uint16_t x)
 {
@@ -92,11 +91,14 @@ static char *int_to_char(uint16_t x)
 
 static int add_conn_to_ntb_send_list(struct ntb_link_custom *ntb_link, ntb_partition_t partition, ntb_conn *conn)
 {
+    DEBUG("add_conn_to_ntb_send_list with partition_id=%d", conn->partition_id);
+    assert(partition);
+
     ntp_send_list_node *list_node =  malloc(sizeof(*list_node));
     list_node->conn = conn;
-    list_node->next_node = partition->send_list->ring_head;
-    partition->send_list->ring_tail->next_node = list_node;
-    partition->send_list->ring_tail = list_node;
+    list_node->next_node = partition->send_list.ring_head;
+    partition->send_list.ring_tail->next_node = list_node;
+    partition->send_list.ring_tail = list_node;
     return 0;
 }
 
@@ -183,11 +185,13 @@ int ntp_create_conn_handler(struct ntb_link_custom *ntb_link, ntm_ntp_msg *msg)
      * 2. Else if connect side, receive the partition_id from accept side and set it in local ntb_conn
      */
     if (msg->partition_id >= 0) {   // connect side
+        INFO("connect side with partition_id=%d", msg->partition_id);
         conn->partition_id = msg->partition_id;
         conn->partition = &ntb_link->partitions[conn->partition_id];
         
     } else {    // accept side
         uint16_t partition_idx = ntp_allocate_partition(ntb_link);
+        INFO("accept side with partition_id=%d", partition_idx);
         conn->partition_id = partition_idx;
         conn->partition = &ntb_link->partitions[partition_idx];
     }

@@ -381,20 +381,19 @@ ntb_start(uint16_t dev_id)
     ntb_link->num_partition = NTP_CONFIG.num_partition;
     ntb_link->partitions = (struct ntb_partition *) calloc(ntb_link->num_partition, sizeof(struct ntb_partition));
     ntb_link->round_robin_idx = 0;
+    DEBUG("init %d ntb_partition", ntb_link->num_partition);
     for (int i = 0; i < ntb_link->num_partition; i++)
     {   
         ntb_link->partitions[i].id = i;
         ntb_link->partitions[i].num_conns = 0;
         ntb_link->partitions[i].data_link = (struct ntb_data_link *) malloc(sizeof(struct ntb_data_link));
 
-        ntb_link->partitions[i].send_list = (struct ntp_send_list *) calloc(1, sizeof(struct ntp_send_list));
-
         //create the list to be send for each ntb_partition, add ring_head/ring_tail
-        ntp_send_list_node *send_list_node = malloc(sizeof(*send_list_node));
+        ntp_send_list_node *send_list_node = (ntp_send_list_node *) malloc(sizeof(ntp_send_list_node));
         send_list_node->conn = NULL;
         send_list_node->next_node = send_list_node;
-        ntb_link->partitions[i].send_list->ring_head = send_list_node;
-        ntb_link->partitions[i].send_list->ring_tail = send_list_node;
+        ntb_link->partitions[i].send_list.ring_head = send_list_node;
+        ntb_link->partitions[i].send_list.ring_tail = send_list_node;
     }
 
     DEBUG("ntb dev started, NTB memory buffer formatting for ntb_partition, ctrl_ringbuffer");

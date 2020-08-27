@@ -31,6 +31,15 @@
 #define test_msg "Hello, NTB World!"
 
 int main(int argc, char * argv[]) {
+
+	if (argc < 3) {
+		printf("Usage: %s <Server IP> <Port> \n", argv[0]);
+		return 0;
+	}
+
+	int port = atoi(argv[2]);
+	char * server_ip = argv[1];
+
 	printf("Hello libnts app!\n");
 
 	int client_sockfd;
@@ -49,8 +58,8 @@ int main(int argc, char * argv[]) {
 	socklen_t server_saddrlen;
 	struct sockaddr_in server_saddr;
 	server_saddr.sin_family = AF_INET;
-	server_saddr.sin_port = htons(PORT);
-	server_saddr.sin_addr.s_addr = inet_addr(SERVER_IP);
+	server_saddr.sin_port = htons(port);
+	server_saddr.sin_addr.s_addr = inet_addr(server_ip);
     // bzero(&(server_saddr.sin_zero), sizeof(server_saddr.sin_zero));
 	server_saddrlen = sizeof(server_saddr);
 
