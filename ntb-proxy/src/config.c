@@ -22,11 +22,9 @@ DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 #define DEFAULT_NUM_PARTITION 2
 #define DEFAULT_NTPACKET_SIZE 7
 #define DEFAULT_CTRL_PACKET_SIZE 16
-#define DEFAULT_DATA_RING_SIZE 0x4000000 //8MB --> 64
+#define DEFAULT_DATA_RING_SIZE 0x4000000 //8MB --> 64MB
 #define DEFAULT_CTRL_RING_SIZE 0x40000	 // 256KB
 #define MAX_NUM_PARTITION 4
-
-
 
 struct ntp_config NTP_CONFIG = {
 	/* set default configuration */
@@ -136,24 +134,58 @@ int load_conf(const char *fname)
 		{
 			NTP_CONFIG.sublink_ctrl_ring_size = atoi(_paramv);
 		}
-		else if (strcmp(_paramk, "sublink_data_ring_size") == 0)
+		else if (strcmp(_paramk, "nts_buff_size") == 0)
 		{
-			NTP_CONFIG.sublink_data_ring_size = atoi(_paramv);
+			NTP_CONFIG.nts_buff_size = atoi(_paramv);
 		}
 		else if (strcmp(_paramk, "branch_trans_number") == 0)
 		{
 			NTP_CONFIG.branch_trans_number = atoi(_paramv);
 		}
+		else if (strcmp(_paramk, "num_partition") == 0)
+		{
+			NTP_CONFIG.num_partition = atoi(_paramv);
+			NTP_CONFIG.num_partition = NTP_CONFIG.num_partition <= MAX_NUM_PARTITION ? 
+											NTP_CONFIG.num_partition : MAX_NUM_PARTITION; 
+		}
+		else if (strcmp(_paramk, "ntb_packetbits_size") == 0)
+		{
+			NTP_CONFIG.ntb_packetbits_size = atoi(_paramv);
+			NTP_CONFIG.data_packet_size = 1 << NTP_CONFIG.ntb_packetbits_size;
+		}
+		else if (strcmp(_paramk, "ctrl_packet_size") == 0)
+		{
+			NTP_CONFIG.ctrl_packet_size = atoi(_paramv);
+		}
+		else if (strcmp(_paramk, "data_ringbuffer_size") == 0)
+		{
+			char *end;
+			NTP_CONFIG.data_ringbuffer_size = strtoull(_paramv, &end, 16);
+		}
+		else if (strcmp(_paramk, "ctrl_ringbuffer_size") == 0)
+		{
+			char *end;
+			NTP_CONFIG.ctrl_ringbuffer_size = strtoll(_paramv, &end, 16);
+		}
+		else if (strcmp(_paramk, "data_packet_size") == 0)
+		{
+			NTP_CONFIG.data_packet_size = atoi(_paramv);
+		}
 		else
 		{
 			fclose(file);
-			return 1;
+			return -1;
 		}
 	}
 	fclose(file);
+
 	return 0;
 }
 
 void free_conf() {
 	
+}
+
+void print_conf() {
+
 }

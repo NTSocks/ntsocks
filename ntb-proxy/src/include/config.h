@@ -34,7 +34,8 @@ struct ntp_config
     uint16_t ctrl_packet_size;  // default 16B
     uint64_t data_ringbuffer_size;  // default 8MB, expected 128MB 
     uint64_t ctrl_ringbuffer_size;  // default 256B, expected 1MB
-    uint16_t data_packet_size;
+    uint16_t data_packet_size;  // default 128 B
+    uint16_t datapacket_payload_size;   // = data_packet_size - DATA_PACKET_HEADER_SIZE
 };
 
 extern struct ntp_config NTP_CONFIG;

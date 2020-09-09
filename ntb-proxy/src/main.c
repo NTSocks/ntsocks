@@ -55,9 +55,12 @@
 #include "ntp2nts_shm.h"
 #include "ntm_ntp_shm.h"
 #include "ntp_ntm_shm.h"
+#include "config.h"
 #include "nt_log.h"
 
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
+
+#define NTP_CONFIG_FILE "./ntp.cfg"
 
 #define XEON_LINK_STATUS_OFFSET 0x01a2
 #define RTE_RAWDEV_MAX_DEVS 64
@@ -196,6 +199,7 @@ int main(int argc, char **argv)
 	ret = rte_eal_init(argc, argv);
 	if (ret < 0)
 		rte_exit(EXIT_FAILURE, "Error with EAL initialization.\n");
+
 	/* Find 1st ntb rawdev. */
 	for (i = 0; i < RTE_RAWDEV_MAX_DEVS; i++)
 		if (rte_rawdevs[i].driver_name &&
@@ -208,6 +212,20 @@ int main(int argc, char **argv)
 		rte_exit(EXIT_FAILURE, "Cannot find any ntb device.\n");
 
 	dev_id = i;
+
+
+	/** Load the NTP config file */
+	char *conf_file;
+
+	if (!conf_file) {
+		conf_file = NTP_CONFIG_FILE;
+	}
+	
+	/** load the customized NTP parameters */
+	load_conf(conf_file);
+	NTP_CONFIG.datapacket_payload_size = NTP_CONFIG.data_packet_size - NTPACKET_HEADER_LEN;
+
+
 
 	ntb_link = ntb_start(dev_id);
 	DEBUG("mem addr == %ld ,len == %ld", ntb_link->hw->pci_dev->mem_resource[2].phys_addr, ntb_link->hw->pci_dev->mem_resource[2].len);

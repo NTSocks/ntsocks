@@ -58,3 +58,4 @@ local-install:
 
 install:
 	cp lib$(LIB_NAME).* /usr/local/lib
+	cp *.h /usr/local/include

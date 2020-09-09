@@ -33,9 +33,10 @@ extern "C" {
 struct nts_config {
 	int tcp_timewait;
 	int tcp_timeout;
-
-	char local_nt_host[IP_ADDRLEN];
+	uint16_t mtu_size;	// equal to max data packet size
 	uint16_t local_hostlen;
+	char local_nt_host[IP_ADDRLEN];
+	uint16_t max_payloadsize;
 };
 
 typedef struct nt_host_entry {
@@ -73,9 +74,7 @@ typedef struct nt_sock_context {
 		nt_backlog_context_t backlog_ctx;	// for listener socket
 		nt_socket_t listener_socket;		// for client socket 
 	};
-
 	
-
 	/**
 	 * Data Plane:
 	 * the ntp shm ring queue for send/receive message
@@ -87,10 +86,10 @@ typedef struct nt_sock_context {
 	int ntp_msg_id;							// act as the global ntp_msg_id
 	int err_no;								// error number when read/write data message from/to ntp
 	
-	char ntp_buf[NTP_PAYLOAD_MAX_SIZE];		// cache the remaining un-read/recv payload
+	char *ntp_buf;		// cache the remaining un-read/recv payload
 	int ntp_buflen; 						// the length of the remaining un-read/recv payload
 
-} nt_sock_context;
+}__attribute__((packed)) nt_sock_context;
 
 typedef struct nt_sock_context* nt_sock_context_t;
 

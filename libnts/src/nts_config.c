@@ -11,16 +11,18 @@
 #include "nts.h"
 #include "nts_config.h"
 #include "nt_log.h"
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 #define MAX_BUF_LEN 1024
 #define MAX_KEY_LEN 64
 #define MAX_VAL_LEN 256
-DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 struct nts_config NTS_CONFIG = {
     /* set default configuration */
     .tcp_timewait = 0,
-    .tcp_timeout = 1000};
+    .tcp_timeout = 1000,
+    .mtu_size = 1024
+};
 
 nts_context_t nts_ctx = NULL;
 
@@ -164,6 +166,10 @@ int load_conf(const char *fname)
         else if (strcmp(_paramk, "tcp_timeout") == 0)
         {
             NTS_CONFIG.tcp_timeout = atoi(_paramv);
+        }
+        else if (strcmp(_paramk, "mtu_size") == 0)
+        {
+            NTS_CONFIG.mtu_size = atoi(_paramv);
         }
         else
         {

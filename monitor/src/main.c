@@ -63,7 +63,6 @@ void test_nts_shm() {
 
 
 int main(int argc, char **argv) {
-	// print_monitor();
 	char *conf_file;
 	
 	while(1){
@@ -97,25 +96,15 @@ int main(int argc, char **argv) {
 			break;
 		default:
 			usage(argv[0]);
-			return 1;
+			return -1;
 		}
 	}
-
-	// DEBUG("before load conf");
-	// print_conf();
-
-	// load_conf(CONFIG_FILE);
-	// DEBUG("after load conf");
-	// print_conf();
 
 	if (!conf_file) {
 		conf_file = CONFIG_FILE;
 	}
 
 	ntm_init(conf_file);
-
-	// getchar();
-
 	ntm_destroy();
 
 	return 0;

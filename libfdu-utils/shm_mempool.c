@@ -181,7 +181,6 @@ shm_mp_handler_t shm_mp_init(unsigned int block_len, unsigned int block_count, c
 
         }
 
-
     }
 
     mp_handler->offset_strs = (char **) malloc(sizeof(char *) * block_count);

@@ -28,7 +28,6 @@ extern "C" {
 #endif
 
 
-
 typedef int (*loop_func_t)(void *arg);
 
 //int nts_init(int argc, char * const argv[]);
