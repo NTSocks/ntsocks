@@ -233,6 +233,7 @@ static int detect_pkg_handler(struct ntb_link_custom *ntb_link, uint16_t src_por
  */
 int ntp_send_buff_data(struct ntb_data_link *data_link, ntb_partition_t partition, ntp_shm_context_t ring, ntb_conn *conn)
 {
+    DEBUG("enter ntp_send_buff_data...");
     uint16_t src_port = (uint16_t)(conn->conn_id >> 16);
     uint16_t dst_port = (uint16_t)conn->conn_id;
 
@@ -252,6 +253,7 @@ int ntp_send_buff_data(struct ntb_data_link *data_link, ntb_partition_t partitio
     // bulk packet forwarding from libnts send shmring
     size_t recv_cnt;
     recv_cnt = ntp_shm_recv_bulk(ring, partition->cache_msg_bulks, NTP_CONFIG.bulk_size);
+    DEBUG("ntp_shm_recv_bulk recv_cnt = %d", (int)recv_cnt);
     if (recv_cnt == FAILED)  return FAILED;
 
     for (i = 0; i < recv_cnt; i++)

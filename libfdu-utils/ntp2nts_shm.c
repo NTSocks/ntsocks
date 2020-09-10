@@ -19,7 +19,7 @@
 #include "nt_log.h"
 
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 ntp_shm_context_t ntp_shm() {
 	ntp_shm_context_t shm_ctx;
@@ -330,10 +330,12 @@ size_t ntp_shm_recv_bulk(ntp_shm_context_t shm_ctx, ntp_msg **bulk, size_t bulk_
     assert(shm_ctx);
     assert(bulk);
     assert(bulk_size > 0);
+    DEBUG("ntp_shm_recv_bulk enter...");
 
     size_t recv_cnt;
     recv_cnt = shmring_pop_bulk(shm_ctx->ntsring_handle, shm_ctx->node_idxs_cache, shm_ctx->max_lens, bulk_size);
-    
+    DEBUG("shmring_pop_bulk with recv_cnt=%d", (int)recv_cnt);
+
     if (LIKELY(recv_cnt != FAILED)) {
         for (size_t i = 0; i < recv_cnt; i++)
         {
