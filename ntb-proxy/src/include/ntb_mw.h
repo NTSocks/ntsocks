@@ -15,6 +15,7 @@
 #include "ntm_ntp_shm.h"
 #include "ntp_ntm_shm.h"
 #include "ntp2nts_shm.h"
+#include "ntp2nts_msg.h"
 #include "utils.h"
 
 #define DATA_RING_SIZE 0x800000     // 8MB
@@ -145,6 +146,10 @@ typedef struct ntb_partition {
                                     // when forwarding packets, polling the send_list in round-robin manner
 
     struct ntb_data_link *data_link; // the send/recv buffer for the data message between local peer ntb nodes
+
+    ntp_msg ** cache_msg_bulks; // length = NTP_CONFIG.bulk_size, 
+                                // used to cache the poped bulk ntp_msg from libnts send_shmring
+                                
 
 }__attribute__((packed)) ntb_partition;
 

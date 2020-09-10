@@ -40,9 +40,13 @@ extern "C"
 		char *shm_addr;
 		size_t addrlen;
 
+		// for bulk operations on shmring
+		char ** node_idxs_cache;
+		int * node_idx_value_cache;
+		size_t * max_lens;	
+
         // for shm mempool
         shm_mp_handler * mp_handler;
-
 
 	};
 
@@ -72,6 +76,36 @@ extern "C"
      * used by libnts app to receive message from nt-monitor
      */
 	ntp_msg * ntp_shm_recv(ntp_shm_context_t shm_ctx);
+
+	//TODO: for bulk send/recv
+	/**
+	 * @brief  bulk send: used by nt-monitor to send bulk message to libnts app
+	 * @note   
+	 * @param  shm_ctx: 
+	 * @param  **bulk: 
+	 * @param  bulk_size: 
+	 * @retval 
+	 */
+	int ntp_shm_send_bulk(ntp_shm_context_t shm_ctx, ntp_msg **bulk, size_t bulk_size);
+
+
+	/**
+	 * @brief  bulk recv: used by libnts app to receive message from nt-monitor
+	 * @note   
+	 * @param  shm_ctx: 
+	 * @param  **bulk: 
+	 * @param  bulk_size: 
+	 * @retval the number of received ntp_msgs
+	 */
+	size_t ntp_shm_recv_bulk(ntp_shm_context_t shm_ctx, ntp_msg **bulk, size_t bulk_size);
+
+
+	int ntp_shm_send_bulk_idx(ntp_shm_context_t shm_ctx, char **node_idxs, size_t *idx_lens, size_t bulk_size);
+
+
+	size_t ntp_shm_recv_bulk_idx(ntp_shm_context_t shm_ctx, char **node_idxs, size_t *max_lens, size_t bulk_size);
+
+
 
 	/**
 	 * used by libnts to front the top or next-pop ntp_msg

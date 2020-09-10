@@ -15,6 +15,7 @@
 #include <sched.h>
 
 #include "ntp2nts_shm.h"
+#include "utils.h"
 #include "nt_log.h"
 
 
@@ -45,6 +46,31 @@ int ntp_shm_accept(ntp_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
         ERR("init shmring failed.");
         goto FAIL;
     }
+
+    // for bulk operations on shmring
+    shm_ctx->node_idxs_cache = (char **) calloc(MAX_BUFS, sizeof(char *));
+    if (!shm_ctx->node_idxs_cache) {
+        ERR("malloc shm_ctx->node_idxs_cache failed.");
+        goto FAIL;
+    }
+    shm_ctx->node_idx_value_cache = (int *)calloc(MAX_BUFS, sizeof(int));
+    if (!shm_ctx->node_idx_value_cache) {
+        ERR("malloc shm_ctx->node_idx_value_cache failed.");
+        goto FAIL;
+    }
+    shm_ctx->max_lens = (size_t *) calloc(MAX_BUFS, sizeof(size_t));
+    if (!shm_ctx->max_lens) {
+        ERR("malloc shm_ctx->max_lens failed.");
+        goto FAIL;
+    }
+
+    for (int i = 0; i < MAX_BUFS; i++)
+    {
+        shm_ctx->max_lens[i] = sizeof(int);
+        shm_ctx->node_idxs_cache[i] = (char *) &(shm_ctx->node_idx_value_cache[i]);
+    }
+    
+
 	
     /* init shm mempool */
     char mp_name[30] = {0};
@@ -64,6 +90,21 @@ int ntp_shm_accept(ntp_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
     if(shm_ctx->mp_handler) {
         shm_mp_destroy(shm_ctx->mp_handler, 1);
         shm_ctx->mp_handler = NULL;
+    }
+
+    if(shm_ctx->node_idxs_cache) {
+        free(shm_ctx->node_idxs_cache);
+        shm_ctx->node_idxs_cache = NULL;
+    }
+
+    if (shm_ctx->node_idx_value_cache) {
+        free(shm_ctx->node_idx_value_cache);
+        shm_ctx->node_idx_value_cache = NULL;
+    }
+
+    if (shm_ctx->max_lens) {
+        free(shm_ctx->max_lens);
+        shm_ctx->max_lens = NULL;
     }
 
     if(shm_ctx->ntsring_handle) {
@@ -98,6 +139,30 @@ int ntp_shm_connect(ntp_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
         goto FAIL;
     }
 
+    // for bulk operations on shmring
+    shm_ctx->node_idxs_cache = (char **) calloc(MAX_BUFS, sizeof(char *));
+    if (!shm_ctx->node_idxs_cache) {
+        ERR("malloc shm_ctx->node_idxs_cache failed.");
+        goto FAIL;
+    }
+    shm_ctx->node_idx_value_cache = (int *)calloc(MAX_BUFS, sizeof(int));
+    if (!shm_ctx->node_idx_value_cache) {
+        ERR("malloc shm_ctx->node_idx_value_cache failed.");
+        goto FAIL;
+    }
+    shm_ctx->max_lens = (size_t *) calloc(MAX_BUFS, sizeof(size_t));
+    if (!shm_ctx->max_lens) {
+        ERR("malloc shm_ctx->max_lens failed.");
+        goto FAIL;
+    }
+
+    for (int i = 0; i < MAX_BUFS; i++)
+    {
+        shm_ctx->max_lens[i] = sizeof(int);
+        shm_ctx->node_idxs_cache[i] = (char *) &(shm_ctx->node_idx_value_cache[i]);
+    }
+
+
     /* init shm mempool */
     char mp_name[30] = {0};
     sprintf(mp_name, "%s-mp", shm_addr);
@@ -118,6 +183,21 @@ int ntp_shm_connect(ntp_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
     if(shm_ctx->mp_handler) {
         shm_mp_destroy(shm_ctx->mp_handler, 0);
         shm_ctx->mp_handler = NULL;
+    }
+
+    if(shm_ctx->node_idxs_cache) {
+        free(shm_ctx->node_idxs_cache);
+        shm_ctx->node_idxs_cache = NULL;
+    }
+
+    if (shm_ctx->node_idx_value_cache) {
+        free(shm_ctx->node_idx_value_cache);
+        shm_ctx->node_idx_value_cache = NULL;
+    }
+
+    if (shm_ctx->max_lens) {
+        free(shm_ctx->max_lens);
+        shm_ctx->max_lens = NULL;
     }
 
     if(shm_ctx->ntsring_handle) {
@@ -150,7 +230,7 @@ int ntp_shm_send(ntp_shm_context_t shm_ctx, ntp_msg *buf) {
     }
 
     DEBUG("shmring push node_idx=%d", mp_node->node_idx);
-	ret = shmring_push(shm_ctx->ntsring_handle, (char *)(int*) &mp_node->node_idx, NODE_IDX_SIZE);
+	ret = shmring_push(shm_ctx->ntsring_handle, (char *) &mp_node->node_idx, NODE_IDX_SIZE);
 	//TODO: add the timeout limit for retry push times.
     // int retry_times = 1;
 	while(!ret) {
@@ -161,12 +241,12 @@ int ntp_shm_send(ntp_shm_context_t shm_ctx, ntp_msg *buf) {
 
 		sched_yield();
 		INFO("shmring_push failed and maybe shmring is full.");
-		ret = shmring_push(shm_ctx->ntsring_handle, (char *)(int*) &mp_node->node_idx, NODE_IDX_SIZE);
+		ret = shmring_push(shm_ctx->ntsring_handle, (char *) &mp_node->node_idx, NODE_IDX_SIZE);
         // retry_times ++;
 	}
 
 	DEBUG("ntp_shm_send pass with ret=%d", ret);
-	return ret ? 0 : -1;
+	return ret ? SUCCESS : FAILED;
 }
 
 
@@ -175,7 +255,7 @@ ntp_msg * ntp_shm_recv(ntp_shm_context_t shm_ctx) {
 
 	bool ret;
     int node_idx = -1;
-	ret = shmring_pop(shm_ctx->ntsring_handle, (char*)(int*)&node_idx, NODE_IDX_SIZE);
+	ret = shmring_pop(shm_ctx->ntsring_handle, (char*)&node_idx, NODE_IDX_SIZE);
 	//TODO: add the timeout limit for retry pop times.
     int retry_times = 1;
 	while(!ret) {
@@ -185,10 +265,9 @@ ntp_msg * ntp_shm_recv(ntp_shm_context_t shm_ctx) {
             INFO("ntp_shm_recv failed: the ntp_shm_recv retry times > RETRY_TIME(%d)", RETRY_TIMES);
             return NULL;
         }
-            
 
 		sched_yield();
-		ret = shmring_pop(shm_ctx->ntsring_handle, (char*)(int*)&node_idx, NODE_IDX_SIZE);
+		ret = shmring_pop(shm_ctx->ntsring_handle, (char*)&node_idx, NODE_IDX_SIZE);
         retry_times ++;
 	}
 
@@ -197,7 +276,7 @@ ntp_msg * ntp_shm_recv(ntp_shm_context_t shm_ctx) {
     ntp_msg *buf;
     if(ret) {
         buf = (ntp_msg *) shm_offset_mem(shm_ctx->mp_handler, node_idx);
-        if (!buf) {
+        if (UNLIKELY(!buf)) {
             ERR("ntp_shm_recv failed");
             return NULL;
         }
@@ -208,6 +287,105 @@ ntp_msg * ntp_shm_recv(ntp_shm_context_t shm_ctx) {
 	ERR("ntp_shm_recv failed");
 	return NULL;
 }
+
+
+
+/**
+ * bulk send: used by nt-monitor to send bulk message to libnts app
+ */
+int ntp_shm_send_bulk(ntp_shm_context_t shm_ctx, ntp_msg **bulk, size_t bulk_size) {
+    assert(shm_ctx);
+    assert(bulk);
+    assert(bulk_size > 0);
+
+    shm_mempool_node * mp_node;
+    for (size_t i = 0; i < bulk_size; i++)
+    {
+        mp_node = shm_mp_node_by_shmaddr(shm_ctx->mp_handler, (char *) bulk[i]);
+        if(UNLIKELY(!mp_node)) {
+            ERR("cannot find corresponding shm_mempool_node in shm mempool");
+            return FAILED;
+        }
+
+        shm_ctx->node_idxs_cache[i] = (char *) &mp_node->node_idx;
+    }
+    
+    bool rc;
+    rc = shmring_push_bulk(shm_ctx->ntsring_handle, shm_ctx->node_idxs_cache, shm_ctx->max_lens, bulk_size);
+    while (!rc)
+    {
+        INFO("shmring_push_bulk failed, retry...");
+        sched_yield();
+        rc = shmring_push_bulk(shm_ctx->ntsring_handle, shm_ctx->node_idxs_cache, shm_ctx->max_lens, bulk_size);
+    }
+    
+    DEBUG("ntp_shm_send_bulk success");
+    return rc ? SUCCESS : FAILED;
+}
+
+/**
+ * bulk recv: used by libnts app to receive message from nt-monitor
+ */
+size_t ntp_shm_recv_bulk(ntp_shm_context_t shm_ctx, ntp_msg **bulk, size_t bulk_size) {
+    assert(shm_ctx);
+    assert(bulk);
+    assert(bulk_size > 0);
+
+    size_t recv_cnt;
+    recv_cnt = shmring_pop_bulk(shm_ctx->ntsring_handle, shm_ctx->node_idxs_cache, shm_ctx->max_lens, bulk_size);
+    
+    if (LIKELY(recv_cnt != FAILED)) {
+        for (size_t i = 0; i < recv_cnt; i++)
+        {
+            int node_idx;
+            node_idx = *(int *)shm_ctx->node_idxs_cache[i];
+            bulk[i] = (ntp_msg *) shm_offset_mem(shm_ctx->mp_handler, node_idx);
+            if (UNLIKELY(!bulk[i])) {
+                ERR("ntp_shm_recv_bulk failed");
+                return FAILED;
+            }
+        }
+    }
+
+    DEBUG("ntp_shm_recv_bulk success");
+    return recv_cnt;
+}
+
+
+int ntp_shm_send_bulk_idx(ntp_shm_context_t shm_ctx, char **node_idxs, size_t *idx_lens, size_t bulk_size) {
+    assert(shm_ctx);
+    assert(node_idxs);
+    assert(idx_lens);
+    assert(bulk_size > 0);
+
+    bool rc;
+    rc = shmring_push_bulk(shm_ctx->ntsring_handle, node_idxs, idx_lens, bulk_size);
+    while (!rc)
+    {
+        INFO("ntp_shm_send_bulk_idx failed, retry...");
+        sched_yield();
+        rc = shmring_push_bulk(shm_ctx->ntsring_handle, node_idxs, idx_lens, bulk_size);
+    }
+
+    DEBUG("ntp_shm_send_bulk_idx success");
+    return rc ? SUCCESS : FAILED;
+}
+
+
+size_t ntp_shm_recv_bulk_idx(ntp_shm_context_t shm_ctx, char **node_idxs, size_t *max_lens, size_t bulk_size) {
+    assert(shm_ctx);
+    assert(node_idxs);
+    assert(max_lens);
+    assert(bulk_size > 0);
+
+    size_t recv_cnt;
+    recv_cnt = shmring_pop_bulk(shm_ctx->ntsring_handle, node_idxs, max_lens, bulk_size);
+    
+    DEBUG("ntp_shm_recv_bulk_idx success");
+    return recv_cnt;
+}
+
+
 
 ntp_msg * ntp_shm_front(ntp_shm_context_t shm_ctx) {
 	assert(shm_ctx);

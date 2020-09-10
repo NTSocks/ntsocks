@@ -36,6 +36,7 @@
 
 #include "ntp_func.h"
 #include "config.h"
+#include "utils.h"
 #include "nt_log.h"
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
@@ -236,7 +237,7 @@ int ntp_send_buff_data(struct ntb_data_link *data_link, ntb_partition_t partitio
     uint16_t dst_port = (uint16_t)conn->conn_id;
 
     //recv send_msg from nts_send_ring, slice and package as ntb_data_msg
-    uint64_t detect_interval_time = DETECT_INTERVAL * 25000;
+    uint64_t detect_interval_time = DETECT_INTERVAL_TIME;
     ntp_msg *send_msg;
     uint16_t data_len;
     struct ntb_data_msg packaged_msg; // indicate the element of data ntb_data_link ring == part/segment of ntb buffer
@@ -247,14 +248,16 @@ int ntp_send_buff_data(struct ntb_data_link *data_link, ntb_partition_t partitio
     uint64_t peer_read_index = ntp_get_peer_read_index(ring->ntsring_handle);
     uint64_t send_window = peer_read_index - read_index > 0 ? peer_read_index - read_index - 1 : peer_read_index - read_index + NTS_MAX_BUFS - 1;
     int i;
-    for (i = 0; i < NTP_CONFIG.branch_trans_number; i++)
+
+    // bulk packet forwarding from libnts send shmring
+    size_t recv_cnt;
+    recv_cnt = ntp_shm_recv_bulk(ring, partition->cache_msg_bulks, NTP_CONFIG.bulk_size);
+    if (recv_cnt == FAILED)  return FAILED;
+
+    for (i = 0; i < recv_cnt; i++)
     {
-        send_msg = ntp_shm_recv(ring);
-        if (send_msg == NULL)
-        {
-            // DEBUG("send buff is empty");
-            break;
-        }
+        send_msg = partition->cache_msg_bulks[i];
+
         if (UNLIKELY(send_msg->msg_type == NTP_FIN)) // when NTP_FIN packet/msg, update ntb-conn state as `ACTIVE_CLOSE`
         {
             //如果检测到FIN包，发送FIN_PKG to peer，close队列，并将conn->state置为ACTIVE_CLOSE
@@ -265,6 +268,7 @@ int ntp_send_buff_data(struct ntb_data_link *data_link, ntb_partition_t partitio
             DEBUG("conn->state change to active_close");
             return 0;
         }
+
         data_len = send_msg->msg_len;
         if (data_len <= DATA_MSG_LEN)
         {
@@ -310,13 +314,14 @@ int ntp_send_buff_data(struct ntb_data_link *data_link, ntb_partition_t partitio
     i = 0;
     //如果当前send_window < 512 且 当前时间 - 上一次发送探测包时间 > 4us，则发送探测包
     uint64_t current_time = rte_rdtsc();
-    if (send_window - i < 512 && current_time - conn->detect_time > detect_interval_time)
+    if (UNLIKELY(send_window - i < 512 && current_time - conn->detect_time > detect_interval_time))
     {
         ntb_data_msg_add_header(&packaged_msg, src_port, dst_port, 0, DETECT_PKG);
         ntb_data_msg_enqueue(data_link, &packaged_msg);
         conn->detect_time = current_time;
     }
-    return 0;
+
+    return recv_cnt;
 }
 
 int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_custom *ntb_link, ntb_partition_t partition)

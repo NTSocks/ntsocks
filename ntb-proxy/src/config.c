@@ -34,7 +34,7 @@ struct ntp_config NTP_CONFIG = {
 	.sublink_data_ring_size = 8388608,
 	.sublink_ctrl_ring_size = 262144,
 	.nts_buff_size = 8388608,
-	.branch_trans_number = 512,
+	.bulk_size = 512,
 	.num_partition = DEFAULT_NUM_PARTITION,
 	.ntb_packetbits_size = DEFAULT_NTPACKET_SIZE,
 	.ctrl_packet_size = DEFAULT_CTRL_PACKET_SIZE,
@@ -140,9 +140,9 @@ int load_conf(const char *fname)
 		{
 			NTP_CONFIG.sublink_data_ring_size = atoi(_paramv);
 		}
-		else if (strcmp(_paramk, "branch_trans_number") == 0)
+		else if (strcmp(_paramk, "bulk_size") == 0)
 		{
-			NTP_CONFIG.branch_trans_number = atoi(_paramv);
+			NTP_CONFIG.bulk_size = atoi(_paramv);
 		}
 		else
 		{

@@ -25,7 +25,7 @@
 static void usage(const char *argv0){
 	fprintf(stdout, "Usage:\n");
 	fprintf(stdout, " %s            start a server and wait for connection\n", argv0);
-	fprintf(stdout, "  %s <host>     connect to server at <host>\n", argv0);
+	fprintf(stdout, " %s <host>     connect to server at <host>\n", argv0);
 	fprintf(stdout, "\n");
 	fprintf(stdout, "Options:\n");
 	fprintf(stdout, "  -h, --help        	  	print the help information\n");

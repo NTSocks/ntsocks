@@ -394,6 +394,9 @@ ntb_start(uint16_t dev_id)
         send_list_node->next_node = send_list_node;
         ntb_link->partitions[i].send_list.ring_head = send_list_node;
         ntb_link->partitions[i].send_list.ring_tail = send_list_node;
+
+        
+        ntb_link->partitions[i].cache_msg_bulks = calloc(NTP_CONFIG.bulk_size, sizeof(ntp_msg *));
     }
 
     DEBUG("ntb dev started, NTB memory buffer formatting for ntb_partition, ctrl_ringbuffer");
