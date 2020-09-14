@@ -394,7 +394,6 @@ ntb_start(uint16_t dev_id)
         send_list_node->next_node = send_list_node;
         ntb_link->partitions[i].send_list.ring_head = send_list_node;
         ntb_link->partitions[i].send_list.ring_tail = send_list_node;
-
         
         ntb_link->partitions[i].cache_msg_bulks = calloc(NTP_CONFIG.bulk_size, sizeof(ntp_msg *));
     }
@@ -420,5 +419,90 @@ ntb_start(uint16_t dev_id)
     ntp_ntm_shm_accept(ntp_ntm, (char *)ntp_ntm_name, sizeof(ntp_ntm_name));
     ntb_link->ntp_ntm = ntp_ntm;
 
+    ntb_link->is_stop = false;
+
     return ntb_link;
 }
+
+void ntb_destroy(struct ntb_link_custom *ntb_link) {
+    if (!ntb_link)   return;
+
+    ntb_link->is_stop = true;
+
+    // wait or join for ntb_link->ntm_ntp_listener
+    pthread_join(ntb_link->ntm_ntp_listener, NULL);
+
+    if(ntb_link->ntp_ntm) {
+        ntp_ntm_shm_close(ntb_link->ntp_ntm);
+        ntp_ntm_shm_destroy(ntb_link->ntp_ntm);
+    }
+
+    if (ntb_link->ntm_ntp) {
+        ntm_ntp_shm_close(ntb_link->ntm_ntp);
+        ntm_ntp_shm_destroy(ntb_link->ntm_ntp);
+    }
+
+    for (int i = 0; i < ntb_link->num_partition; i++)
+    {
+        struct ntb_partition * partition;
+        partition = &ntb_link->partitions[i];
+
+        // first remove all ntb-conn in this partition
+        ntp_send_list_node *tmp_node, *curr_node;
+        curr_node = partition->send_list.ring_head;
+        while(curr_node->conn){
+            tmp_node = curr_node->next_node;
+            free(curr_node);
+            curr_node = tmp_node;
+        }
+        if(curr_node) {
+            free(curr_node);
+        }
+
+        // free cache_msg_bulks
+        free(partition->cache_msg_bulks);
+
+        // free data_link
+        free(partition->data_link);
+
+    }
+    
+    // free partitions
+    free(ntb_link->partitions);
+
+    // free ctrl_link
+    free(ntb_link->ctrl_link);
+
+    // free all ntb_connection list
+    HashMapIterator iter = createHashMapIterator(ntb_link->port2conn);
+    while (hasNextHashMapIterator(iter))
+    {
+        iter = nextHashMapIterator(iter);
+        ntb_conn_t conn = (ntb_conn_t) iter->entry->value;
+        Remove(ntb_link->port2conn, iter->entry->key);
+
+        conn->partition_id = -1;
+        conn->partition = NULL;
+
+        if (conn->nts_send_ring) {
+            ntp_shm_close(conn->nts_send_ring);
+            ntp_shm_destroy(conn->nts_send_ring);
+        }
+
+        if (conn->nts_recv_ring) {
+            ntp_shm_close(conn->nts_recv_ring);
+            ntp_shm_destroy(conn->nts_recv_ring);
+        }
+
+        free(conn);
+    }
+    freeHashMapIterator(&iter);
+    Clear(ntb_link->port2conn);
+    ntb_link->port2conn = NULL;
+    
+    // free ntb_link
+    free(ntb_link);
+
+    DEBUG("ntb_destroy success");
+}
+

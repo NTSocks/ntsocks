@@ -18,6 +18,8 @@
 #include "ntp2nts_msg.h"
 #include "utils.h"
 
+#include <stdbool.h>
+
 #define DATA_RING_SIZE 0x800000     // 8MB
 #define CTRL_RING_SIZE 0x40000      // 256KB
 // | 
@@ -169,6 +171,8 @@ struct ntb_link_custom
     struct rte_rawdev *dev; // the abstract of ntb raw device
     struct ntb_hw *hw;      // the operation methods about ntb device
 
+    bool is_stop;
+
     HashMap port2conn;             // hash map for the ntb connection:
                                    // key: [src-port]-[dst-port]
                                    // value: ntb connection struct --> struct ntb_conn
@@ -185,6 +189,10 @@ struct ntb_link_custom
     struct ntb_ctrl_link *ctrl_link;    // the send/recv buffer for the control message between local and peer ntb nodes
     struct ntb_data_link *data_link;    // TODO: removed
                                         // the send/recv buffer for the data message between local peer ntb nodes
+
+    // used to receive ctrl msg from ntm
+    pthread_t ntm_ntp_listener;
+
 }__attribute__((packed));
 
 int ntb_data_msg_add_header(struct ntb_data_msg *msg, uint16_t src_port, uint16_t dst_port, int payload_len, int msg_type);
@@ -204,5 +212,7 @@ int ntb_data_msg_enqueue2(struct ntb_data_link *data_link, ntp_msg *outgoing_msg
 
 //start the ntb device,and return a ntb_link
 struct ntb_link_custom *ntb_start(uint16_t dev_id);
+
+void ntb_destroy(struct ntb_link_custom *ntb_link);
 
 #endif /* NTB_MW_H_ */

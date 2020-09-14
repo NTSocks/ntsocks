@@ -71,7 +71,7 @@ DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 static uint16_t dev_id;
 
 struct ntb_link_custom *ntb_link;
-pthread_t ntm_ntp_listener;
+
 
 unsigned lcore_id;
 
@@ -94,7 +94,7 @@ ntb_send_thread(__attribute__((unused)) void *arg)
 	ntp_send_list_node *pre_node = partition->send_list.ring_head;
 	ntp_send_list_node *curr_node = NULL;
 	uint64_t counter = 0;
-	while (1)
+	while (!ntb_link->is_stop)
 	{
 		curr_node = pre_node->next_node;
 		if (curr_node == partition->send_list.ring_head) // indicate non-existing ntb connection when head node in ntb-conn list is EMPTY.
@@ -165,7 +165,7 @@ ntm_ntp_receive_thread(__attribute__((unused)) void *arg)
 	ntm_ntp_msg recv_msg;
 	uint64_t loop_spin_cnt = 0;	// default sleep, when loop_spin_cnt > 10
 
-	while (1)
+	while (!ntb_link->is_stop)
 	{
 		if (ntm_ntp_shm_recv(recv_shm, &recv_msg) == -1)
 		{
@@ -190,8 +190,22 @@ ntm_ntp_receive_thread(__attribute__((unused)) void *arg)
 	return NULL;
 }
 
+void ntp_on_exit(void) {
+	INFO("destroy ntp resource when on exit.");
+	ntb_destroy(ntb_link);
+}
+
+void signal_crash_handler(int sig) {
+	exit(-1);
+}
+
+void signal_exit_handler(int sig) {
+	exit(0);
+}
+
 int main(int argc, char **argv)
 {
+	
 	int ret, i;
 	ret = rte_eal_init(argc, argv);
 	if (ret < 0)
@@ -206,6 +220,16 @@ int main(int argc, char **argv)
 
 	if (i == RTE_RAWDEV_MAX_DEVS)
 		rte_exit(EXIT_FAILURE, "Cannot find any ntb device.\n");
+
+	// register exit event processing
+	atexit(ntp_on_exit);
+	signal(SIGTERM, signal_exit_handler);
+	signal(SIGINT, signal_exit_handler);
+
+	signal(SIGBUS, signal_crash_handler);     // 总线错误
+    signal(SIGSEGV, signal_crash_handler);    // SIGSEGV，非法内存访问
+    signal(SIGFPE, signal_crash_handler);       // SIGFPE，数学相关的异常，如被0除，浮点溢出，等等
+    signal(SIGABRT, signal_crash_handler);     // SIGABRT，由调用abort函数产生，进程非正常退出
 
 	dev_id = i;
 
@@ -232,7 +256,7 @@ int main(int argc, char **argv)
 		ntb_link->hw->link_width = NTB_LNK_STA_WIDTH(reg_val);
 	}
 
-	pthread_create(&ntm_ntp_listener, NULL, ntm_ntp_receive_thread, NULL);
+	pthread_create(&ntb_link->ntm_ntp_listener, NULL, ntm_ntp_receive_thread, NULL);
 
 	RTE_LCORE_FOREACH_SLAVE(lcore_id)
 	{
@@ -266,7 +290,6 @@ int main(int argc, char **argv)
 	}
 	rte_eal_mp_wait_lcore();
 	
-	pthread_join(ntm_ntp_listener, NULL);
 
 	return 0;
 }

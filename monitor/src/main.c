@@ -10,14 +10,14 @@
 
 #include <getopt.h>
 #include <string.h>
+#include <signal.h>
 
 #include "ntb_monitor.h"
-#include "nt_log.h"
 #include "config.h"
 #include "nts_shm.h"
 #include "ntm_msg.h"
-
-// DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
+#include "nt_log.h"
+DEBUG_SET_LEVEL(DEBUG_LEVEL_INFO);
 
 //#define CONFIG_FILE "/etc/ntm.cfg"
 #define CONFIG_FILE "./ntm.cfg"
@@ -61,9 +61,29 @@ void test_nts_shm() {
 
 }
 
+void ntm_on_exit(void) {
+	INFO("destroy all ntm resources when on exit.");
+	ntm_destroy();
+}
+
+void signal_crash_handler(int sig) {
+	exit(-1);
+}
+
+void signal_exit_handler(int sig) {
+	exit(0);
+}
 
 int main(int argc, char **argv) {
-	// print_monitor();
+	atexit(ntm_on_exit);
+	signal(SIGTERM, signal_exit_handler);
+	signal(SIGINT, signal_exit_handler);
+
+	signal(SIGBUS, signal_crash_handler);     // 总线错误
+    signal(SIGSEGV, signal_crash_handler);    // SIGSEGV，非法内存访问
+    signal(SIGFPE, signal_crash_handler);       // SIGFPE，数学相关的异常，如被0除，浮点溢出，等等
+    signal(SIGABRT, signal_crash_handler);     // SIGABRT，由调用abort函数产生，进程非正常退出
+
 	char *conf_file;
 	
 	while(1){
@@ -83,7 +103,7 @@ int main(int argc, char **argv) {
 		{
 		case 'h':
 			usage(argv[0]);
-			return 1;
+			return -1;
 		case 's':
 			NTM_CONFIG.ipaddr_len = strlen(optarg);
 			memcpy(NTM_CONFIG.listen_ip, optarg, NTM_CONFIG.ipaddr_len);
@@ -97,26 +117,15 @@ int main(int argc, char **argv) {
 			break;
 		default:
 			usage(argv[0]);
-			return 1;
+			return -1;
 		}
 	}
-
-	// DEBUG("before load conf");
-	// print_conf();
-
-	// load_conf(CONFIG_FILE);
-	// DEBUG("after load conf");
-	// print_conf();
 
 	if (!conf_file) {
 		conf_file = CONFIG_FILE;
 	}
 
 	ntm_init(conf_file);
-
-	// getchar();
-
-	ntm_destroy();
 
 	return 0;
 }

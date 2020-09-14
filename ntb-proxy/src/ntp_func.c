@@ -95,7 +95,7 @@ static int add_conn_to_ntb_send_list(struct ntb_link_custom *ntb_link, ntb_parti
     DEBUG("add_conn_to_ntb_send_list with partition_id=%d", conn->partition_id);
     assert(partition);
 
-    ntp_send_list_node *list_node =  malloc(sizeof(*list_node));
+    ntp_send_list_node *list_node = (ntp_send_list_node *) malloc(sizeof(*list_node));
     list_node->conn = conn;
     list_node->next_node = partition->send_list.ring_head;
     partition->send_list.ring_tail->next_node = list_node;
@@ -339,7 +339,7 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
     int i, count;
     uint64_t next_index, fin_index, temp_index;
 
-    while (1)
+    while (!ntb_link->is_stop)
     {
         msg = (struct ntb_data_msg *)(recv_dataring->start_addr + (recv_dataring->cur_index << 7));
         msg_len = msg->header.msg_len;
@@ -509,7 +509,7 @@ int ntp_ctrl_msg_receive(struct ntb_link_custom *ntb_link)
     uint16_t msg_len;
     uint16_t src_port, dst_port;
     uint32_t conn_id;
-    while (1)
+    while (!ntb_link->is_stop)
     {
         msg = (struct ntb_ctrl_msg *)(r->start_addr + (r->cur_index << 4));
         msg_len = msg->header.msg_len;
