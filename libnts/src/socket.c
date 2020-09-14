@@ -12,14 +12,11 @@
 
 #include "ntm_shm.h"
 #include "socket.h"
-#include "debug.h"
 #include "nts_shm.h"
 
 
 int print_socket(){
 	printf("Hello libnts app!\n");
-
-	debug_print();
 
 	printf("Bye, libnts app.\n");
 
