@@ -201,7 +201,7 @@ void signal_crash_handler(int sig) {
 }
 
 void signal_exit_handler(int sig) {
-	INFO("destroy ntp resource when normally exit.")
+	INFO("destroy ntp resource when normally exit.");
 	exit(0);
 }
 
