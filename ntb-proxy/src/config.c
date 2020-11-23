@@ -127,6 +127,7 @@ int load_conf(const char *fname)
 		if (strcmp(_paramk, "sublink_number") == 0)
 		{
 			NTP_CONFIG.sublink_number = atoi(_paramv);
+			NTP_CONFIG.num_partition = NTP_CONFIG.sublink_number;
 		}
 		else if (strcmp(_paramk, "sublink_data_ring_size") == 0)
 		{
