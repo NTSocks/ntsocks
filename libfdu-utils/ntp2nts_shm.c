@@ -16,7 +16,13 @@
 
 #include "ntp2nts_shm.h"
 #include "nt_log.h"
+
+#ifdef  ENABLE_DEBUG
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
+#else  
 DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
+#endif  //ENABLE_DEBUG
+
 
 ntp_shm_context_t ntp_shm() {
 	ntp_shm_context_t shm_ctx;

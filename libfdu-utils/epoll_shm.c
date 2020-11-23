@@ -7,7 +7,12 @@
 #include "epoll_shm.h"
 #include "utils.h"
 #include "nt_log.h"
+
+#ifdef  ENABLE_DEBUG
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
+#else  
+DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
+#endif  //ENABLE_DEBUG
 
 epoll_shm_context_t epoll_shm()
 {

@@ -14,9 +14,11 @@
 #include "utils.h"
 #include "nt_log.h"
 
+#ifdef  ENABLE_DEBUG
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
+#else  
 DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
-
-// shm_mp_handler * mp_handler;
+#endif  //ENABLE_DEBUG
 
 
 

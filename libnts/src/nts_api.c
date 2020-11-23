@@ -19,8 +19,11 @@
 #include "ntm_shm.h"
 #include "nts_shm.h"
 
+#ifdef  ENABLE_DEBUG
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
-
+#else  
+DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
+#endif  //ENABLE_DEBUG
 
 static inline int handle_ntp_fin_msg(nt_sock_context_t nt_sock_ctx, int sockid);
 
