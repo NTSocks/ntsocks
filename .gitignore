@@ -55,3 +55,4 @@ dpdk/x86_64-native-linuxapp-gcc/
 
 *monitor/bin*
 *libfdu-utils/bin*
+libfdu-utils/bin/
