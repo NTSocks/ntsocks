@@ -51,7 +51,6 @@ int make_socket_non_blocking(int sockfd) {
 
 
 int main(int argc, char * argv[]) { 
-    int client_fd;
 
     if (argc != 3) {
         fprintf(stdout, "Usage:\n");
@@ -60,6 +59,7 @@ int main(int argc, char * argv[]) {
         exit(EXIT_FAILURE);
     }
 
+    int client_fd;
     client_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (client_fd < 0) {
         perror("socket");

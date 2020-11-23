@@ -53,6 +53,12 @@ int make_socket_non_blocking(int sockfd)
 
 int main(int argc, char *argv[])
 {
+    if (argc != 3) {
+        fprintf(stdout, "Usage:\n");
+        fprintf(stdout, "  %s <host> <port>    connect to echo server at <host>:<port>\n", argv[0]);
+        fprintf(stdout, "\n");
+        exit(EXIT_FAILURE);
+    }
 
     int listen_fd;
     listen_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -67,8 +73,9 @@ int main(int argc, char *argv[])
     memset(&addr, 0, sizeof(struct sockaddr_in));
 
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(PORT);
-    addr.sin_addr.s_addr = inet_addr(SERVER_IP);
+    int server_port = atoi(argv[2]);
+    addr.sin_port = htons(server_port);
+    addr.sin_addr.s_addr = inet_addr(argv[1]);
 
     rc = bind(listen_fd, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
     if (rc < 0)
