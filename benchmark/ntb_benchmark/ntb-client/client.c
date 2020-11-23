@@ -13,6 +13,7 @@
 #include <sys/time.h>
 #include <sched.h>
 #include "../common/common.h"
+#include "../common/measure.h"
 
 char *server_ip = DEFAULT_SERVER_ADDR;
 int server_port = DEFAULT_PORT;
@@ -29,6 +30,9 @@ int connect_setup();
 void latency_read(int sockfd);
 void latency_read_with_ack(int sockfd);
 void pin_1thread_to_1core();
+void throughput_read(int sockfd);
+void throughput_read_with_ack(int sockfd);
+void bandwidth_read(int sockfd);
 
 int main(int argc, char *argv[]){
     pthread_t serv_thread[64];
@@ -128,12 +132,20 @@ void *handle_connection(void* ptr){
     // }
     gettimeofday(&curr_time, NULL);
     printf("start transfer data, time is %ld.%ld\n", curr_time.tv_sec, curr_time.tv_usec);
-    if(with_ack){
-        latency_read_with_ack(sockfd);
-    }else {
-        latency_read(sockfd);
-    }
-    printf("no close sockfd:%d\n", sockfd);
+    if (run_latency == 0){
+        if(with_ack){
+            latency_read_with_ack(sockfd);
+        }else {
+            latency_read(sockfd);
+        }
+    }else if (run_latency == 1){
+        if(with_ack){
+            throughput_read_with_ack(sockfd);
+        }else {
+            throughput_read(sockfd);
+        }
+    }else if (run_latency == 2)
+        bandwidth_read(sockfd);
     // close(sockfd);
     getchar();
     return (void*)0;
@@ -151,8 +163,34 @@ void latency_read(int sockfd){
     }
 }
 
+// read message without ack
+void throughput_read(int sockfd){
+    char msg[payload_size];
+    int n = 0;
+    for(size_t i = 0; i < num_req; ++i){
+        n = payload_size;
+        while (n > 0) {
+            n = (n - read(sockfd, msg, n));
+        }
+    }
+}
+
 // write ack after reading message
 void latency_read_with_ack(int sockfd){
+    char msg[payload_size];
+    char ack[payload_size];
+    int n = 0;
+    for (size_t i = 0; i < num_req; ++i) {
+        n = payload_size;
+        while (n > 0) {
+            n = (n - read(sockfd, msg, n));
+        }
+        write(sockfd, ack, payload_size);
+    }
+}
+
+// write ack after reading message
+void throughput_read_with_ack(int sockfd){
     char msg[payload_size];
     char ack = '1';
     int n = 0;
@@ -165,13 +203,30 @@ void latency_read_with_ack(int sockfd){
     }
 }
 
-// void throughput_read(int sockfd){
-//     latency_read(sockfd);
-// }
+void bandwidth_read(int sockfd){
+    char msg[payload_size];
+    while (read(sockfd, msg, payload_size) != 0) break;
 
-// void throughput_read_with_ack(int sockfd){
+    uint64_t counter = 0;
+    size_t start_cycles, end_cycles, elapse_cycles = 0;
+    double cpu_mhz = get_cpu_mhz() * 1000000;
 
-// }
+    while (1){
+        ssize_t r = 0;
+        start_cycles = get_cycles();
+        r = read(sockfd, msg, payload_size);
+        end_cycles = get_cycles();
+        if (r > 0)
+            counter += r;
+        else
+            fprintf(stderr, "read data err\n");
+        elapse_cycles += (end_cycles - start_cycles);
+        if ((double)elapse_cycles >= RUN_TIME * cpu_mhz)
+            break;
+    }
+    double elapse_time = (double)elapse_cycles / cpu_mhz;
+    printf("send buff = %d, total elapse_time = %.2lf, trans bytes = %.2lf Mb, BW (Gbits/s) = %.2lf \n", payload_size, elapse_time, (double)counter / (1024 * 1024), (double)counter / (elapse_time * 128 * 1024 * 1024));
+}
 
 void usage(char *program){
     printf("Usage: \n");
@@ -181,8 +236,8 @@ void usage(char *program){
     printf(" -t <threads>   handle connection with multi-threads\n");
     printf(" -s <size>      payload size(default %d)\n", DEFAULT_PAYLOAD_SIZE);
     printf(" -n <requests>  the number of request(default %d)\n", NUM_REQ);
+    printf(" -l <metric>    0 - lat, 1 - tput, 2 - bw\n");
     printf(" -w             transfer data with ack\n");
-    printf(" -l             run the lantency benchmark\n");
     printf(" -h             display the help information\n");
 }
 
@@ -231,7 +286,18 @@ void parse_args(int argc, char *argv[]){
                 exit(EXIT_FAILURE);
             }
         }else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-l") == 0){
-            run_latency = 1;
+            if(i+1 < argc){
+                run_latency = atoi(argv[i+1]);
+                if(run_latency != 0 && run_latency != 1 && run_latency != 2){
+                    printf("invalid metric\n");
+                    exit(EXIT_FAILURE);
+                }
+                i++;
+            }else {
+                printf("cannot read metric\n");
+                usage(argv[0]);
+                exit(EXIT_FAILURE);
+            }
         }else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-n") == 0){
             if(i+1 < argc){
                 num_req = atoi(argv[i+1]);

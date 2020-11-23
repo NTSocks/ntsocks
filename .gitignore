@@ -54,4 +54,4 @@ dpdk/x86_64-native-linuxapp-gcc/
 .vscode/
 
 *monitor/bin*
-
+*libfdu-utils/bin*
