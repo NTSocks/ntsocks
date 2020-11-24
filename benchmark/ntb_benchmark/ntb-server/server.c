@@ -22,7 +22,7 @@ int num_req = NUM_REQ;
 bool with_ack = false;
 int thrds = 0;
 bool waiting_transfer_data = true;
-int run_latency = 0; // by default, we run the throughput benchmark
+int run_latency = 0; // 0 - lat, 1 - tput, 2 - bw
 int payload_size = DEFAULT_PAYLOAD_SIZE;
 
 void usage(char *program);
@@ -35,8 +35,7 @@ void latency_write_with_ack(int sockfd, size_t *start_cycles, size_t *end_cycles
 void throughput_write(int sockfd, size_t *start_cycles, size_t *end_cycles);
 void throughput_write_with_ack(int sockfd, size_t *start_cycles, size_t *end_cycles);
 void pin_1thread_to_1core();
-// void throughput_read(int sockfd);
-// void throughput_read_with_ack(int sockfd);
+void bandwidth_write(int sockfd);
 
 int main(int argc, char *argv[]){
 
@@ -54,7 +53,7 @@ int main(int argc, char *argv[]){
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = inet_addr(server_ip);
     address.sin_port = htons(server_port);
-    fprintf(stdout, "bind to %s:%d\n", server_ip, server_port);
+    printf("bind to %s:%d\n", server_ip, server_port);
     if(bind(listen_fd, (struct sockaddr *)&address, sizeof(address))){
         perror("bind failed");
         exit(EXIT_FAILURE);
@@ -63,11 +62,11 @@ int main(int argc, char *argv[]){
         perror("listen failed");
         exit(EXIT_FAILURE);
     }
-    fprintf(stdout, "server listens on 0.0.0.0:%d\n", server_port);
+    printf("server listens on 0.0.0.0:%d\n", server_port);
 
     if(thrds > 0){
         for(int i=0; i < thrds; ++i) {
-            fprintf(stdout, "thread:%d, waiting for accept\n", i);
+            printf("thread:%d, waiting for accept\n", i);
             sockfd = accept(listen_fd, (struct sockaddr *)&cli_addr, &cli_len);
             if(sockfd < 0){
                 perror("accept failed");
@@ -88,7 +87,7 @@ int main(int argc, char *argv[]){
         
     }
 
-    fprintf(stdout, "going to sleep 1s\n");
+    printf("going to sleep 1s\n");
     sleep(1); // wait 1s
     waiting_transfer_data = false;
     for (int i=0; i < thrds; ++i){
@@ -97,7 +96,7 @@ int main(int argc, char *argv[]){
     // if(thrds > 0){
     //     free(serv_thread);
     // }
-    fprintf(stdout, "server done!\n");
+    printf("server done!\n");
     getchar();
     // close(listen_fd);
     
@@ -115,32 +114,32 @@ void pin_1thread_to_1core(){
         CPU_SET(j, &cpuset);
     s = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
     if (s != 0)
-       fprintf(stderr,"pthread_setaffinity_np:%d", s);
+       printf("pthread_setaffinity_np:%d", s);
     s = pthread_getaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
     if (s != 0)
-       fprintf(stderr,"pthread_getaffinity_np:%d",s);
-    printf("Set returned by pthread_getaffinity_np() contained:\n");
-    for (j = 0; j < __CPU_SETSIZE; j++)
-        if (CPU_ISSET(j, &cpuset))
-            printf("    CPU %d\n", j);
+       printf("pthread_getaffinity_np:%d",s);
+    // printf("Set returned by pthread_getaffinity_np() contained:\n");
+    // for (j = 0; j < __CPU_SETSIZE; j++)
+    //     if (CPU_ISSET(j, &cpuset))
+    //         printf("    CPU %d\n", j);
 }
 
 void *handle_connection(void* ptr){
     int sockfd = *(int*)ptr;
-    fprintf(stdout, "waiting for transfer data on %s:%d\n", server_ip, sockfd);
+    printf("waiting for transfer data on %s:%d\n", server_ip, sockfd);
     if(thrds > 0){
         pin_1thread_to_1core();
         // wait for starting transfer data
         while (waiting_transfer_data) sched_yield();
     }
-    fprintf(stdout, "start transfer data\n");
+    printf("start transfer data\n");
     // if(thrds > 0){
     //     int start = 1;
     //     write(sockfd, &start, sizeof(int));
     // }
 
     // Determine which function to run based on the parameters
-    if(run_latency){
+    if(run_latency == 0){
         size_t *start_cycles, *end_cycles;
         start_cycles = (size_t*)malloc(sizeof(size_t) * num_req);
         end_cycles = (size_t*)malloc(sizeof(size_t) * num_req);
@@ -152,7 +151,7 @@ void *handle_connection(void* ptr){
         latency_report_perf(start_cycles, end_cycles, sockfd);
         free(start_cycles);
         free(end_cycles);
-    }else {
+    }else if (run_latency == 1){
         size_t start_cycles, end_cycles;
         if(with_ack) {
             throughput_write_with_ack(sockfd, &start_cycles, &end_cycles);
@@ -160,11 +159,12 @@ void *handle_connection(void* ptr){
             throughput_write(sockfd, &start_cycles, &end_cycles);
         }
         throughput_report_perf(end_cycles - start_cycles, sockfd);
-    }
+    }else if (run_latency == 2)
+        bandwidth_write(sockfd);
     // char end_msg[32] = {0};
     // read(sockfd, end_msg, sizeof(end_msg));
     fflush(stdout);
-    fprintf(stdout, "no close sockfd:%d\n", sockfd);
+    // printf("no close sockfd:%d\n", sockfd);
     // close(sockfd);
     getchar();
     return (void*)0;
@@ -183,11 +183,15 @@ void latency_write(int sockfd, size_t *start_cycles, size_t *end_cycles){
 // measure latency with reading ack after writing message
 void latency_write_with_ack(int sockfd, size_t *start_cycles, size_t *end_cycles){
     char msg[payload_size];
-    char ack = '1';
+    char ack[payload_size];
+    int n = 0;
     for (size_t i = 0; i < num_req; ++i){
         start_cycles[i] = get_cycles();
         write(sockfd, msg, payload_size);
-        read(sockfd, &ack, sizeof(ack));
+        n = payload_size;
+        while (n > 0) {
+            n = (n - read(sockfd, ack, n));
+        }
         end_cycles[i] = get_cycles();
     }
 }
@@ -214,6 +218,13 @@ void throughput_write_with_ack(int sockfd, size_t *start_cycles, size_t *end_cyc
     *end_cycles = get_cycles();
 }
 
+void bandwidth_write(int sockfd){
+    char msg[payload_size];
+    while (1){
+        write(sockfd, msg, payload_size);
+    }
+}
+
 // print latency performance data
 void latency_report_perf(size_t *start_cycles, size_t *end_cycles, int sockfd) {
     double* lat = (double*)malloc(num_req * sizeof(double));
@@ -231,8 +242,8 @@ void latency_report_perf(size_t *start_cycles, size_t *end_cycles, int sockfd) {
     idx_99_9 = floor(num_req * 0.999);
     idx_99_99 = floor(num_req * 0.9999);
     //printf("idx_99 = %lu; idx_99_t = %lu; idx_99_99 = %lu\n", idx_99, idx_99_9, idx_99_99);
-    fprintf(stdout, "@MEASUREMENT(requests = %d, payload size = %d, sockfd = %d):\n", num_req, payload_size, sockfd);
-    fprintf(stdout, "MEDIAN = %.2f us\n50 TAIL = %.2f us\n99 TAIL = %.2f us\n99.9 TAIL = %.2f us\n99.99 TAIL = %.2f us\n", sum/num_req, lat[idx_m], lat[idx_99], lat[idx_99_9], lat[idx_99_99]);
+    printf("@MEASUREMENT(requests = %d, payload size = %d, sockfd = %d):\n", num_req, payload_size, sockfd);
+    printf("MEDIAN = %.2f us\n50 TAIL = %.2f us\n99 TAIL = %.2f us\n99.9 TAIL = %.2f us\n99.99 TAIL = %.2f us\n", sum/num_req, lat[idx_m], lat[idx_99], lat[idx_99_9], lat[idx_99_99]);
     free(lat);
 }
 
@@ -243,23 +254,23 @@ void throughput_report_perf(size_t duration, int sockfd) {
     // throughput
     double tput1 = (double)num_req / total_time * 1000000;
     // bandwidth
-    double tput2 = (double)(num_req) / total_time * payload_size;
-    fprintf(stdout, "@MEASUREMENT(requests = %d, payload size = %d, sockfd = %d):\n", num_req, payload_size, sockfd);
-    fprintf(stdout, "total time = %.2f us\nTHROUGHPUT1 = %.2f REQ/s\nTHROUGHPUT2 = %.2f Mb/s\n", total_time, tput1, tput2 * 8);
+    printf("@MEASUREMENT(requests = %d, payload size = %d, sockfd = %d):\n", num_req, payload_size, sockfd);
+    printf("total time = %.2f us\nTHROUGHPUT1 = %.2f REQ/s\n", total_time, tput1);
 }
 
 void usage(char *program){
-    fprintf(stdout, "Usage: \n");
-    fprintf(stdout, "%s\tready to connect %s:%d\n", program, server_ip, server_port);
-    fprintf(stdout, "Options:\n");
-    fprintf(stdout, " -a <addr>      connect to server addr(default %s)\n", DEFAULT_SERVER_ADDR);
-    fprintf(stdout, " -p <port>      connect to port number(default %d)\n", DEFAULT_PORT);
-    fprintf(stdout, " -t <threads>   handle connection with multi-threads\n");
-    fprintf(stdout, " -s <size>      payload size(default %d)\n", DEFAULT_PAYLOAD_SIZE);
-    fprintf(stdout, " -n <requests>  the number of request(default %d)\n", NUM_REQ);
-    fprintf(stdout, " -w             transfer data with ack\n");
-    fprintf(stdout, " -l             run the lantency benchmark\n");
-    fprintf(stdout, " -h             display the help information\n");
+    printf("Usage: \n");
+    printf("%s\tready to connect %s:%d\n", program, server_ip, server_port);
+    printf("Options:\n");
+    printf(" -a <addr>      connect to server addr(default %s)\n", DEFAULT_SERVER_ADDR);
+    printf(" -p <port>      connect to port number(default %d)\n", DEFAULT_PORT);
+    printf(" -t <threads>   handle connection with multi-threads\n");
+    printf(" -s <size>      payload size(default %d)\n", DEFAULT_PAYLOAD_SIZE);
+    printf(" -n <requests>  the number of request(default %d)\n", NUM_REQ);
+    printf(" -l <metric>    0 - lat, 1 - tput, 2 - bw\n");
+    printf(" -w             transfer data with ack\n");
+    printf(" -l             run the lantency benchmark\n");
+    printf(" -h             display the help information\n");
 }
 
 // parsing command line parameters
@@ -269,12 +280,12 @@ void parse_args(int argc, char *argv[]){
             if (i+1 < argc){
                 server_port = atoi(argv[i+1]);
                 if (server_port < 0 || server_port > 65535){
-                    fprintf(stdout, "invalid port number\n");
+                    printf("invalid port number\n");
                     exit(EXIT_FAILURE);
                 }
                 i++;
             }else {
-                fprintf(stdout, "cannot read port number\n");
+                printf("cannot read port number\n");
                 usage(argv[0]);
                 exit(EXIT_FAILURE);
             }
@@ -283,7 +294,7 @@ void parse_args(int argc, char *argv[]){
                 server_ip = argv[i+1];
                 i++;
             }else {
-                fprintf(stdout, "cannot read server addr\n");
+                printf("cannot read server addr\n");
                 usage(argv[0]);
                 exit(EXIT_FAILURE);
             }
@@ -291,12 +302,12 @@ void parse_args(int argc, char *argv[]){
             if(i+1 < argc){
                 payload_size = atoi(argv[i+1]);
                 if(payload_size <= 0){
-                    fprintf(stdout, "invalid payload size\n");
+                    printf("invalid payload size\n");
                     exit(EXIT_FAILURE);
                 }
                 i++;
             }else {
-                fprintf(stdout, "cannot read payload size\n");
+                printf("cannot read payload size\n");
                 usage(argv[0]);
                 exit(EXIT_FAILURE);
             }
@@ -306,27 +317,38 @@ void parse_args(int argc, char *argv[]){
             if(i+1 < argc){
                 thrds = atoi(argv[i+1]);
                 if(thrds <= 0 || thrds > MAX_NUM_THREADS){
-                    fprintf(stdout, "invalid numbers of thread\n");
+                    printf("invalid numbers of thread\n");
                     exit(EXIT_FAILURE);
                 }
                 i++;
             }else {
-                fprintf(stdout, "cannot read numbers of thread\n");
+                printf("cannot read numbers of thread\n");
                 usage(argv[0]);
                 exit(EXIT_FAILURE);
             }
         }else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-l") == 0){
-            run_latency = 1;
-        }else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-n") == 0){
             if(i+1 < argc){
-                num_req = atoi(argv[i+1]);
-                if(num_req <= 0){
-                    fprintf(stdout, "invalid the number of requests\n");
+                run_latency = atoi(argv[i+1]);
+                if(run_latency != 0 && run_latency != 1 && run_latency != 2){
+                    printf("invalid metric\n");
                     exit(EXIT_FAILURE);
                 }
                 i++;
             }else {
-                fprintf(stdout, "cannot read the number of requests\n");
+                printf("cannot read metric\n");
+                usage(argv[0]);
+                exit(EXIT_FAILURE);
+            }
+        }else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-n") == 0){
+            if(i+1 < argc){
+                num_req = atoi(argv[i+1]);
+                if(num_req <= 0){
+                    printf("invalid the number of requests\n");
+                    exit(EXIT_FAILURE);
+                }
+                i++;
+            }else {
+                printf("cannot read the number of requests\n");
                 usage(argv[0]);
                 exit(EXIT_FAILURE);
             }
@@ -334,7 +356,7 @@ void parse_args(int argc, char *argv[]){
             usage(argv[0]);
             exit(EXIT_SUCCESS);
         }else {
-            fprintf(stdout, "invalid option: %s\n", argv[i]);
+            printf("invalid option: %s\n", argv[i]);
             usage(argv[0]);
             exit(EXIT_FAILURE);
         }
