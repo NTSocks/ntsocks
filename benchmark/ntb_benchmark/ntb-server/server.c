@@ -38,6 +38,7 @@ void pin_1thread_to_1core();
 void bandwidth_write(int sockfd);
 
 int main(int argc, char *argv[]){
+    setvbuf(stdout, 0, _IONBF, 0);
 
     int listen_fd, sockfd;
     struct sockaddr_in  address, cli_addr;
@@ -185,13 +186,21 @@ void latency_write_with_ack(int sockfd, size_t *start_cycles, size_t *end_cycles
     char msg[payload_size];
     char ack[payload_size];
     int n = 0;
+    int ret;
     for (size_t i = 0; i < num_req; ++i){
         start_cycles[i] = get_cycles();
-        write(sockfd, msg, payload_size);
+
+        // memset(msg, 0, payload_size);
+        // sprintf(msg, "%d-%ld", sockfd, i+1);
+        ret = write(sockfd, msg, payload_size);
+        // printf("[sockid = %d] write ret = %d, seq = %ld, msg='[%s]'\n", sockfd, ret, i+1, msg);
+        if (ret <= 0) printf("[sockid = %d] ret = %d WRITE FAILED!!!!!!!!!!\n", sockfd, ret);
+
         n = payload_size;
         while (n > 0) {
             n = (n - read(sockfd, ack, n));
         }
+        // printf("[sockid = %d] --------recv %d bytes msg: [%s]-------\n", sockfd, payload_size, ack);
         end_cycles[i] = get_cycles();
     }
 }
@@ -241,9 +250,11 @@ void latency_report_perf(size_t *start_cycles, size_t *end_cycles, int sockfd) {
     idx_99 = floor(num_req * 0.99);
     idx_99_9 = floor(num_req * 0.999);
     idx_99_99 = floor(num_req * 0.9999);
-    //printf("idx_99 = %lu; idx_99_t = %lu; idx_99_99 = %lu\n", idx_99, idx_99_9, idx_99_99);
-    printf("@MEASUREMENT(requests = %d, payload size = %d, sockfd = %d):\n", num_req, payload_size, sockfd);
-    printf("MEDIAN = %.2f us\n50 TAIL = %.2f us\n99 TAIL = %.2f us\n99.9 TAIL = %.2f us\n99.99 TAIL = %.2f us\n", sum/num_req, lat[idx_m], lat[idx_99], lat[idx_99_9], lat[idx_99_99]);
+
+    printf("@MEASUREMENT(requests = %d, payload size = %d, sockfd = %d):\n\
+MEDIAN = %.2f us\n50 TAIL = %.2f us\n99 TAIL = %.2f us\n99.9 TAIL = %.2f us\n99.99 TAIL = %.2f us\n", 
+        num_req, payload_size, sockfd, sum/num_req, lat[idx_m], lat[idx_99], lat[idx_99_9], lat[idx_99_99]);
+    
     free(lat);
 }
 
@@ -254,8 +265,9 @@ void throughput_report_perf(size_t duration, int sockfd) {
     // throughput
     double tput1 = (double)num_req / total_time * 1000000;
     // bandwidth
-    printf("@MEASUREMENT(requests = %d, payload size = %d, sockfd = %d):\n", num_req, payload_size, sockfd);
-    printf("total time = %.2f us\nTHROUGHPUT1 = %.2f REQ/s\n", total_time, tput1);
+    printf("@MEASUREMENT(requests = %d, payload size = %d, sockfd = %d):\n\
+total time = %.2f us\nTHROUGHPUT1 = %.2f REQ/s\n", 
+        num_req, payload_size, sockfd, total_time, tput1);
 }
 
 void usage(char *program){
