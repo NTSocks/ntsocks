@@ -47,6 +47,7 @@ DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 int trans_data_link_cur_index(struct ntb_data_link *data_link)
 {
+    DEBUG("[trans_data_link_cur_index] =============recv sync read index request [cur_idx=%ld]=========\n", data_link->local_ring->cur_index);
     *data_link->remote_cum_ptr = data_link->local_ring->cur_index;
     DEBUG("trans cur index to peer, = %ld",data_link->local_ring->cur_index);
     return 0;
