@@ -124,7 +124,7 @@ shmring_handle_t shmring_init(char *shm_addr, size_t addrlen) {
     DEBUG("mmap pass");
 
     shmring_handle->MASK = MAX_BUFS - 1;
-    shmring_handle->max_size = MAX_BUFS - 1;
+    shmring_handle->max_size = MAX_BUFS;
     DEBUG("nts shmring init successfully!");
 
 
@@ -176,7 +176,7 @@ shmring_handle_t get_shmring(char *shm_addr, size_t addrlen) {
     DEBUG("mmap pass");
     
     shmring_handle->MASK = MAX_BUFS - 1;
-    shmring_handle->max_size = MAX_BUFS - 1;
+    shmring_handle->max_size = MAX_BUFS;
     shmring_handle->peer_read_index = 0;
     DEBUG("nts get shmring successfully!");
 
@@ -264,7 +264,7 @@ bool shmring_push_bulk(shmring_handle_t self, char **elements, size_t *ele_lens,
     assert(ele_lens);
     assert(count > 0);
 
-    count = (count <= self->max_size) ? count : self->max_size;
+    count = (count <= self->max_size) ? count : self->max_size - 1;
 
     const uint64_t w_idx = nt_atomic_load64_explicit(
             &self->shmring->write_index, ATOMIC_MEMORY_ORDER_RELAXED);
@@ -278,7 +278,7 @@ bool shmring_push_bulk(shmring_handle_t self, char **elements, size_t *ele_lens,
         return false;
     }
 
-    uint64_t idle_slots = w_idx >= r_idx ? self->max_size - w_idx + r_idx : r_idx - w_idx;
+    uint64_t idle_slots = w_idx >= r_idx ? self->max_size - 1 - w_idx + r_idx : r_idx - w_idx;
     if (idle_slots < count) 
     {
         ERR("cannot bulk push shmring with bulk_size=%d", (int)count);
@@ -323,7 +323,7 @@ size_t shmring_pop_bulk(shmring_handle_t self, char **elements, size_t *max_lens
     assert(max_lens);
     assert(count > 0);
 
-    count = (count <= self->max_size) ? count : self->max_size;
+    count = (count <= self->max_size) ? count : self->max_size - 1;
 
     const uint64_t w_idx = nt_atomic_load64_explicit(
             &self->shmring->write_index, ATOMIC_MEMORY_ORDER_RELAXED);
@@ -351,7 +351,7 @@ size_t shmring_pop_bulk(shmring_handle_t self, char **elements, size_t *max_lens
     } else {    // r_idx > w_idx
         int i;
 
-        pop_cnt = (self->max_size - r_idx + w_idx > count) ? count : self->max_size - r_idx + w_idx;
+        pop_cnt = (self->max_size - r_idx + w_idx > count) ? count : self->max_size - 1 - r_idx + w_idx;
         r_next_idx = next_index_bulk(r_idx, self->max_size, pop_cnt);
 
         if (r_next_idx > r_idx || r_next_idx == 0) {

@@ -19,7 +19,7 @@
 #include "ntm_shm.h"
 #include "nts_shm.h"
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 
 

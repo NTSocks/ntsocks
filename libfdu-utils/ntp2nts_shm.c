@@ -19,7 +19,7 @@
 #include "nt_log.h"
 
 
-DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
 
 ntp_shm_context_t ntp_shm() {
 	ntp_shm_context_t shm_ctx;

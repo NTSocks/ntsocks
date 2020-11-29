@@ -31,6 +31,11 @@
 #define NTB_HEADER_LEN 6
 #define DATA_MSG_LEN 122 //data_msg_len = NTB_DATA_MSG_TL - NTB_HEADER_LEN
 
+// recv packet counts interval for peer-side shadow read-index updates.
+#define IDX_UPDATE_INTERVAL 512
+#define IDX_UPDATE_MASK 511
+#define BLOCKING_SLEEP_US 10
+
 
 enum ntb_data_msg_type
 {
@@ -144,6 +149,9 @@ typedef struct ntb_partition {
     int16_t id;
     uint32_t num_conns; // the total number of assigned ntb_conn
 
+    uint64_t recv_packet_counter;   // count the number of total received packets 
+    uint64_t send_packet_counter;   // count the number of total send packets
+
     struct ntp_send_list send_list; // to cache the assigned ntb_conn in send_list, 
                                     // when forwarding packets, polling the send_list in round-robin manner
 
@@ -194,6 +202,13 @@ struct ntb_link_custom
     pthread_t ntm_ntp_listener;
 
 }__attribute__((packed));
+
+// used to update the peer-side shadow read index of 
+//  ntb data ringbuffer every specific times
+int trans_data_link_cur_index(struct ntb_data_link *data_link);
+// used to update the peer-side shadow read index of 
+//  ntb ctrl ringbuffer every specific times
+int trans_ctrl_link_cur_index(struct ntb_link_custom *ntb_link);
 
 int ntb_data_msg_add_header(struct ntb_data_msg *msg, uint16_t src_port, uint16_t dst_port, int payload_len, int msg_type);
 

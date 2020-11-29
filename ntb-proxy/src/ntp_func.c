@@ -233,7 +233,6 @@ static int detect_pkg_handler(struct ntb_link_custom *ntb_link, uint16_t src_por
  */
 int ntp_send_buff_data(struct ntb_data_link *data_link, ntb_partition_t partition, ntp_shm_context_t ring, ntb_conn *conn)
 {
-    DEBUG("enter ntp_send_buff_data...");
     uint16_t src_port = (uint16_t)(conn->conn_id >> 16);
     uint16_t dst_port = (uint16_t)conn->conn_id;
 
@@ -251,14 +250,17 @@ int ntp_send_buff_data(struct ntb_data_link *data_link, ntb_partition_t partitio
     int i;
 
     // bulk packet forwarding from libnts send shmring
-    size_t recv_cnt;
-    recv_cnt = ntp_shm_recv_bulk(ring, partition->cache_msg_bulks, NTP_CONFIG.bulk_size);
-    DEBUG("ntp_shm_recv_bulk recv_cnt = %d", (int)recv_cnt);
-    if (recv_cnt == FAILED)  return FAILED;
+    size_t recv_cnt = 0;
+    // recv_cnt = ntp_shm_recv_bulk(ring, partition->cache_msg_bulks, NTP_CONFIG.bulk_size);
+    // DEBUG("ntp_shm_recv_bulk recv_cnt = %d", (int)recv_cnt);
+    // if (recv_cnt == FAILED)  return FAILED;
 
-    for (i = 0; i < recv_cnt; i++)
+    for (i = 0; i < NTP_CONFIG.bulk_size; i++)
     {
-        send_msg = partition->cache_msg_bulks[i];
+        // send_msg = partition->cache_msg_bulks[i];
+        send_msg = ntp_shm_recv(ring);
+        if (!send_msg)  break;
+        recv_cnt++;
 
         if (UNLIKELY(send_msg->msg_type == NTP_FIN)) // when NTP_FIN packet/msg, update ntb-conn state as `ACTIVE_CLOSE`
         {
@@ -279,6 +281,9 @@ int ntp_send_buff_data(struct ntb_data_link *data_link, ntb_partition_t partitio
         }
         else
         {
+            if(strlen(send_msg->msg) > 0) {
+                DEBUG("send_msg='%s'\n", send_msg->msg);
+            }
             ntb_data_msg_enqueue2(data_link, send_msg, 
                         src_port, dst_port, data_len, MULTI_PKG);
 
@@ -348,6 +353,8 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
         {
             continue;
         }
+        partition->recv_packet_counter++;
+
         msg_len &= 0x0fff; // compute real msg_len == end 12 bits
         msg_type = parser_data_len_get_type(data_link, msg->header.msg_len);
         //如果当前包端口号与上次比有所改变，需要重新Get conn
@@ -497,6 +504,11 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
             ERR("msg_type error");
             msg->header.msg_len = 0;
             recv_dataring->cur_index = recv_dataring->cur_index + 1 < recv_dataring->capacity ? recv_dataring->cur_index + 1 : 0;
+        }
+
+        // update the peer-side shadow read index every specific time interval.
+        if (partition->recv_packet_counter % IDX_UPDATE_INTERVAL == 0) {
+            trans_data_link_cur_index(data_link);
         }
     }
     return 0;
