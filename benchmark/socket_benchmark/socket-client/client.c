@@ -20,7 +20,7 @@ bool with_ack = false;
 int thrds = 0;
 int num_req = NUM_REQ;
 bool waiting_transfer_data = true;
-int run_latency = 0; // by default, we run the throughput benchmark
+int run_latency = 0; // 0 - lat, 1 - tput, 2 - bw
 int payload_size = DEFAULT_PAYLOAD_SIZE;
 
 void usage(char *program);
@@ -32,6 +32,7 @@ void latency_write(int sockfd, size_t *start_cycles, size_t *end_cycles);
 void latency_write_with_ack(int sockfd, size_t *start_cycles, size_t *end_cycles);
 void throughput_write(int sockfd, size_t *start_cycles, size_t *end_cycles);
 void throughput_write_with_ack(int sockfd, size_t *start_cycles, size_t *end_cycles);
+void bandwidth_write(int sockfd);
 void pin_1thread_to_1core();
 int connect_setup();
 
@@ -57,8 +58,8 @@ int main(int argc, char *argv[]){
         int socket_fd = connect_setup(server_port);
         handle_connection((void *)&socket_fd);
     }
-    printf("going to sleep 3s\n");
-    sleep(5); // wait 1s
+    printf("going to sleep 1s\n");
+    sleep(1); // wait 1s
     waiting_transfer_data = false;
     printf("waiting_transfer_data is %d\n", waiting_transfer_data);
     for(int i=0; i < thrds; ++i) {
@@ -80,7 +81,7 @@ int connect_setup(int port){
     //Bind to a specific network interface (and optionally a specific local port)
     struct sockaddr_in localaddr;
     localaddr.sin_family = AF_INET;
-    localaddr.sin_addr.s_addr = inet_addr("10.10.88.215");
+    localaddr.sin_addr.s_addr = inet_addr(server_ip);
     localaddr.sin_port = 0;  // Any local port will do
     bind(socket_fd, (struct sockaddr *)&localaddr, sizeof(localaddr));
 
@@ -115,10 +116,10 @@ void pin_1thread_to_1core(){
     s = pthread_getaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
     if (s != 0)
        fprintf(stderr,"pthread_setaffinity_np:%d", s);
-    printf("Set returned by pthread_getaffinity_np() contained:\n");
-    for (j = 0; j < __CPU_SETSIZE; j++)
-        if (CPU_ISSET(j, &cpuset))
-            printf("    CPU %d\n", j);
+    // printf("Set returned by pthread_getaffinity_np() contained:\n");
+    // for (j = 0; j < __CPU_SETSIZE; j++)
+    //     if (CPU_ISSET(j, &cpuset))
+    //         printf("    CPU %d\n", j);
 }
 
 void *handle_connection(void* ptr){
@@ -135,7 +136,7 @@ void *handle_connection(void* ptr){
     }
 
     // Determine which function to run based on the parameters
-    if(run_latency){
+    if(run_latency == 0){
         size_t *start_cycles, *end_cycles;
         start_cycles = (size_t*)malloc(sizeof(size_t) * num_req);
         end_cycles = (size_t*)malloc(sizeof(size_t) * num_req);
@@ -147,7 +148,7 @@ void *handle_connection(void* ptr){
         latency_report_perf(start_cycles, end_cycles);
         free(start_cycles);
         free(end_cycles);
-    }else {
+    }else if (run_latency == 1){
         size_t start_cycles, end_cycles;
         if(with_ack) {
             throughput_write_with_ack(sockfd, &start_cycles, &end_cycles);
@@ -155,9 +156,17 @@ void *handle_connection(void* ptr){
             throughput_write(sockfd, &start_cycles, &end_cycles);
         }
         throughput_report_perf(end_cycles - start_cycles);
-    }
+    }else if (run_latency == 2)
+        bandwidth_write(sockfd);
     close(sockfd);
     return (void*)0;
+}
+
+void bandwidth_write(int sockfd){
+    char msg[payload_size];
+    while (1){
+        write(sockfd, msg, payload_size);
+    }
 }
 
 // measure latency without ack after writing message
@@ -173,11 +182,15 @@ void latency_write(int sockfd, size_t *start_cycles, size_t *end_cycles){
 // measure latency with reading ack after writing message
 void latency_write_with_ack(int sockfd, size_t *start_cycles, size_t *end_cycles){
     char msg[payload_size];
-    char ack = '1';
+    char ack[payload_size];
+    int n = 0;
     for (size_t i = 0; i < num_req; ++i){
         start_cycles[i] = get_cycles();
         write(sockfd, msg, payload_size);
-        read(sockfd, &ack, sizeof(ack));
+        n = payload_size;
+        while (n > 0) {
+            n = (n - read(sockfd, ack, n));
+        }
         end_cycles[i] = get_cycles();
     }
 }
@@ -233,11 +246,10 @@ void throughput_report_perf(size_t duration) {
     // throughtput
     double tput1 = (double)num_req / total_time * 1000000;
     // bandwidth
-    double tput2 = (double)(num_req) / total_time * payload_size;
     printf("@MEASUREMENT(requests = %d, payload size = %d):\n", num_req, payload_size);
     printf("total time = %.2f us\n", total_time);
-    printf("THROUGHPUT1 = %.2f REQ/s\n", tput1);
-    printf("THROUGHPUT2 = %.2f Mb/s\n", tput2 * 8);
+    printf("THROUGHPUT = %.2f REQ/s\n", tput1);
+    // printf("THROUGHPUT2 = %.2f Mb/s\n", tput2 * 8);
 }
 
 void usage(char *program){
@@ -249,8 +261,8 @@ void usage(char *program){
     printf(" -t <threads>   handle connection with multi-threads\n");
     printf(" -s <size>      payload size(default %d)\n", DEFAULT_PAYLOAD_SIZE);
     printf(" -n <requests>  the number of request(default %d)\n", NUM_REQ);
+    printf(" -l <metric>    0 - lat, 1 - tput, 2 - bw\n");
     printf(" -w             transfer data with ack\n");
-    printf(" -l             run the lantency benchmark\n");
     printf(" -h             display the help information\n");
 }
 
@@ -308,7 +320,18 @@ void parse_args(int argc, char *argv[]){
                 exit(EXIT_FAILURE);
             }
         }else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-l") == 0){
-            run_latency = 1;
+            if(i+1 < argc){
+                run_latency = atoi(argv[i+1]);
+                if(run_latency != 0 && run_latency != 1 && run_latency != 2){
+                    printf("invalid metric\n");
+                    exit(EXIT_FAILURE);
+                }
+                i++;
+            }else {
+                printf("cannot read metric\n");
+                usage(argv[0]);
+                exit(EXIT_FAILURE);
+            }
         }else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-n") == 0){
             if(i+1 < argc){
                 num_req = atoi(argv[i+1]);
