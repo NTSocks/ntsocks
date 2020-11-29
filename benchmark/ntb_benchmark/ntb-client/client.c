@@ -188,7 +188,6 @@ void latency_read_with_ack(int sockfd){
         while (n > 0) {
             n = (n - read(sockfd, msg, n));
         }
-        ret = write(sockfd, ack, payload_size);
         // printf("[sockid = %d] recv %ld request: %s \n", sockfd, i+1, msg);
         // memcpy(ack, msg, payload_size);
         ret = write(sockfd, ack, payload_size);
