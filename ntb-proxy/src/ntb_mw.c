@@ -243,9 +243,8 @@ int ntb_data_msg_enqueue2(struct ntb_data_link *data_link, ntp_msg *outgoing_msg
             DEBUG("[<= NTP_CONFIG.data_packet_size]=====start request the read index of remote ntb dataring==== [next_write_idx=%ld, shadow_read_indes=%ld]\n", next_write_idx, *data_link->local_cum_ptr);
             msg_len != (1 << 15);
         }
-       
         rte_memcpy(write_addr + 4, &msg_len, 2);    // msg_len: 2 bytes
-        rte_memcpy(write_addr + NTB_HEADER_LEN, (uint8_t *)outgoing_msg->msg, payload_len);
+        rte_memcpy(write_addr + NTB_HEADER_LEN, (uint8_t *)outgoing_msg->msg, payload_len); 
     }
     else 
     {
@@ -257,11 +256,10 @@ int ntb_data_msg_enqueue2(struct ntb_data_link *data_link, ntp_msg *outgoing_msg
             // PSH: request to update local shadow read_index using remote write by peer side
             msg_len != (1 << 15);
         }
-
         rte_memcpy(write_addr + 4, &msg_len, 2);    // msg_len: 2 bytes
-        rte_memcpy(write_addr + NTB_HEADER_LEN, (uint8_t *)outgoing_msg->msg, NTP_CONFIG.data_packet_size);
+        rte_memcpy(write_addr + NTB_HEADER_LEN, (uint8_t *)outgoing_msg->msg, NTP_CONFIG.data_packet_size - NTB_HEADER_LEN); //!!
     }
-
+     
     peer_dataring->cur_index = next_write_idx;
     return 0;
 }

@@ -25,17 +25,28 @@ bool waiting_transfer_data = true;
 int run_latency = 0; // 0 - lat, 1 - tput, 2 - bw
 int payload_size = DEFAULT_PAYLOAD_SIZE;
 
+typedef struct conn_ctx {
+    int sockfd;
+    int id;
+    int cpumask;
+} conn_ctx;
+
+double tput_qps_total[10000];
+double tput_bw_total[10000];
+
+
 void usage(char *program);
 void parse_args(int argc, char *argv[]);
 void *handle_connection(void* ptr);
 void latency_report_perf(size_t *start_cycles, size_t *end_cycles, int sockfd);
-void throughput_report_perf(size_t duration, int sockfd);
+void throughput_report_perf(size_t duration, int sockfd, struct conn_ctx* ctx);
 void latency_write(int sockfd, size_t *start_cycles, size_t *end_cycles);
 void latency_write_with_ack(int sockfd, size_t *start_cycles, size_t *end_cycles);
 void throughput_write(int sockfd, size_t *start_cycles, size_t *end_cycles);
 void throughput_write_with_ack(int sockfd, size_t *start_cycles, size_t *end_cycles);
 void pin_1thread_to_1core();
 void bandwidth_write(int sockfd);
+
 
 int main(int argc, char *argv[]){
     setvbuf(stdout, 0, _IONBF, 0);
@@ -44,6 +55,7 @@ int main(int argc, char *argv[]){
     struct sockaddr_in  address, cli_addr;
     socklen_t cli_len = sizeof(cli_addr);
     pthread_t serv_thread[64];
+    struct conn_ctx conns[64];
     // read command line arguments
     parse_args(argc, argv);
 
@@ -69,11 +81,13 @@ int main(int argc, char *argv[]){
         for(int i=0; i < thrds; ++i) {
             printf("thread:%d, waiting for accept\n", i);
             sockfd = accept(listen_fd, (struct sockaddr *)&cli_addr, &cli_len);
+            conns[i].id = i;
+            conns[i].sockfd = sockfd;
             if(sockfd < 0){
                 perror("accept failed");
                 close(listen_fd);
                 exit(EXIT_FAILURE);
-            } else if (pthread_create(&serv_thread[i], NULL, handle_connection, (void*)&sockfd) < 0){
+            } else if (pthread_create(&serv_thread[i], NULL, handle_connection, (void*)&conns[i]) < 0){
                 close(listen_fd);
                 perror("Error: create pthread");
             }
@@ -84,7 +98,9 @@ int main(int argc, char *argv[]){
             close(listen_fd);
             exit(EXIT_FAILURE);
         }
-        handle_connection((void*)&sockfd);
+        conns[0].id = 0;
+        conns[0].sockfd = sockfd;
+        handle_connection((void*)&conns[0]);
         
     }
 
@@ -94,6 +110,22 @@ int main(int argc, char *argv[]){
     for (int i=0; i < thrds; ++i){
         pthread_join(serv_thread[i], NULL);
     }
+
+    if (thrds > 0) {
+        double sum_qps_tput = 0;
+        double sum_bw_tput = 0;
+        for (int i = 0; i < thrds; i++)
+        {
+            sum_qps_tput += tput_qps_total[i];
+            sum_bw_tput += tput_bw_total[i];
+        }
+
+        printf("@TOTAL_MEASUREMENT(requests = %d, payload size = %d):\n\
+Overall QPS TPUT = %.2f REQ/s\nOverall BandWidth = %.2f Gbps", 
+        num_req, payload_size, sum_qps_tput, sum_bw_tput);
+
+    }
+
     // if(thrds > 0){
     //     free(serv_thread);
     // }
@@ -126,7 +158,9 @@ void pin_1thread_to_1core(){
 }
 
 void *handle_connection(void* ptr){
-    int sockfd = *(int*)ptr;
+    struct conn_ctx * ctx;
+    ctx = (struct conn_ctx *) ptr;
+    int sockfd = ctx->sockfd;
     printf("waiting for transfer data on %s:%d\n", server_ip, sockfd);
     if(thrds > 0){
         pin_1thread_to_1core();
@@ -159,7 +193,7 @@ void *handle_connection(void* ptr){
         }else {
             throughput_write(sockfd, &start_cycles, &end_cycles);
         }
-        throughput_report_perf(end_cycles - start_cycles, sockfd);
+        throughput_report_perf(end_cycles - start_cycles, sockfd, ctx);
     }else if (run_latency == 2)
         bandwidth_write(sockfd);
     // char end_msg[32] = {0};
@@ -259,15 +293,20 @@ MEDIAN = %.2f us\n50 TAIL = %.2f us\n99 TAIL = %.2f us\n99.9 TAIL = %.2f us\n99.
 }
 
 // print throughput performance data
-void throughput_report_perf(size_t duration, int sockfd) {
+void throughput_report_perf(size_t duration, int sockfd, struct conn_ctx* ctx) {
     double cpu_mhz = get_cpu_mhz();
     double total_time = (double)duration / cpu_mhz;
     // throughput
     double tput1 = (double)num_req / total_time * 1000000;
+    double tput_bw = (double) (num_req * payload_size * 8) / (total_time * 1000000 * 1024 * 1024 * 1024);   // Unit: Gbps
+
+    tput_qps_total[ctx->id] = tput1;
+    tput_bw_total[ctx->id] = tput_bw;
+
     // bandwidth
     printf("@MEASUREMENT(requests = %d, payload size = %d, sockfd = %d):\n\
-total time = %.2f us\nTHROUGHPUT1 = %.2f REQ/s\n", 
-        num_req, payload_size, sockfd, total_time, tput1);
+total time = %.2f us\nTHROUGHPUT1 = %.2f REQ/s\nBandWidth = %.2f Gbps", 
+        num_req, payload_size, sockfd, total_time, tput1, tput_bw);
 }
 
 void usage(char *program){
