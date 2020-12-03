@@ -121,7 +121,7 @@ int main(int argc, char *argv[]){
         }
 
         printf("@TOTAL_MEASUREMENT(requests = %d, payload size = %d):\n\
-Overall QPS TPUT = %.2f REQ/s\nOverall BandWidth = %.2f Gbps", 
+Overall QPS TPUT = %.2f REQ/s\nOverall BandWidth = %.2f Gbps\n", 
         num_req, payload_size, sum_qps_tput, sum_bw_tput);
 
     }
@@ -130,7 +130,7 @@ Overall QPS TPUT = %.2f REQ/s\nOverall BandWidth = %.2f Gbps",
     //     free(serv_thread);
     // }
     printf("server done!\n");
-    getchar();
+    // getchar();
     // close(listen_fd);
     
     return 0;
@@ -201,7 +201,7 @@ void *handle_connection(void* ptr){
     fflush(stdout);
     // printf("no close sockfd:%d\n", sockfd);
     // close(sockfd);
-    getchar();
+    // getchar();
     return (void*)0;
 }
 
@@ -297,15 +297,17 @@ void throughput_report_perf(size_t duration, int sockfd, struct conn_ctx* ctx) {
     double cpu_mhz = get_cpu_mhz();
     double total_time = (double)duration / cpu_mhz;
     // throughput
-    double tput1 = (double)num_req / total_time * 1000000;
-    double tput_bw = (double) (num_req * payload_size * 8) / (total_time * 1000000 * 1024 * 1024 * 1024);   // Unit: Gbps
+    double tput1 = (double)num_req / total_time * 1000000;  // reqs/s
+    double tput_bw = tput1 * payload_size * 8 / (1024*1024*1024);
+    // double tput_bw = ((double)num_req * payload_size * 8 * 1000000) / ((double)total_time * 1024 * 1024 * 1024);   // Unit: Gbps
+    // double tput_bw = num_req * payload_size * 8 / total_time;
 
     tput_qps_total[ctx->id] = tput1;
     tput_bw_total[ctx->id] = tput_bw;
 
     // bandwidth
     printf("@MEASUREMENT(requests = %d, payload size = %d, sockfd = %d):\n\
-total time = %.2f us\nTHROUGHPUT1 = %.2f REQ/s\nBandWidth = %.2f Gbps", 
+total time = %.2f us\nTHROUGHPUT1 = %.2f REQ/s\nBandWidth = %.2lf Mbps\n", 
         num_req, payload_size, sockfd, total_time, tput1, tput_bw);
 }
 
