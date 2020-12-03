@@ -17,6 +17,7 @@
  * to enable log output and assert mechanism
  */
 // #define ENABLE_DEBUG
+// #define CONFIG_ENABLE_DEBUG
 
 /*
  * debug level,
@@ -85,6 +86,7 @@ do {                                                    \
 
 #else   /* ENABLE_DEBUG  */
 
+#include <stdio.h>
 #define DEBUG_SET_LEVEL(x)
 #define ASSERT()
 #define ERR(fmt, ...)

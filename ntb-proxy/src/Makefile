@@ -78,13 +78,14 @@ CFLAGS += -D_FILE_OFFSET_BITS=64 -DENABLE_DEBUG
 CFLAGS += -O2
 CFLAGS += -D_BSD_SOURCE 
 CFLAGS += -DHAVE_GCC_C11_ATOMICS
+# CFLAGS += -DCONFIG_ENABLE_DEBUG
 # CFLAGS += $(WERROR_FLAGS)
 CFLAGS += -DALLOW_EXPERIMENTAL_API
 CFLAGS += -pthread  
-CFLAGS += -I$(SRCDIR)/utils/include -I$(SRCDIR)/include -I/usr/local/include
+CFLAGS += -I$(SRCDIR)/include -I/usr/local/include
 CFLAGS += -DENABLE_DEBUG
 
-LDLIBS += -L/usr/local/lib -lfdu-utils -L$(RTE_SDK)/$(RTE_TARGET)/build/lib
+LDLIBS += -L/usr/local/lib -lfdu-utils -L$(RTE_SDK)/$(RTE_TARGET)/build/lib -lpthread
 
 
 include $(RTE_SDK)/mk/rte.extapp.mk

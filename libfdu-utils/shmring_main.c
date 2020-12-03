@@ -12,16 +12,15 @@
 
 int main() {
 
-    printf("Hello World!\n");
-
     bool ret;
     int node_idx;
     shm_mp_handler_t mp_handler;
     shmring_handle_t shmring_handle;
+    int mp_size = 32;
 
-    /* section 1 */
+     /* section 1 */
     /* start shm mempool */
-    mp_handler = shm_mp_init(256, 10, MP_NAME, strlen(MP_NAME));
+    mp_handler = shm_mp_init(256, mp_size, MP_NAME, strlen(MP_NAME));
     if (mp_handler == NULL) {
         perror("shm_mp_init failed.\n");
         return -1;
@@ -37,12 +36,14 @@ int main() {
     node_idx = mp_node->node_idx;
     char * shm_mem = shm_offset_mem(mp_handler, mp_node->node_idx);
     memcpy(shm_mem, HELLO_MSG, strlen(HELLO_MSG));
+    
 
     shm_mempool_node * tmp_mp_node;
     tmp_mp_node = shm_mp_node_by_shmaddr(mp_handler, shm_mem);
     if (tmp_mp_node) {
         printf("[section 1] node_idx=%d, tmp_mp_node.node_idx=%d\n", node_idx, tmp_mp_node->node_idx);
     }
+
     printf("[section 1] send msg payload: %s \n", shm_mem);
     /* end shm mempool */
 
@@ -58,7 +59,6 @@ int main() {
     shmring_free(shmring_handle, false);
     /* end shmring */
 
-    shm_mp_runtime_print(mp_handler);
     shm_mp_destroy(mp_handler, 0);
     /* end section 1 */
 
@@ -67,7 +67,7 @@ int main() {
     char * tmp_shmmem;
 
     /* shm mempool */
-    mp_handler = shm_mp_init(256, 10, (char *) MP_NAME, strlen(MP_NAME));
+    mp_handler = shm_mp_init(256, mp_size, MP_NAME, strlen(MP_NAME));
     if (mp_handler == NULL) {
         perror("shm_mp_init failed.\n");
         return -1;

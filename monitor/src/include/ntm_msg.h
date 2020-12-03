@@ -63,8 +63,9 @@ typedef struct {
     unsigned short dport;           // destination port
     int sockid;                     // client nt_socket id created by server nt_socket
 	ntm_sock_msg_type type;
+    uint8_t partition_id;           // for ntb_partition
     char payload[PAYLOAD_SIZE];
-} ntm_sock_msg;
+}__attribute__((packed)) ntm_sock_msg;
 
 typedef struct {
     int human_id;

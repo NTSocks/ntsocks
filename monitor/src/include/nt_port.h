@@ -45,6 +45,7 @@ typedef struct nt_port * nt_port_t;
 
 struct nt_port_context{
     nt_port_t ntport;
+    int num_ports;
     TAILQ_HEAD (, nt_port) free_ntport;
     pthread_mutex_t port_lock;
 };
@@ -56,6 +57,7 @@ int init_port_context(nt_port_context_t nt_port_ctx, int max_port);
 
 // allocate one port number to use
 nt_port_t allocate_port(nt_port_context_t nt_port_ctx, int need_lock);
+nt_port_t allocate_specified_port(nt_port_context_t nt_port_ctx, int portid, int need_lock);
 
 // free specified port number
 void free_port(nt_port_context_t nt_port_ctx, int portid, int need_lock);

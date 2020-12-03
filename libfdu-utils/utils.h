@@ -39,6 +39,10 @@ extern "C" {
 #define __WRITE_BARRIER__ \
     __asm__ __volatile__("sfence":::"memory")
 
+#define SUCCESS 0
+#define FAILED -1
+
+
 #define NEW(type) (type *)malloc(sizeof(type))
 #define APPLY(task, ...) task(__VA_ARGS__)
 #define ABS(n) n > 0 ? n : -n

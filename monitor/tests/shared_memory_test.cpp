@@ -9,7 +9,6 @@
  */
 
 #include "catch2/catch.hpp"
-#include "shared_memory.h"
 
 
 TEST_CASE("The ntb malloc method returns 0")

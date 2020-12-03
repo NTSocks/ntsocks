@@ -29,18 +29,19 @@ extern "C" {
 #endif
 
 #define NTM_SHMRING_NAME "/ntm-shm-ring"
-
+#define IP_ADDRLEN	16
 
 struct nts_config {
 	int tcp_timewait;
 	int tcp_timeout;
 
-	char *local_nt_host;
-	char *nt_host;
+	char local_nt_host[IP_ADDRLEN];
+	uint16_t local_hostlen;
 };
 
 typedef struct nt_host_entry {
-	char * ipaddr;
+	char ipaddr[IP_ADDRLEN];
+	uint16_t ipaddrlen;
 	TAILQ_ENTRY(nt_host_entry) entries;
 } nt_host_entry;
 
@@ -208,6 +209,12 @@ struct nts_context {
 	 * w when nts exit, else 0
 	 */
 	uint8_t exit;
+	
+	// for FD remmaping table
+	// FD remapping table, maintain nt_socket_id in this remapping table
+	// key: sock_fd
+	// value: NULL
+	HashMap fd_table;
 
 } nts_context;
 

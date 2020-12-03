@@ -43,6 +43,10 @@
 #include <rte_mbuf.h>
 #include <rte_cycles.h>
 
+#include <pthread.h>
+#include <time.h>
+#include <sched.h>
+
 #include "ntb_mw.h"
 #include "ntp_func.h"
 #include "ntb.h"
@@ -61,24 +65,39 @@ DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 #define EXIT_FAILURE 1
 
 #define CREATE_CONN 1
+#define DEFAULT_SLEEP_US 100
+#define SPIN_THRESHOLD	100
 
 static uint16_t dev_id;
 
 struct ntb_link_custom *ntb_link;
 
+
 unsigned lcore_id;
+
+// define the CPU cores set for ntb_partitions as an array
+// 1. the array index indicates the ntb_partition id
+// 2. the array value indicates the assigned CPU cores lcore_id;
+static int cpu_cores[8] = {8, 9, 10, 11, 12, 13, 14, 15};
+
 
 static int
 ntb_send_thread(__attribute__((unused)) void *arg)
 {
 	assert(ntb_link);
-	ntp_send_list_node *pre_node = ntb_link->send_list.ring_head;
+	assert(arg);
+
+	ntb_partition_t partition;
+	partition = (ntb_partition_t) arg;
+	DEBUG("enter partition %d", partition->id);
+
+	ntp_send_list_node *pre_node = partition->send_list.ring_head;
 	ntp_send_list_node *curr_node = NULL;
 	uint64_t counter = 0;
-	while (1)
+	while (!ntb_link->is_stop)
 	{
 		curr_node = pre_node->next_node;
-		if (curr_node == ntb_link->send_list.ring_head)	// indicate non-existing ntb connection when head node in ntb-conn list is EMPTY.
+		if (curr_node == partition->send_list.ring_head) // indicate non-existing ntb connection when head node in ntb-conn list is EMPTY.
 		{
 			pre_node = curr_node;
 			continue;
@@ -87,12 +106,18 @@ ntb_send_thread(__attribute__((unused)) void *arg)
 		if (curr_node->conn->state == PASSIVE_CLOSE || curr_node->conn->state == ACTIVE_CLOSE)
 		{
 			DEBUG("conn close,remove and free node");
+
+			// remove ntb_partition
+			curr_node->conn->partition_id = -1;
+			curr_node->conn->partition = NULL;
+
 			// conn->state 不为READY，队列均已Close，移除map、list并free就可
-			Remove(ntb_link->port2conn, &curr_node->conn->conn_id);		// remove ntb conn from hash map
+			Remove(ntb_link->port2conn, &curr_node->conn->conn_id); // remove ntb conn from hash map
 			// destory_conn_ack(ntb_link, next_node->conn->name);
-			pre_node->next_node = curr_node->next_node;	// remove ntb conn from traseval list
-			if(curr_node == ntb_link->send_list.ring_tail){
-				ntb_link->send_list.ring_tail = pre_node;
+			pre_node->next_node = curr_node->next_node; // remove ntb conn from traseval list
+			if (curr_node == partition->send_list.ring_tail)
+			{
+				partition->send_list.ring_tail = pre_node;
 			}
 			ntp_shm_nts_close(curr_node->conn->nts_recv_ring);
 			ntp_shm_destroy(curr_node->conn->nts_recv_ring);
@@ -106,8 +131,8 @@ ntb_send_thread(__attribute__((unused)) void *arg)
 		// INFO("send conn name = %s",curr_node->conn->name);
 		// counter: is used to DEBUG/test
 		// DEBUG("send buff conn_id = %d,shm name = %s",curr_node->conn->conn_id,curr_node->conn->nts_send_ring->shm_addr);
-		ntp_send_buff_data(ntb_link->data_link, curr_node->conn->nts_send_ring,curr_node->conn);
-		pre_node = curr_node;	// move the current point to next ntb conn
+		ntp_send_buff_data(partition->data_link, partition, curr_node->conn->nts_send_ring, curr_node->conn);
+		pre_node = curr_node; // move the current point to next ntb conn
 	}
 	return 0;
 }
@@ -115,7 +140,14 @@ ntb_send_thread(__attribute__((unused)) void *arg)
 static int
 ntb_receive_thread(__attribute__((unused)) void *arg)
 {
-	ntp_receive_data_to_buff(ntb_link->data_link, ntb_link);
+	assert(ntb_link);
+	assert(arg);
+
+	ntb_partition_t partition;
+	partition = (ntb_partition_t) arg;
+	DEBUG("enter partition %d", partition->id);
+
+	ntp_receive_data_to_buff(partition->data_link, ntb_link, partition);
 	return 0;
 }
 
@@ -126,37 +158,51 @@ ntb_ctrl_receive_thread(__attribute__((unused)) void *arg)
 	return 0;
 }
 
-static int
+void *
 ntm_ntp_receive_thread(__attribute__((unused)) void *arg)
 {
 	ntm_ntp_shm_context_t recv_shm = ntb_link->ntm_ntp;
 	ntm_ntp_msg recv_msg;
+	uint64_t loop_spin_cnt = 0;	// default sleep, when loop_spin_cnt > 10
 
-	//test mode
-	// recv_msg.dst_port = 80;
-	// recv_msg.src_port = 80;
-	// recv_msg.msg_type = 1;
-	// recv_msg.dst_ip = 1000020;
-	// recv_msg.src_ip = 1000020;
-	// ntp_create_conn_handler(ntb_link, &recv_msg);
-	//test mode end
-
-	while (1)
+	while (!ntb_link->is_stop)
 	{
 		if (UNLIKELY(ntm_ntp_shm_recv(recv_shm, &recv_msg) == -1))
 		{
+			sched_yield();
+			loop_spin_cnt++;
+			if (loop_spin_cnt == SPIN_THRESHOLD) {
+				loop_spin_cnt = 0;
+				usleep(DEFAULT_SLEEP_US);				
+			}
 			continue;
 		}
 		else
 		{
 			DEBUG("receive ntm_ntp_msg, create ntb_conn");
+			loop_spin_cnt = 0;
 			if (recv_msg.msg_type == CREATE_CONN)
 			{
 				ntp_create_conn_handler(ntb_link, &recv_msg);
 			}
 		}
 	}
-	return 0;
+	return NULL;
+}
+
+void ntp_on_exit(void) {
+	INFO("destroy ntp resource when on exit.");
+	ntb_destroy(ntb_link);
+}
+
+void signal_crash_handler(int sig) {
+	INFO("destroy ntp resource when on crash.");
+	exit(-1);
+}
+
+void signal_exit_handler(int sig) {
+	INFO("destroy ntp resource when normally exit.");
+	exit(0);
 }
 
 static int 
@@ -188,6 +234,7 @@ ntp_epoll_listen_thread(__attribute__((unused)) void *arg) {
 
 int main(int argc, char **argv)
 {
+	
 	int ret, i;
 	ret = rte_eal_init(argc, argv);
 	if (ret < 0)
@@ -202,6 +249,16 @@ int main(int argc, char **argv)
 
 	if (i == RTE_RAWDEV_MAX_DEVS)
 		rte_exit(EXIT_FAILURE, "Cannot find any ntb device.\n");
+
+	// register exit event processing
+	atexit(ntp_on_exit);
+	signal(SIGTERM, signal_exit_handler);
+	signal(SIGINT, signal_exit_handler);
+
+	signal(SIGBUS, signal_crash_handler);     // 总线错误
+    signal(SIGSEGV, signal_crash_handler);    // SIGSEGV，非法内存访问
+    signal(SIGFPE, signal_crash_handler);       // SIGFPE，数学相关的异常，如被0除，浮点溢出，等等
+    signal(SIGABRT, signal_crash_handler);     // SIGABRT，由调用abort函数产生，进程非正常退出
 
 	dev_id = i;
 
@@ -227,30 +284,39 @@ int main(int argc, char **argv)
 		ntb_link->hw->link_speed = NTB_LNK_STA_SPEED(reg_val);
 		ntb_link->hw->link_width = NTB_LNK_STA_WIDTH(reg_val);
 	}
+
+	pthread_create(&ntb_link->ntm_ntp_listener, NULL, ntm_ntp_receive_thread, NULL);
+
 	RTE_LCORE_FOREACH_SLAVE(lcore_id)
 	{
-		if (lcore_id == 8)
+		for (int i = 0; i < ntb_link->num_partition; i++)
 		{
-			rte_eal_remote_launch(ntb_receive_thread, NULL, lcore_id);
+			int j = i * 2;
+			if (lcore_id == cpu_cores[j]) {
+				rte_eal_remote_launch(ntb_receive_thread, (void *) &ntb_link->partitions[i], lcore_id);
+			}
+			if (lcore_id == cpu_cores[j+1]) {
+				rte_eal_remote_launch(ntb_send_thread, (void *) &ntb_link->partitions[i], lcore_id);
+			}
 		}
-		if (lcore_id == 9)
-		{
-			rte_eal_remote_launch(ntb_send_thread, NULL, lcore_id);
-		}
-		if (lcore_id == 10)
+
+		if (lcore_id == 5)
 		{
 			rte_eal_remote_launch(ntb_ctrl_receive_thread, NULL, lcore_id);
 		}
-		if (lcore_id == 11)
+		if (lcore_id == 6)
 		{
 			rte_eal_remote_launch(ntm_ntp_receive_thread, NULL, lcore_id);
 		}
-		if (lcore_id == 12) 
+		if (lcore_id == 7) 
 		{
 			rte_eal_remote_launch(ntp_epoll_listen_thread, NULL, lcore_id);
 		}
+
 	}
 	rte_eal_mp_wait_lcore();
+	
+
 	return 0;
 }
 

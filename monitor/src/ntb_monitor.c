@@ -54,7 +54,7 @@ int ntm_init(const char *config_file)
 	/**
 	 * register signal callback functions
 	 */
-	signal(SIGINT, ntm_destroy);
+	// signal(SIGINT, ntm_destroy);
 	// signal(SIGKILL, ntm_destroy);
 	// signal(SIGSEGV, ntm_destroy);
 	// signal(SIGTERM, ntm_destroy);
@@ -285,7 +285,7 @@ int ntm_init(const char *config_file)
 
 void ntm_destroy()
 {
-	assert(ntm_mgr);
+	if (!ntm_mgr) return;
 	DEBUG("nt_destroy ready...");
 	bool ret;
 	void *status;
@@ -622,6 +622,7 @@ inline void handle_nt_syn_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 	ntp_outgoing_msg.src_ip = msg.dst_addr;
 	ntp_outgoing_msg.src_port = msg.dport;
 	ntp_outgoing_msg.msg_type = 1;
+	ntp_outgoing_msg.partition_id = -1;
 	ntp_outgoing_msg.msg_len = 0;
 	retval = ntm_ntp_shm_send(ntm_mgr->ntp_ctx->shm_send_ctx, &ntp_outgoing_msg);
 	while (retval == -1) {
@@ -717,6 +718,7 @@ inline void handle_nt_syn_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 	// send `SYN_ACK` with local client nt_socket id back to source monitor.
 	outgoing_msg.sockid = client_socket->sockid;
 	outgoing_msg.type = NT_SYN_ACK;
+	outgoing_msg.partition_id = ntp_incoming_msg.partition_id;	// for ntb_partition
 	ntm_send_tcp_msg(ntm_conn->client_sock, 
 				(char*)&outgoing_msg, sizeof(outgoing_msg));
 
@@ -800,7 +802,8 @@ inline void handle_nt_syn_ack_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 	ntp_outgoing_msg.dst_port = msg.sport;
 	ntp_outgoing_msg.src_ip = msg.dst_addr;
 	ntp_outgoing_msg.src_port = msg.dport;
-	ntp_outgoing_msg.msg_type = 1;
+	ntp_outgoing_msg.msg_type = 1;	// CREATE_CONN
+	ntp_outgoing_msg.partition_id = msg.partition_id;	
 	ntp_outgoing_msg.msg_len = 0;
 	retval = ntm_ntp_shm_send(ntm_mgr->ntp_ctx->shm_send_ctx, &ntp_outgoing_msg);
 	while (retval == -1) {
@@ -1809,7 +1812,7 @@ inline void handle_msg_nts_bind(ntm_manager_t ntm_mgr, ntm_msg msg)
 	 * Check whether the bound port is valid and idle
 	 */
 	// check if the port in valid range
-	if (msg.port < 0) // or other invalid range
+	if (msg.port < 0 || msg.port >= ntm_mgr->nt_port_ctx->num_ports) // or other invalid range
 	{
 		response_msg.retval = -1;
 		response_msg.nt_errno = NT_ERR_INVALID_PORT;
@@ -1824,8 +1827,23 @@ inline void handle_msg_nts_bind(ntm_manager_t ntm_mgr, ntm_msg msg)
 
 	// check if the port is idle
 	// If used, nts_shm_send message to notify NT_ERR_INUSE_PORT
-	if (is_occupied(ntm_mgr->nt_port_ctx, msg.port, NTM_CONFIG.max_port) == 1)
+	if (is_occupied(ntm_mgr->nt_port_ctx, msg.port, NTM_CONFIG.max_port) != 0)
 	{
+		response_msg.retval = -1;
+		response_msg.nt_errno = NT_ERR_INUSE_PORT;
+		retval = nts_shm_send(nts_shm_conn->nts_shm_ctx, &response_msg);
+		if (retval)
+		{
+			ERR("nts_shm_send failed for response to NT_ERR_INVALID_PORT");
+		}
+
+		goto FAIL;
+	}
+
+	// allocate nt_port by the specified port `msg.port`
+	nt_port_t listen_port;
+	listen_port = allocate_specified_port(ntm_mgr->nt_port_ctx, msg.port, 1);
+	if (!listen_port) {
 		response_msg.retval = -1;
 		response_msg.nt_errno = NT_ERR_INUSE_PORT;
 		retval = nts_shm_send(nts_shm_conn->nts_shm_ctx, &response_msg);
@@ -2114,28 +2132,30 @@ inline void handle_msg_nts_close(ntm_manager_t ntm_mgr, ntm_msg msg)
 
 	// free/destroy listener_wrapper->accepted_conn_map
 	//TODO: free the accepted client nt_socket in accepted_conn_map
-	HashMapIterator iter;
-	iter = createHashMapIterator(listener_wrapper->accepted_conn_map);
-	while(hasNextHashMapIterator(iter)) {
-		iter = nextHashMapIterator(iter);
-		// nt_socket_t tmp_socket = (nt_socket_t)iter->entry->value;
-		DEBUG("Destroy/free { key = %d }", *(int *) iter->entry->key);
-	}
-	freeHashMapIterator(&iter);
+	// HashMapIterator iter = createHashMapIterator(listener_wrapper->accepted_conn_map);
+	// while(hasNextHashMapIterator(iter)) {
+	// 	iter = nextHashMapIterator(iter);
+	// 	nt_socket_t tmp_socket = (nt_socket_t)iter->entry->value;
+	// 	DEBUG("Destroy/free { key = %d }", *(int *) iter->entry->key);
+	// }
+	// freeHashMapIterator(&iter);
 
 	Clear(listener_wrapper->accepted_conn_map);
 
 	// free nt_listener_t 
+	DEBUG("free nt_listener_t");
 	Remove(ntm_mgr->nt_listener_ctx->listener_map, &nts_shm_conn->port);
 	free(listener_wrapper->listener);
 	free(listener_wrapper);
 	
 
 	// Remove `nt_socket` from `ntm_mgr->port_sock_map`
+	DEBUG("Remove `nt_socket` from `ntm_mgr->port_sock_map`");
 	if (Exists(ntm_mgr->port_sock_map, &nts_shm_conn->port))
 		Remove(ntm_mgr->port_sock_map, &nts_shm_conn->port);
 
 	// free nt_port
+	DEBUG("free nt_port");
 	free_port(ntm_mgr->nt_port_ctx, nts_shm_conn->port, 1);
 
 
@@ -2144,6 +2164,7 @@ inline void handle_msg_nts_close(ntm_manager_t ntm_mgr, ntm_msg msg)
 
 
 	// overlap the nts shm communication with destroy nts_shm_context
+	DEBUG("overlap the nts shm communication with destroy nts_shm_context");
 	nts_msg resp_msg;
 	resp_msg.msg_id = msg.msg_id;
 	resp_msg.msg_type = NTS_MSG_CLOSE;
@@ -2160,6 +2181,7 @@ inline void handle_msg_nts_close(ntm_manager_t ntm_mgr, ntm_msg msg)
 
 	// close and destroy nts_shm_context_t in `nts_shm_conn`
 	// free nts_shm_conn
+	DEBUG("close and destroy nts_shm_context_t in `nts_shm_conn`");
 	if (nts_shm_conn->nts_shm_ctx) {
 		nts_shm_ntm_close(nts_shm_conn->nts_shm_ctx);
 		nts_shm_destroy(nts_shm_conn->nts_shm_ctx);
@@ -2172,6 +2194,7 @@ inline void handle_msg_nts_close(ntm_manager_t ntm_mgr, ntm_msg msg)
 
 
 	// free nt_socket
+	DEBUG("free nt_socket");
 	if(_socket) {
 		free_socket(ntm_mgr->nt_sock_ctx, _socket->sockid, 1);
 	}

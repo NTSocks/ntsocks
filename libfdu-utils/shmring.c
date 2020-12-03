@@ -67,6 +67,13 @@ static inline uint64_t next_index(uint64_t current_idx, uint64_t max_size) {
 static inline bool empty(uint64_t write_idx, uint64_t read_idx) {
     return write_idx == read_idx;
 }
+static inline uint64_t next_index_bulk(uint64_t current_idx, uint64_t max_size, size_t step_size) {
+    uint64_t ret = current_idx + step_size;
+    while (UNLIKELY(ret >= max_size))
+        ret -= max_size;
+
+    return ret;
+}
 
 
 shmring_handle_t _shmring_init(char *shm_addr, size_t addrlen, size_t ele_size, size_t ele_num, bool is_owner) {
@@ -205,7 +212,7 @@ bool shmring_push(shmring_handle_t self, char *element, size_t ele_len) {
     nt_atomic_store64_explicit(&self->queue->write_idx,
                                w_next_idx, ATOMIC_MEMORY_ORDER_RELEASE);
 
-    DEBUG("push nts shmring successfully!");
+    DEBUG("push nts shmring success!");
     return true;
 }
 
@@ -231,9 +238,139 @@ bool shmring_pop(shmring_handle_t self, char *element, size_t ele_len) {
     nt_atomic_store64_explicit(&self->queue->read_idx,
                                next_index(r_idx, self->capacity), ATOMIC_MEMORY_ORDER_RELEASE);
 
-    DEBUG("pop shmring successfully!");
+    DEBUG("pop shmring success!");
     return true;
 }
+
+
+bool shmring_push_bulk(shmring_handle_t self, char **elements, size_t *ele_lens, size_t count) {
+    assert(self);
+    assert(elements);
+    assert(ele_lens);
+    assert(count > 0);
+
+    count = (count <= self->capacity) ? count : self->capacity - 1;
+
+    const uint64_t w_idx = nt_atomic_load64_explicit(
+            &self->queue->write_idx, ATOMIC_MEMORY_ORDER_RELAXED);
+    const uint64_t w_next_idx = next_index_bulk(w_idx, self->capacity, count);
+    
+    uint64_t r_idx;
+
+    if (w_next_idx == (r_idx = nt_atomic_load64_explicit(
+            &self->queue->read_idx, ATOMIC_MEMORY_ORDER_ACQUIRE))) {
+        INFO("shmring is full, write_idx=%ld, read_idx=%ld", w_idx, r_idx);
+        return false;
+    }
+
+    uint64_t idle_slots = w_idx >= r_idx ? self->capacity - 1 - w_idx + r_idx : r_idx - w_idx;
+    if (idle_slots < count) 
+    {
+        ERR("cannot bulk push shmring with bulk_size=%d", (int)count);
+        return false;
+    }
+    
+    if (w_next_idx > w_idx || w_next_idx == 0) {
+
+        for (size_t i = 0; i < count; i++)
+        {
+            memset(self->data[w_idx + i], 0, self->ele_size);
+            memcpy(self->data[w_idx + i], elements[i], ele_lens[i]);
+        }
+
+    } else {    // w_next_idx < w_idx
+
+        int i, j;
+
+        for (i = 0; i < self->capacity - w_idx; i++)
+        {
+            memset(self->data[w_idx + i], 0, self->ele_size);
+            memcpy(self->data[w_idx + i], elements[i], ele_lens[i]);
+        }
+
+        for (j = 0; j < w_next_idx; j++, i++)
+        {
+            memset(self->data[j], 0, self->ele_size);
+            memcpy(self->data[j], elements[i], ele_lens[i]);
+        }
+
+    }
+
+    nt_atomic_store64_explicit(&self->queue->write_idx,
+                               w_next_idx, ATOMIC_MEMORY_ORDER_RELEASE);
+
+    return true;
+}
+
+size_t shmring_pop_bulk(shmring_handle_t self, char **elements, size_t *max_lens, size_t count) {
+    assert(self);
+    assert(elements);
+    assert(max_lens);
+    assert(count > 0);
+
+    count = (count <= self->capacity) ? count : self->capacity - 1;
+
+    const uint64_t w_idx = nt_atomic_load64_explicit(
+            &self->queue->write_idx, ATOMIC_MEMORY_ORDER_RELAXED);
+    
+    const uint64_t r_idx = nt_atomic_load64_explicit(
+        &self->queue->read_idx, ATOMIC_MEMORY_ORDER_CONSUME);
+
+    if (empty(w_idx, r_idx)) {
+        INFO("shmring is empty (w_idx=%ld, r_idx=%ld)", w_idx, r_idx);
+        return FAILED;
+    }
+
+    size_t pop_cnt, r_next_idx;
+    if (r_idx < w_idx) {
+
+        pop_cnt = (w_idx - r_idx >= count) ? count : w_idx - r_idx;
+        r_next_idx = next_index_bulk(r_idx, self->capacity, pop_cnt);
+
+        for (size_t i = 0; i < pop_cnt; i++)
+        {
+            memset(elements[i], 0, max_lens[i]);
+            memcpy(elements[i], self->data[self->queue->read_idx + i], max_lens[i]);
+        }
+
+    } else {    // r_idx > w_idx
+        int i;
+
+        pop_cnt = (self->capacity - r_idx + w_idx > count) ? count : self->capacity - 1 - r_idx + w_idx;
+        r_next_idx = next_index_bulk(r_idx, self->capacity, pop_cnt);
+
+        if (r_next_idx > r_idx || r_next_idx == 0) {
+            for (i = 0; i < pop_cnt; i++)
+            {
+                memset(elements[i], 0, max_lens[i]);
+                memcpy(elements[i], self->data[self->queue->read_idx + i], max_lens[i]);
+            }
+
+        } else {
+            uint64_t curr_read_idx = r_idx;
+            i = 0;
+
+            for (; curr_read_idx < self->capacity; i++, curr_read_idx++)
+            {
+                memset(elements[i], 0, max_lens[i]);
+                memcpy(elements[i], self->data[curr_read_idx], max_lens[i]);
+            }
+
+            for (curr_read_idx = 0; curr_read_idx < r_next_idx; curr_read_idx++, i++)
+            {
+                memset(elements[i], 0, max_lens[i]);
+                memcpy(elements[i], self->data[curr_read_idx], max_lens[i]);
+            }
+        }
+    }   
+
+    nt_atomic_store64_explicit(&self->queue->read_idx,
+                               r_next_idx, ATOMIC_MEMORY_ORDER_RELEASE);
+
+    return pop_cnt;
+}
+
+
 
 bool shmring_front(shmring_handle_t self, char *element, size_t ele_len) {
     assert(self);
@@ -256,7 +393,7 @@ bool shmring_front(shmring_handle_t self, char *element, size_t ele_len) {
     DEBUG("[front]value=%s", self->data[self->queue->read_idx]);
 
 
-    DEBUG("front shmring successfully!");
+    DEBUG("front shmring success!");
 
     return true;
 }

@@ -18,9 +18,12 @@ DEBUG = -g -O2
 CFLAGS += $(DEBUG) -Wall -std=c11 -D_BSD_SOURCE -DHAVE_GCC_C11_ATOMICS -DENABLE_DEBUG
 LDFLAGS+= -L$(LIB_PATH) -l$(LIB_NAME)
 
-TARGET=shmring ntp2nts-shm sem_shmring hashmap_main ep_eq_main ep_eqserver ep_eqclient
+TARGET=shmring ntp2nts-shm sem_shmring hashmap_main ep_eq_main ep_eqserver ep_eqclient \
+			bulk_shmring multi_thread_bulk_shmring ntp2nts-bulk-shm
 
-all: clean $(LIB_OBJS) fdu_utils_static_lib fdu_utils_shared_lib local-install shmring ntp2nts-shm sem_shmring hashmap_main ep_eq_main ep_eqserver ep_eqclient
+all: clean $(LIB_OBJS) fdu_utils_static_lib fdu_utils_shared_lib local-install shmring ntp2nts-shm \
+		sem_shmring hashmap_main ep_eq_main ep_eqserver ep_eqclient \
+		bulk_shmring multi_thread_bulk_shmring ntp2nts-bulk-shm
 	rm -f *.o 
 	mv $(TARGET) $(BIN_PATH)
 	cp lib$(LIB_NAME).* $(LIB_PATH)
@@ -30,6 +33,12 @@ all: clean $(LIB_OBJS) fdu_utils_static_lib fdu_utils_shared_lib local-install s
 shmring: shmring_main.c 
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS) -I$(INC_PATH)
 	# mv $(TARGET) $(BIN_PATH)
+
+bulk_shmring: shmring_bulk_main.c 
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS) -I$(INC_PATH)
+
+multi_thread_bulk_shmring: shmring_bulk_multi_thread_main.c
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS) -I$(INC_PATH)
 
 ntp2nts-shm: shm_main.c 
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS) -I$(INC_PATH)
@@ -50,6 +59,11 @@ ep_eqserver: ep_eqserver_main.c
 ep_eqclient: ep_eqclient_main.c
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS) -I$(INC_PATH)
 
+ntp2nts-bulk-shm: shm_bulk_main.c
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS) -I$(INC_PATH)
+
+
+
 fdu_utils_static_lib: $(LIB_OBJS)
 	ar cq lib$(LIB_NAME).a $^ 
 
@@ -61,7 +75,7 @@ $(LIB_OBJS): $(LIB_SRCS)
 
 
 clean: 
-	rm -rf *.o lib$(LIB_NAME).* $(TARGET) 
+	rm -rf *.o lib$(LIB_NAME).* $(TARGET) $(BIN_PATH)/* ${LIB_PATH}/*
 
 distclean:
 	rm -rf $(LIB_PATH)

@@ -10,7 +10,7 @@ extern "C" {
 #endif
 
 // max bytes of total bufs: 8 MB, = 256 * 32768 [(32 * 1024) = 32768]
-#define DEFAULT_MAX_BUFS 16 // define NTP_MAX_BUFS as [(a power of 2) -1] (65535 in our case)
+#define DEFAULT_MAX_BUFS 1024 // define NTP_MAX_BUFS as [(a power of 2) -1] (65535 in our case)
 
 #define NTP_SHM_NAME "nts-shm-ring"
 
@@ -35,6 +35,10 @@ shmring_handle_t shmring_init(char *shm_addr, size_t addrlen, size_t ele_size, s
 bool shmring_push(shmring_handle_t self, char *element, size_t ele_len);
 
 bool shmring_pop(shmring_handle_t self, char *element, size_t ele_len);
+
+bool shmring_push_bulk(shmring_handle_t self, char **elements, size_t *ele_lens, size_t count);
+
+size_t shmring_pop_bulk(shmring_handle_t self, char **elements, size_t *max_lens, size_t count);
 
 bool shmring_front(shmring_handle_t self, char *element, size_t ele_len);
 

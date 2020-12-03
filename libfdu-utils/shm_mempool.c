@@ -206,16 +206,15 @@ shm_mp_handler_t shm_mp_init(unsigned int block_len, unsigned int block_count, c
         tmp_mem += block_len;
     }
 
-#ifdef ENABLE_DEBUG
-    HashMapIterator iter = createHashMapIterator(mp_handler->mp_node_map);
-    while(hasNextHashMapIterator(iter)) {
-        iter = nextHashMapIterator(iter);
-        int idx = *(int *) iter->entry->value;
-        printf("{ key = %s, value = %d, hashcode=%d }\n", (char *)iter->entry->key, idx, iter->hashCode);
-    }
-    freeHashMapIterator(&iter);
-#endif  //ENABLE_DEBUG
-   
+
+    // HashMapIterator iter = createHashMapIterator(mp_handler->mp_node_map);
+    // while(hasNextHashMapIterator(iter)) {
+    //     iter = nextHashMapIterator(iter);
+    //     int idx = *(int *) iter->entry->value;
+    //     // printf("{ key = %s, value = %d, hashcode=%d }\n", (char *)iter->entry->key, idx, iter->hashCode);
+
+    // }
+    // freeHashMapIterator(&iter);
 
     ret = sem_post(mp_handler->sem_mutex);
     if (ret == -1) {
@@ -287,11 +286,10 @@ shm_mempool_node * shm_mp_malloc(shm_mp_handler_t mp_handler, unsigned int size)
 
     // print all node_idx and next_idx
 
-
     int node_idx = mp_handler->shm_mp->free_header_idx;
     if(UNLIKELY(node_idx == -1)) {
         ERR("no free shm-mempool node with free_header_idx=%d, free_tail_idx=%d", 
-            mp_handler->shm_mp->free_header_idx, mp_handler->shm_mp->free_tail_idx);
+                mp_handler->shm_mp->free_header_idx, mp_handler->shm_mp->free_tail_idx);
         shm_mp_runtime_print(mp_handler);
         ret = sem_post(mp_handler->sem_mutex);
         return NULL;
@@ -299,10 +297,12 @@ shm_mempool_node * shm_mp_malloc(shm_mp_handler_t mp_handler, unsigned int size)
     node = &mp_handler->shm_mp_nodes[node_idx];
     DEBUG("node->node_idx=%d, node_idx=%d", node->node_idx, node_idx);
     mp_handler->shm_mp->free_header_idx = node->next_node_idx;
+    if (node->next_node_idx == -1) {
+        printf("mp_handler->shm_mp->free_header_idx == -1, node_idx=%d\n", node->node_idx);
+    } 
     mp_handler->shm_mp->used_count++;
     
-    //todo:
-    node->next_node_idx = -1;
+    // TODO:
 
     // node->next_node_idx = mp_handler->shm_mp->used_header_idx;
     // mp_handler->shm_mp->used_header_idx = node->node_idx;
@@ -374,8 +374,9 @@ char * shm_offset_mem(shm_mp_handler_t mp_handler, int node_idx) {
 
 int shm_mp_free(shm_mp_handler_t mp_handler, shm_mempool_node * node) {
     assert(mp_handler);
-    DEBUG("shm_mp_free start.");
+    assert(node);
 
+    DEBUG("shm_mp_free start.");
     DEBUG("mp_handler->shm_mp: column=%d, total_count=%d, used_count=%d, block_len=%d \n", 
                 mp_handler->shm_mp->column, mp_handler->shm_mp->total_count, 
                 mp_handler->shm_mp->used_count, mp_handler->shm_mp->block_len);
@@ -389,12 +390,14 @@ int shm_mp_free(shm_mp_handler_t mp_handler, shm_mempool_node * node) {
     }
 
     DEBUG("free shm mempool nodes start.\n");
-    //todo:
+    // TODO:
     if(mp_handler->shm_mp->free_tail_idx != -1) {
         DEBUG("start update free_tail_idx=%d (!= -1), free_header_idx=%d", 
             mp_handler->shm_mp->free_tail_idx, mp_handler->shm_mp->free_header_idx);
 
-        node->next_node_idx = -1;
+        if(node->node_idx == -1) {
+            fprintf(stderr, "mp_free node->node_idx == -1 \n");
+        }
         
         mp_handler->shm_mp_nodes[mp_handler->shm_mp->free_tail_idx].next_node_idx = node->node_idx;
         mp_handler->shm_mp->free_tail_idx = node->node_idx;
@@ -405,7 +408,7 @@ int shm_mp_free(shm_mp_handler_t mp_handler, shm_mempool_node * node) {
 
     } else {
         DEBUG("free_tail_idx == -1, free_header_idx=%d", mp_handler->shm_mp->free_header_idx);
-
+        printf("free_tail_idx=%d, free_header_idx=%d, node_idx=%d\n", mp_handler->shm_mp->free_tail_idx, mp_handler->shm_mp->free_header_idx, node->node_idx);
         node->next_node_idx = -1;
         mp_handler->shm_mp->free_tail_idx = node->node_idx;
         mp_handler->shm_mp->free_header_idx = node->node_idx;

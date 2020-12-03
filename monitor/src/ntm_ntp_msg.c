@@ -26,6 +26,7 @@ void ntm_ntp_msgcopy(ntm_ntp_msg *src_msg, ntm_ntp_msg *target_msg)
 	target_msg->src_port = src_msg->src_port;
 	target_msg->dst_port = src_msg->dst_port;
 	target_msg->msg_type = src_msg->msg_type;
+	target_msg->partition_id = src_msg->partition_id;
 	target_msg->msg_len = src_msg->msg_len;
 	if (src_msg->msg_len > 0)
 	{
@@ -46,6 +47,7 @@ void ntp_ntm_msgcopy(ntp_ntm_msg *src_msg, ntp_ntm_msg *target_msg)
 	target_msg->src_port = src_msg->src_port;
 	target_msg->dst_port = src_msg->dst_port;
 	target_msg->msg_type = src_msg->msg_type;
+	target_msg->partition_id = src_msg->partition_id;
 	target_msg->msg_len = src_msg->msg_len;
 	if (src_msg->msg_len > 0)
 	{

@@ -15,11 +15,8 @@
 #include "utils.h"
 #include "nt_log.h"
 
-#ifdef  ENABLE_DEBUG
-DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
-#else  
 DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
-#endif  //ENABLE_DEBUG
+
 
 void ntp_msgcopy(ntp_msg *src_msg, ntp_msg *target_msg) {
 	assert(src_msg);

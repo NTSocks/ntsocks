@@ -24,6 +24,7 @@
 
 #include "ntp_ntm_shmring.h"
 #include "nt_atomic.h"
+#include "utils.h"
 #include "nt_log.h"
 
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DISABLE);
@@ -64,7 +65,7 @@ static inline uint64_t mask_increment(uint64_t current_idx, uint64_t mask)
 static inline uint64_t next_index(uint64_t current_idx, uint64_t max_size)
 {
     uint64_t ret = current_idx + 1;
-    while (NTS_UNLIKELY(ret >= max_size))
+    while (UNLIKELY(ret >= max_size))
         ret -= max_size;
 
     return ret;

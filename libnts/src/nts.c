@@ -95,6 +95,9 @@ int nts_context_init(const char *config_file) {
     }
 
     nts_ctx->init_flag = 1;
+    // init FD remmaping table
+	nts_ctx->fd_table = createHashMap(NULL, NULL);
+
     DEBUG("nts_context_init pass");
 
     return 0;
@@ -199,6 +202,20 @@ void nts_context_destroy() {
     freeHashMapIterator(&iter);
     Clear(nts_ctx->nt_epoll_map);
     nts_ctx->nt_epoll_map = NULL;
+    
+    // free fd_table
+    iter = createHashMapIterator(nts_ctx->fd_table);
+    while(hasNextHashMapIterator(iter)) {
+        iter = nextHashMapIterator(iter);
+        int * shadow_fd;
+        shadow_fd = (int *) iter->entry->key;
+        Remove(nts_ctx->fd_table, shadow_fd);
+        free(shadow_fd);
+    }
+    freeHashMapIterator(&iter);
+    Clear(nts_ctx->fd_table);
+	nts_ctx->fd_table = NULL;
+    
     
     if(nts_ctx->ntp_ctx) {
          free(nts_ctx->ntp_ctx);
