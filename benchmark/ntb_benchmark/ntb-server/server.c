@@ -46,7 +46,10 @@ void throughput_write(int sockfd, size_t *start_cycles, size_t *end_cycles);
 void throughput_write_with_ack(int sockfd, size_t *start_cycles, size_t *end_cycles);
 void pin_1thread_to_1core();
 void bandwidth_write(int sockfd);
+<<<<<<< HEAD
 
+=======
+>>>>>>> 24d53783e55f27f27dea95e37b09eef1f98f96db
 
 int main(int argc, char *argv[]){
     setvbuf(stdout, 0, _IONBF, 0);
@@ -158,9 +161,13 @@ void pin_1thread_to_1core(){
 }
 
 void *handle_connection(void* ptr){
+<<<<<<< HEAD
     struct conn_ctx * ctx;
     ctx = (struct conn_ctx *) ptr;
     int sockfd = ctx->sockfd;
+=======
+    int sockfd = *(int*)ptr;
+>>>>>>> 24d53783e55f27f27dea95e37b09eef1f98f96db
     printf("waiting for transfer data on %s:%d\n", server_ip, sockfd);
     if(thrds > 0){
         pin_1thread_to_1core();
@@ -193,7 +200,11 @@ void *handle_connection(void* ptr){
         }else {
             throughput_write(sockfd, &start_cycles, &end_cycles);
         }
+<<<<<<< HEAD
         throughput_report_perf(end_cycles - start_cycles, sockfd, ctx);
+=======
+        throughput_report_perf(end_cycles - start_cycles, sockfd);
+>>>>>>> 24d53783e55f27f27dea95e37b09eef1f98f96db
     }else if (run_latency == 2)
         bandwidth_write(sockfd);
     // char end_msg[32] = {0};
@@ -220,6 +231,7 @@ void latency_write_with_ack(int sockfd, size_t *start_cycles, size_t *end_cycles
     char msg[payload_size];
     char ack[payload_size];
     int n = 0;
+<<<<<<< HEAD
     int ret;
     for (size_t i = 0; i < num_req; ++i){
         start_cycles[i] = get_cycles();
@@ -230,11 +242,19 @@ void latency_write_with_ack(int sockfd, size_t *start_cycles, size_t *end_cycles
         // printf("[sockid = %d] write ret = %d, seq = %ld, msg='[%s]'\n", sockfd, ret, i+1, msg);
         if (ret <= 0) printf("[sockid = %d] ret = %d WRITE FAILED!!!!!!!!!!\n", sockfd, ret);
 
+=======
+    for (size_t i = 0; i < num_req; ++i){
+        start_cycles[i] = get_cycles();
+        write(sockfd, msg, payload_size);
+>>>>>>> 24d53783e55f27f27dea95e37b09eef1f98f96db
         n = payload_size;
         while (n > 0) {
             n = (n - read(sockfd, ack, n));
         }
+<<<<<<< HEAD
         // printf("[sockid = %d] --------recv %d bytes msg: [%s]-------\n", sockfd, payload_size, ack);
+=======
+>>>>>>> 24d53783e55f27f27dea95e37b09eef1f98f96db
         end_cycles[i] = get_cycles();
     }
 }
@@ -284,11 +304,17 @@ void latency_report_perf(size_t *start_cycles, size_t *end_cycles, int sockfd) {
     idx_99 = floor(num_req * 0.99);
     idx_99_9 = floor(num_req * 0.999);
     idx_99_99 = floor(num_req * 0.9999);
+<<<<<<< HEAD
 
     printf("@MEASUREMENT(requests = %d, payload size = %d, sockfd = %d):\n\
 MEDIAN = %.2f us\n50 TAIL = %.2f us\n99 TAIL = %.2f us\n99.9 TAIL = %.2f us\n99.99 TAIL = %.2f us\n", 
         num_req, payload_size, sockfd, sum/num_req, lat[idx_m], lat[idx_99], lat[idx_99_9], lat[idx_99_99]);
     
+=======
+    //printf("idx_99 = %lu; idx_99_t = %lu; idx_99_99 = %lu\n", idx_99, idx_99_9, idx_99_99);
+    printf("@MEASUREMENT(requests = %d, payload size = %d, sockfd = %d):\n", num_req, payload_size, sockfd);
+    printf("MEDIAN = %.2f us\n50 TAIL = %.2f us\n99 TAIL = %.2f us\n99.9 TAIL = %.2f us\n99.99 TAIL = %.2f us\n", sum/num_req, lat[idx_m], lat[idx_99], lat[idx_99_9], lat[idx_99_99]);
+>>>>>>> 24d53783e55f27f27dea95e37b09eef1f98f96db
     free(lat);
 }
 
@@ -304,9 +330,14 @@ void throughput_report_perf(size_t duration, int sockfd, struct conn_ctx* ctx) {
     tput_bw_total[ctx->id] = tput_bw;
 
     // bandwidth
+<<<<<<< HEAD
     printf("@MEASUREMENT(requests = %d, payload size = %d, sockfd = %d):\n\
 total time = %.2f us\nTHROUGHPUT1 = %.2f REQ/s\nBandWidth = %.2f Gbps", 
         num_req, payload_size, sockfd, total_time, tput1, tput_bw);
+=======
+    printf("@MEASUREMENT(requests = %d, payload size = %d, sockfd = %d):\n", num_req, payload_size, sockfd);
+    printf("total time = %.2f us\nTHROUGHPUT1 = %.2f REQ/s\n", total_time, tput1);
+>>>>>>> 24d53783e55f27f27dea95e37b09eef1f98f96db
 }
 
 void usage(char *program){

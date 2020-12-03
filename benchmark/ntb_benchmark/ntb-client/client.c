@@ -135,16 +135,27 @@ void *handle_connection(void* ptr){
     if (run_latency == 0){
         if(with_ack){
             latency_read_with_ack(sockfd);
+<<<<<<< HEAD
         } else {
             latency_read(sockfd);
         }
     } else if (run_latency == 1){
+=======
+        }else {
+            latency_read(sockfd);
+        }
+    }else if (run_latency == 1){
+>>>>>>> 24d53783e55f27f27dea95e37b09eef1f98f96db
         if(with_ack){
             throughput_read_with_ack(sockfd);
         }else {
             throughput_read(sockfd);
         }
+<<<<<<< HEAD
     } else if (run_latency == 2)
+=======
+    }else if (run_latency == 2)
+>>>>>>> 24d53783e55f27f27dea95e37b09eef1f98f96db
         bandwidth_read(sockfd);
     // close(sockfd);
     getchar();
@@ -180,6 +191,7 @@ void latency_read_with_ack(int sockfd){
     char msg[payload_size];
     char ack[payload_size];
     int n = 0;
+<<<<<<< HEAD
     int ret;
     for (size_t i = 0; i < num_req; ++i) {
         n = payload_size;
@@ -194,6 +206,14 @@ void latency_read_with_ack(int sockfd){
         if (ret != payload_size) {
             printf("[sockid = %d] send back %ld ACK msg failed\n", sockfd, i+1);
         }
+=======
+    for (size_t i = 0; i < num_req; ++i) {
+        n = payload_size;
+        while (n > 0) {
+            n = (n - read(sockfd, msg, n));
+        }
+        write(sockfd, ack, payload_size);
+>>>>>>> 24d53783e55f27f27dea95e37b09eef1f98f96db
     }
 }
 
