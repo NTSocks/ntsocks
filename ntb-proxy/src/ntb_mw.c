@@ -96,7 +96,6 @@ int ntb_data_msg_add_header(struct ntpacket *msg, uint16_t src_port,
 
 int parser_data_len_get_type(struct ntb_data_link *data_link, uint16_t msg_len)
 {
-    DEBUG("parser_data_len_get_type");
     if (msg_len & 1 << 15)
     {
         trans_data_link_cur_index(data_link);
@@ -165,6 +164,7 @@ int ntb_pure_data_msg_enqueue(struct ntb_data_link *data_link, uint8_t *msg, int
     //ptr = r->start_addr + r->cur_index * NTP_CONFIG.data_packet_size
     uint8_t *ptr = r->start_addr + (r->cur_index << NTP_CONFIG.ntb_packetbits_size);
     rte_memcpy(ptr, msg, data_len);
+    
     r->cur_index = next_index;
 
     // DEBUG("ntb_pure_data_msg_enqueue end");
@@ -248,7 +248,7 @@ int ntb_data_msg_enqueue2(struct ntb_data_link *data_link, ntp_msg *outgoing_msg
         }
 
         rte_memcpy(write_addr + MSGLEN_OFFSET, &msg_len, MSGLEN_SIZE);    // msg_len: 2 bytes
-        rte_memcpy(write_addr + NTPACKET_HEADER_LEN, (uint8_t *)outgoing_msg->payload, NTP_CONFIG.data_packet_size);
+        rte_memcpy(write_addr + NTPACKET_HEADER_LEN, (uint8_t *)outgoing_msg->payload, NTP_CONFIG.data_packet_size - NTPACKET_HEADER_LEN);
     }
 
     peer_dataring->cur_index = next_write_idx;
@@ -279,6 +279,7 @@ int ntb_data_msg_enqueue(struct ntb_data_link *data_link, struct ntpacket *msg)
     }
 
     uint8_t *ptr = r->start_addr + (r->cur_index << NTP_CONFIG.ntb_packetbits_size);
+    // msg_len contains NTPACKET_HEADER_LEN, msg_len = NTPACKET_HEADER_LEN + payload_length
     if (msg_len <= NTP_CONFIG.data_packet_size)
     {
         // remote peer write_index, read_index, 0x3ff == 1023
@@ -287,7 +288,8 @@ int ntb_data_msg_enqueue(struct ntb_data_link *data_link, struct ntpacket *msg)
             //PSH: update local shadow read_index using remote write by peer side
             msg->header->msg_len |= (1 << 15);   
         }
-        rte_memcpy(ptr, msg, msg_len);
+        rte_memcpy(ptr, msg->header, NTPACKET_HEADER_LEN);
+        rte_memcpy(ptr + NTPACKET_HEADER_LEN, msg->payload, msg_len - NTPACKET_HEADER_LEN);
     }
     else
     {
@@ -296,7 +298,8 @@ int ntb_data_msg_enqueue(struct ntb_data_link *data_link, struct ntpacket *msg)
         {
             msg->header->msg_len |= (1 << 15);
         }
-        rte_memcpy(ptr, msg, NTP_CONFIG.data_packet_size);
+        rte_memcpy(ptr, msg->header, NTPACKET_HEADER_LEN);
+        rte_memcpy(ptr + NTPACKET_HEADER_LEN, msg->payload, NTP_CONFIG.data_packet_size - NTPACKET_HEADER_LEN);
     }
     // DEBUG("enqueue cur_index = %ld",r->cur_index);
     r->cur_index = next_index;
@@ -352,7 +355,9 @@ int ntpacket_enqueue(struct ntb_data_link *data_link,
 
     struct ntb_ring_buffer *peer_dataring = data_link->remote_ring;
     uint16_t msg_len = packet_header->msg_len;
+    
     msg_len &= 0x0fff;
+    DEBUG("[ntpacket_enqueue] msg_len=%d, packet_header->msg_len=%d\n", msg_len, packet_header->msg_len);
 
     uint64_t next_index;
     next_index = peer_dataring->cur_index + 1 < peer_dataring->capacity ? peer_dataring->cur_index + 1 : 0;
@@ -365,7 +370,7 @@ int ntpacket_enqueue(struct ntb_data_link *data_link,
         // DEBUG("next_index = %ld,*data_link->local_cum_ptr= %ld",next_index,*data_link->local_cum_ptr);
         full_cnt++;
         if (full_cnt % cnt_window == 0) {
-            usleep(100);   
+            usleep(sleep_us);   
         }
         sched_yield();
     }
@@ -379,7 +384,8 @@ int ntpacket_enqueue(struct ntb_data_link *data_link,
             //PSH: update local shadow read_index using remote write by peer side
             packet_header->msg_len |= (1 << 15);   
         }
-        rte_memcpy(ptr, source_msg, msg_len);
+        rte_memcpy(ptr, source_msg->header, NTPACKET_HEADER_LEN);
+        rte_memcpy(ptr + NTPACKET_HEADER_LEN, source_msg->payload, msg_len - NTPACKET_HEADER_LEN);
     }
     else
     {
@@ -387,9 +393,11 @@ int ntpacket_enqueue(struct ntb_data_link *data_link,
         if (UNLIKELY(((next_index + (msg_len >> NTP_CONFIG.ntb_packetbits_size)) & 0xfc00) != (peer_dataring->cur_index & 0xfc00)))    ///???
         {
             packet_header->msg_len |= (1 << 15);
-        }
-        rte_memcpy(ptr, source_msg, NTP_CONFIG.data_packet_size);
+        } 
+        rte_memcpy(ptr, source_msg->header, NTPACKET_HEADER_LEN);
+        rte_memcpy(ptr + NTPACKET_HEADER_LEN, source_msg->payload, NTP_CONFIG.data_packet_size - NTPACKET_HEADER_LEN);
     }
+
     // DEBUG("enqueue cur_index = %ld",r->cur_index);
     peer_dataring->cur_index = next_index;
 
@@ -451,7 +459,7 @@ struct ntb_link_custom * ntb_start(uint16_t dev_id)
 
     dev = &rte_rawdevs[dev_id];
 
-    load_conf(CONFIG_FILE);
+    // load_conf(CONFIG_FILE);
     NTP_CONFIG.data_packet_size = 1 << NTP_CONFIG.ntb_packetbits_size;
 
     struct ntb_link_custom *ntb_link = malloc(sizeof(*ntb_link));

@@ -273,7 +273,7 @@ int ntp_send_buff_data(struct ntb_data_link *data_link, ntb_partition_t partitio
         data_len = send_msg.header->msg_len;
         if (LIKELY(data_len <= NTP_CONFIG.datapacket_payload_size))
         {
-            pack_ntpacket_header(send_msg.header, src_port, dst_port, 0, SINGLE_PKG);
+            pack_ntpacket_header(send_msg.header, src_port, dst_port, data_len, SINGLE_PKG);
             ntpacket_enqueue(data_link, send_msg.header, &send_msg);
             // ntb_data_msg_enqueue2(data_link, &send_msg, 
             //             src_port, dst_port, data_len, SINGLE_PKG);
@@ -306,12 +306,7 @@ int ntp_send_buff_data(struct ntb_data_link *data_link, ntb_partition_t partitio
         // global_send_data += send_msg.header->msg_len;
         // global_send_msg += 1;
         // DEBUG("send_msg counter = %ld,send_msg_len counter = %ld", global_send_msg, global_send_data);
-        shm_mempool_node *tmp_node;
-        tmp_node = shm_mp_node_by_shmaddr(ring->mp_handler, (char *)send_msg.header);
-        if (tmp_node)
-        {
-            shm_mp_free(ring->mp_handler, tmp_node);
-        }
+        ntp_shm_ntpacket_free(ring, &send_msg);
     }
 
     i = 0;
@@ -329,7 +324,7 @@ int ntp_send_buff_data(struct ntb_data_link *data_link, ntb_partition_t partitio
 int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_custom *ntb_link, ntb_partition_t partition)
 {
     struct ntb_ring_buffer *recv_dataring = data_link->local_ring;  // local NTB-based data ringbuffer
-    volatile struct ntpacket *msg, *fin_msg;
+    volatile struct ntpacket msg, fin_msg;
     uint16_t msg_len, first_len;
     uint8_t msg_type;
     uint16_t src_port = 0;
@@ -339,27 +334,30 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
     int i, count;
     uint64_t next_index, fin_index, temp_index;
     int rc;
+    void * packet_ptr;
 
     while (1)
     {
-        msg = (struct ntpacket *)(recv_dataring->start_addr + 
+        packet_ptr = (void *)(recv_dataring->start_addr + 
                     (recv_dataring->cur_index << NTP_CONFIG.ntb_packetbits_size));
-        msg_len = msg->header->msg_len;
+        rc = parse_ntpacket(packet_ptr, &msg);
+        if (rc == -1)   continue;
 
-        //if no msg,continue
-        if (msg_len == 0)
+        // if no msg,continue
+        if (msg.header && msg.header->msg_len == 0)
         {
             continue;
         }
 
+        msg_len = msg.header->msg_len;
         msg_len &= 0x0fff; // compute real msg_len == end 12 bits
-        msg_type = parser_data_len_get_type(data_link, msg->header->msg_len);
+        msg_type = parser_data_len_get_type(data_link, msg.header->msg_len);
         //如果当前包端口号与上次比有所改变，需要重新Get conn
-        if (src_port != msg->header->dst_port || dst_port != msg->header->src_port)
+        if (src_port != msg.header->dst_port || dst_port != msg.header->src_port)
         {
             //解析接收的包时将src和dst port交换
-            src_port = msg->header->dst_port;
-            dst_port = msg->header->src_port;
+            src_port = msg.header->dst_port;
+            dst_port = msg.header->src_port;
             conn_id = create_conn_id(src_port, dst_port);
             conn = (ntb_conn *)Get(ntb_link->port2conn, &conn_id);
             // DEBUG("search conn_id = %d", conn_id);
@@ -376,27 +374,23 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
             for (i = 0; i < count; i++)
             {
                 temp_index = temp_index + 1 < recv_dataring->capacity ? temp_index + 1 : 0;
-                msg = (struct ntpacket *)(recv_dataring->start_addr + (temp_index << NTP_CONFIG.ntb_packetbits_size));
-                msg->header->msg_len = 0;
+                packet_ptr = (void *)(recv_dataring->start_addr + (temp_index << NTP_CONFIG.ntb_packetbits_size));
+                rc = parse_ntpacket(packet_ptr, &msg);
+                if (rc == -1 || !msg.header) {
+                    continue;
+                }
+                msg.header->msg_len = 0;
             }
             recv_dataring->cur_index = temp_index + 1 < recv_dataring->capacity ? temp_index + 1 : 0;
             continue;
         }
 
         // switch to the libfdu-utils
-        shm_mempool_node *mp_node;
-        mp_node = shm_mp_malloc(conn->nts_recv_ring->mp_handler, sizeof(ntp_msg));
-        if (mp_node == NULL)
-        {
-            ERR("shm_mp_malloc failed. \n");
-            return -1;
-        }
-
         ntp_msg recv_msg;
-        recv_msg.header = (ntpacket_header_t) shm_offset_mem(conn->nts_recv_ring->mp_handler, mp_node->node_idx);
-        if (recv_msg.header == NULL)
-        {
-            ERR("shm_offset_mem failed");
+        rc = ntp_shm_ntpacket_alloc(conn->nts_recv_ring, 
+                        &recv_msg, NTP_CONFIG.data_packet_size);
+        if (rc == -1) {
+            ERR("ntp_shm_ntpacket_alloc failed");
             return -1;
         }
 
@@ -407,10 +401,11 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
 
         if (msg_type == SINGLE_PKG)
         {
-            // DEBUG("receive SINGLE_PKG start");
+            DEBUG("receive SINGLE_PKG start");
             recv_msg.header->msg_type = NTP_DATA;
             recv_msg.header->msg_len = msg_len - NTPACKET_HEADER_LEN;
-            rte_memcpy(recv_msg.payload, msg->payload, recv_msg.header->msg_len);
+            rte_memcpy(recv_msg.payload, msg.payload, recv_msg.header->msg_len);
+
 
             rc = ntp_shm_send(conn->nts_recv_ring, &recv_msg);
             if (UNLIKELY(rc == -1)) {
@@ -419,7 +414,7 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
             }
 
             //将msg_len置为0，cur_index++
-            msg->header->msg_len = 0;
+            msg.header->msg_len = 0;
             // if(recv_dataring->cur_index +1 >= max_cap)
             recv_dataring->cur_index = recv_dataring->cur_index + 1 < recv_dataring->capacity ? recv_dataring->cur_index + 1 : 0;
             // global_rece_data += recv_msg.header->msg_len;
@@ -437,8 +432,11 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
             next_index = temp_index + ((msg_len + NTP_CONFIG.data_packet_size - 1) >> NTP_CONFIG.ntb_packetbits_size); // fix recv_msg.header->msg_len to msg_len
             fin_index = next_index < recv_dataring->capacity ? next_index : next_index - recv_dataring->capacity;
             //fin_msg 为ENF_MULTI包应该抵达的位置
-            fin_msg = (struct ntpacket *)(recv_dataring->start_addr + (fin_index << NTP_CONFIG.ntb_packetbits_size));
-            while (UNLIKELY(fin_msg->header->msg_len == 0))
+            packet_ptr = (void *)(recv_dataring->start_addr + (fin_index << NTP_CONFIG.ntb_packetbits_size));
+            rc = parse_ntpacket(packet_ptr, &fin_msg);
+            if (UNLIKELY(rc == -1))   return -1;
+
+            while (UNLIKELY(fin_msg.header->msg_len == 0))
             {
                 // INFO("waiting for enf_mulit msg,waiting_index = %ld", fin_index);
                 sched_yield();
@@ -446,20 +444,24 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
 
             if (next_index <= recv_dataring->capacity)
             {
-                rte_memcpy(recv_msg.payload, msg->payload, recv_msg.header->msg_len);
+                rte_memcpy(recv_msg.payload, msg.payload, recv_msg.header->msg_len);
             }
             else
             {
                 first_len = ((recv_dataring->capacity - temp_index - 1) << NTP_CONFIG.ntb_packetbits_size) + NTP_CONFIG.datapacket_payload_size;
-                rte_memcpy(recv_msg.payload, msg->payload, first_len);
+                rte_memcpy(recv_msg.payload, msg.payload, first_len);
                 rte_memcpy((recv_msg.payload + first_len), recv_dataring->start_addr, recv_msg.header->msg_len - first_len);
             }
             // 将所有接收到的消息清空
             for (i = 0; i <= next_index - recv_dataring->cur_index; i++)
             {
-                msg = (struct ntpacket *)(recv_dataring->start_addr + (temp_index << NTP_CONFIG.ntb_packetbits_size));
-                msg->header->msg_len = 0;
+                packet_ptr = (void *)(recv_dataring->start_addr + (temp_index << NTP_CONFIG.ntb_packetbits_size));
                 temp_index = temp_index + 1 < recv_dataring->capacity ? temp_index + 1 : 0;
+                rc = parse_ntpacket(packet_ptr, &msg);
+                if (rc == -1 || !msg.header) {
+                    continue;
+                }
+                msg.header->msg_len = 0;
             }
             // global_rece_data += recv_msg.header->msg_len;
             // global_rece_msg += 1;
@@ -478,8 +480,8 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
         else if (msg_type == DETECT_PKG)
         {
             INFO("receive DETECT_PKG");
-            detect_pkg_handler(ntb_link, msg->header->src_port, msg->header->dst_port, conn); // send the response msg of DETECT_PKG to ntb control msg link (peer node)
-            msg->header->msg_len = 0;
+            detect_pkg_handler(ntb_link, msg.header->src_port, msg.header->dst_port, conn); // send the response msg of DETECT_PKG to ntb control msg link (peer node)
+            msg.header->msg_len = 0;
             recv_dataring->cur_index = recv_dataring->cur_index + 1 < recv_dataring->capacity ? recv_dataring->cur_index + 1 : 0;
         }
         else if (msg_type == FIN_PKG)
@@ -496,14 +498,14 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
 
             conn->state = PASSIVE_CLOSE;
             // DEBUG("conn->state change to passive_close");
-            msg->header->msg_len = 0;
+            msg.header->msg_len = 0;
             //收到FIN包将state置为CLOSE—CLIENT。遍历ring_list时判断conn->state来close移出node并free
             recv_dataring->cur_index = recv_dataring->cur_index + 1 < recv_dataring->capacity ? recv_dataring->cur_index + 1 : 0;
         }
         else
         {
             ERR("msg_type error");
-            msg->header->msg_len = 0;
+            msg.header->msg_len = 0;
             recv_dataring->cur_index = recv_dataring->cur_index + 1 < recv_dataring->capacity ? recv_dataring->cur_index + 1 : 0;
         }
     }

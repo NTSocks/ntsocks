@@ -16,7 +16,7 @@
  * debug control, you can switch on (delete 'x' suffix)
  * to enable log output and assert mechanism
  */
-#define CONFIG_ENABLE_DEBUG
+// #define CONFIG_ENABLE_DEBUG
 
 /*
  * debug level,
@@ -85,6 +85,7 @@ do {                                                    \
 
 #else   /* CONFIG_ENABLE_DEBUG  */
 
+#include <stdio.h>
 #define DEBUG_SET_LEVEL(x)
 #define ASSERT()
 #define ERR(fmt, ...)

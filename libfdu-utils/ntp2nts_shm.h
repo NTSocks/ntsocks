@@ -91,6 +91,18 @@ extern "C"
      */
 	void ntp_shm_destroy(ntp_shm_context_t shm_ctx);
 
+	/**
+     * used by libnts app and ntp to allocate ntpacket memory from shm mempool 
+	 *	return 0 if success; return -1 if failed
+     */
+	int ntp_shm_ntpacket_alloc(ntp_shm_context_t shm_ctx, ntp_msg *buf, size_t mtu_size);
+
+	/**
+	 * used by libnts and ntp to free ntpacket memory into shm mempool
+	 */
+	void ntp_shm_ntpacket_free(ntp_shm_context_t shm_ctx, ntp_msg *buf);
+
+
 #ifdef __cplusplus
 };
 #endif

@@ -43,16 +43,18 @@ int main() {
 
 
         ntp_msg msg;
-        msg.header = (ntpacket_header_t) shm_offset_mem(ntp_shm_ctx->mp_handler, mp_node->node_idx);
+        void* ptr = (void*)shm_offset_mem(ntp_shm_ctx->mp_handler, mp_node->node_idx);
+        msg.header = (ntpacket_header_t) ptr;
         if (msg.header == NULL) {
             perror("shm_offset_mem failed \n");
             return -1;
         }
 
         msg.header->msg_type = NTP_NTS_MSG_DATA;
-        sprintf(msg.payload, "msg-%d", (int)i);
+        msg.payload = (char *)((uint8_t *)ptr + NTPACKET_HEADER_LEN);
+        sprintf(msg.payload, "msg-%ld", i);
         msg.header->msg_len = strlen(msg.payload);
-
+        printf("msg: %s\n", (char*) (msg.header + NTPACKET_HEADER_LEN));
 
         retval = ntp_shm_send(ntp_shm_ctx, &msg);
         if(retval == -1) {
@@ -61,7 +63,6 @@ int main() {
         }
 
         printf("send '%s' success\n", msg.payload);
-
     }
     
 

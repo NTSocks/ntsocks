@@ -18,7 +18,7 @@
 #include "ntm_shm.h"
 #include "nts_shm.h"
 #include "nt_log.h"
-DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
+DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 
 
@@ -961,23 +961,14 @@ int nts_close(int sockid) {
 	DEBUG("actively disconnect/close active or ESTABLISHED client nt_socket [sockfd=%d]", sockid);
 	nt_sock_ctx->socket->state = WAIT_FIN;
 
-
-
 	/* ready to ntp shm send ntp_msg */
-	shm_mempool_node *mp_node;
-    mp_node = shm_mp_malloc(nt_sock_ctx->ntp_send_ctx->mp_handler, NTS_CONFIG.mtu_size);
-    if (mp_node == NULL) {
-        // perror("shm_mp_malloc failed. \n");
-        return -1;
-    }
-
 	ntp_msg ntp_outgoing_msg;
-	ntp_outgoing_msg.header = (ntpacket_header_t) shm_offset_mem(nt_sock_ctx->ntp_send_ctx->mp_handler, mp_node->node_idx);
-    if (ntp_outgoing_msg.header == NULL) {
-        perror("shm_offset_mem failed \n");
-        return -1;
-    }
-
+	retval = ntp_shm_ntpacket_alloc(nt_sock_ctx->ntp_send_ctx, 
+					&ntp_outgoing_msg, NTS_CONFIG.mtu_size);
+	if (retval == -1) {
+		ERR("ntp_shm_ntpacket_alloc failed");
+		return -1;
+	}
 
 	ntp_outgoing_msg.header->msg_type = NTP_NTS_MSG_FIN;
 	ntp_outgoing_msg.header->msg_len = 0;
@@ -1179,6 +1170,7 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 
 		payload = incoming_data.payload;
 		payload_len = incoming_data.header->msg_len;
+		DEBUG("[nts_read] payload='%s', payload_len=%d\n", payload, payload_len);
 	} 
 	
 
@@ -1208,14 +1200,10 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 					nt_sock_ctx->ntp_buflen = 0;
 				}
 
-				
-				tmp_node = shm_mp_node_by_shmaddr(nt_sock_ctx->ntp_recv_ctx->mp_handler, (char *)incoming_data.header);
-				DEBUG("tmp_node->node_idx=%d", tmp_node->node_idx);
-				if(tmp_node) {
-					shm_mp_free(nt_sock_ctx->ntp_recv_ctx->mp_handler, tmp_node);
-				}
-
-				DEBUG("bytes_read =%d, bytes_left = %d", bytes_read, bytes_left);
+				// free ntpacket into shm mempool
+				ntp_shm_ntpacket_free(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
+		
+				DEBUG("bytes_read =%d, bytes_left = %d, data=%s", bytes_read, bytes_left, ptr);
 				break;
 
 			} else {
@@ -1228,11 +1216,7 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 				memcpy(nt_sock_ctx->ntp_buf, payload, bytes_left);
 				nt_sock_ctx->ntp_buflen = bytes_left;
 
-				tmp_node = shm_mp_node_by_shmaddr(nt_sock_ctx->ntp_recv_ctx->mp_handler, (char *)incoming_data.header);
-				DEBUG("tmp_node->node_idx=%d", tmp_node->node_idx);
-				if(tmp_node) {
-					shm_mp_free(nt_sock_ctx->ntp_recv_ctx->mp_handler, tmp_node);
-				}
+				ntp_shm_ntpacket_free(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
 
 				break;
 
@@ -1248,14 +1232,8 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 				memcpy(nt_sock_ctx->ntp_buf, payload, bytes_left);
 				nt_sock_ctx->ntp_buflen = bytes_left;
 
-				tmp_node = shm_mp_node_by_shmaddr(nt_sock_ctx->ntp_recv_ctx->mp_handler, (char *)incoming_data.header);
-				DEBUG("tmp_node->node_idx=%d", tmp_node->node_idx);
-				if(tmp_node) {
-					shm_mp_free(nt_sock_ctx->ntp_recv_ctx->mp_handler, tmp_node);
-				}
-
+				ntp_shm_ntpacket_free(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
 				break;
-
 			} 
 			else if(buf_avail_bytes == bytes_left) {
 				DEBUG("buf_avail_bytes == bytes_left with bytes_read=%d", bytes_read);
@@ -1267,14 +1245,8 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 					nt_sock_ctx->ntp_buflen = 0;
 				}
 
-				tmp_node = shm_mp_node_by_shmaddr(nt_sock_ctx->ntp_recv_ctx->mp_handler, (char *)incoming_data.header);
-				DEBUG("tmp_node->node_idx=%d", tmp_node->node_idx);
-				if(tmp_node) {
-					shm_mp_free(nt_sock_ctx->ntp_recv_ctx->mp_handler, tmp_node);
-				}
-				
+				ntp_shm_ntpacket_free(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
 				break;
-
 			} 
 			else {	// avaliable buf size > msg_len or buf_avail_bytes > bytes_left
 
@@ -1290,13 +1262,7 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 				bytes_read += bytes_left;
 				DEBUG("bytes_read =%d, bytes_left = %d", bytes_read, bytes_left);
 
-				tmp_node = shm_mp_node_by_shmaddr(nt_sock_ctx->ntp_recv_ctx->mp_handler, (char *)incoming_data.header);
-				DEBUG("tmp_node->node_idx=%d", tmp_node->node_idx);
-				if(tmp_node) {
-					shm_mp_free(nt_sock_ctx->ntp_recv_ctx->mp_handler, tmp_node);
-				}
-
-				
+				ntp_shm_ntpacket_free(nt_sock_ctx->ntp_recv_ctx, &incoming_data);			
 
 				/**
 				 * ntp_shm_recv()/ntp_shm_front() poll next message
@@ -1399,19 +1365,13 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 
 
 	/* ready to ntp shm send ntp_msg */
-	shm_mempool_node *mp_node;
-    mp_node = shm_mp_malloc(nt_sock_ctx->ntp_send_ctx->mp_handler, NTS_CONFIG.mtu_size);
-    if (mp_node == NULL) {
-        // perror("shm_mp_malloc failed. \n");
-        return -1;
-    }
-
 	ntp_msg outgoing_msg;
-	outgoing_msg.header = (ntpacket_header_t) shm_offset_mem(nt_sock_ctx->ntp_send_ctx->mp_handler, mp_node->node_idx);
-    if (outgoing_msg.header == NULL) {
-        perror("shm_offset_mem failed \n");
-        return -1;
-    }
+	retval = ntp_shm_ntpacket_alloc(nt_sock_ctx->ntp_send_ctx, 
+					&outgoing_msg, NTS_CONFIG.mtu_size);
+	if (retval == -1) {
+		ERR("ntp_shm_ntpacket_alloc failed");
+		return -1;
+	}
 
 	outgoing_msg.header->msg_type = NTP_NTS_MSG_DATA;
 	outgoing_msg.header->msg_len = nbytes < NTS_CONFIG.max_payloadsize ? nbytes : NTS_CONFIG.max_payloadsize;
@@ -1424,8 +1384,8 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 		goto FAIL;
 	}
 
-	while(retval == 0){
-		DEBUG("ntp_shm_send NTP_NTS_MSG_DATA msg success");
+	while(retval == 0) {
+		// DEBUG("ntp_shm_send NTP_NTS_MSG_DATA msg success");
 
 		write_bytes += outgoing_msg.header->msg_len;
 		int next_msg_len;
@@ -1441,18 +1401,13 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 
 
 		/* ready to ntp shm send ntp_msg */
-		shm_mempool_node * send_mp_node;
-		send_mp_node = shm_mp_malloc(nt_sock_ctx->ntp_send_ctx->mp_handler, NTS_CONFIG.mtu_size);
-		if (send_mp_node == NULL) {
-			// perror("shm_mp_malloc failed. \n");
+		retval = ntp_shm_ntpacket_alloc(nt_sock_ctx->ntp_send_ctx, 
+						&outgoing_msg, NTS_CONFIG.mtu_size);
+		if (retval == -1) {
+			ERR("ntp_shm_ntpacket_alloc failed");
 			return -1;
 		}
 
-		outgoing_msg.header = (ntpacket_header_t) shm_offset_mem(nt_sock_ctx->ntp_send_ctx->mp_handler, send_mp_node->node_idx);
-		if (outgoing_msg.header == NULL) {
-			perror("shm_offset_mem failed \n");
-			return -1;
-		}
 		outgoing_msg.header->msg_type = NTP_NTS_MSG_DATA;
 		outgoing_msg.header->msg_len = next_msg_len;
 

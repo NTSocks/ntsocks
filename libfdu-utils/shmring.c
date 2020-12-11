@@ -245,9 +245,7 @@ bool shmring_pop(shmring_handle_t self, char *element, size_t ele_len) {
                                mask_increment(r_idx, self->MASK), ATOMIC_MEMORY_ORDER_RELEASE);
 
     DEBUG("pop shmring successfully!");
-
     return true;
-
 }
 
 bool shmring_front(shmring_handle_t self, char *element, size_t ele_len) {

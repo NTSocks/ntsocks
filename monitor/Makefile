@@ -2,11 +2,12 @@ CROSS =
 CC = $(CROSS)gcc
 CXX = $(CROSS)g++
 DEBUG = -g -O2
-CFLAGS = $(DEBUG) -Wall -std=c11 -c -D_BSD_SOURCE -DHAVE_GCC_C11_ATOMICS
-TARGET_CFLAGS = $(DEBUG) -Wall -std=c11 -D_BSD_SOURCE -DHAVE_GCC_C11_ATOMICS
+CFLAGS = $(DEBUG) -Wall -std=c11 -c -D_BSD_SOURCE -DHAVE_GCC_C11_ATOMICS 
+TARGET_CFLAGS = $(DEBUG) -Wall -std=c11 -D_BSD_SOURCE -DHAVE_GCC_C11_ATOMICS 
 TEST_TARGET_CPPFLAGS = $(DEBUG) -std=c++11 -Wall -D_BSD_SOURCE -DHAVE_GCC_C11_ATOMICS
 CPPFLAGS = -std=c++11 -Wall
 RM = rm -rf
+#-DCONFIG_ENABLE_DEBUG
 
 LIB_DIR = lib
 TEST_DIR = tests
@@ -17,8 +18,8 @@ OBJS = $(patsubst %.c, %.o, $(SRCS))
 TEST_SRCS = $(wildcard $(TEST_DIR)/**/*.cpp $(TEST_DIR)/*.cpp)
 TEST_OBJS = $(patsubst %.cpp, %.o, $(TEST_SRCS))
 
-INCLUDE_PATH = -I./include/ -I./src/include/ -I./src/utils/include
-LIB_PATH = -L./lib/
+INCLUDE_PATH = -I./include/ -I./src/include/ -I./src/utils/include -I/usr/local/include
+LIB_PATH = -L./lib/ -lfdu-utils
 
 LIBS = -lpthread -lrt -luuid
 #LIBS = -ltest

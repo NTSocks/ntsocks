@@ -66,6 +66,20 @@ typedef struct ntpacket
 } ntp_msg;
 typedef struct ntpacket *ntpacket_t, *ntp_msg_t;
 
+/**
+ *	used by ntp to parse ntpacket from ntb buffer (element of ntb data ringbuffer)
+ *		return 0 if success; return -1 if failed
+ */
+inline int parse_ntpacket(void * packet_ptr, ntp_msg *buf) {
+    if (!packet_ptr || !buf) {
+        return -1;
+    }
+
+    buf->header = (ntpacket_header_t) packet_ptr;
+    buf->payload = (char *) ((uint8_t *) packet_ptr + NTPACKET_HEADER_LEN);
+    return 0;
+}
+
 #ifdef __cplusplus
 };
 #endif

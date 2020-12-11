@@ -85,6 +85,9 @@ int ntm_start_tcp_server(ntm_socket_t ntsock, int port, char *address) {
 
     // create socket
     ntsock->socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+    int reuse = 1;
+    setsockopt(ntsock->socket_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+
 
     // setup socket
     ntsock->local.sin_family = AF_INET;

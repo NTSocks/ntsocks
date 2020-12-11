@@ -194,15 +194,15 @@ int ntp_shm_recv(ntp_shm_context_t shm_ctx, ntp_msg *buf) {
         retry_times ++;
 	}
 
-    DEBUG("node_idx=%d", node_idx);
-
     if(ret) {
-        buf->header = (ntpacket_header_t) shm_offset_mem(shm_ctx->mp_handler, node_idx);
+        void * ptr = (void*) shm_offset_mem(shm_ctx->mp_handler, node_idx);
+        buf->header = (ntpacket_header_t) ptr;
         if (!buf->header) {
             ERR("ntp_shm_recv failed");
             return -1;
         }
-        buf->payload = (char *)buf->header + NTPACKET_HEADER_LEN;
+        buf->payload = (char *)((uint8_t *)ptr + NTPACKET_HEADER_LEN);
+        DEBUG("[ntp_shm_recv] buf->payload: %s\n", buf->payload);
 
         DEBUG("ntp_shm_recv success");
         return 0;
@@ -295,3 +295,40 @@ void ntp_shm_destroy(ntp_shm_context_t shm_ctx) {
 	DEBUG("ntp_shm_destroy success");
 }
 
+int ntp_shm_ntpacket_alloc(ntp_shm_context_t shm_ctx, ntp_msg *buf, size_t mtu_size) {
+    assert(shm_ctx);
+
+    if (!buf || mtu_size <= 0) {
+        return -1;
+    }
+
+    shm_mempool_node *mp_node;
+    mp_node = shm_mp_malloc(shm_ctx->mp_handler, mtu_size);
+    if (mp_node == NULL) {
+        ERR("shm_mp_malloc failed. \n");
+        return -1;
+    }
+
+    void * packet_ptr = (void *) shm_offset_mem(shm_ctx->mp_handler, mp_node->node_idx);
+    if (!packet_ptr) {
+        perror("shm_offset_mem failed \n");
+        return -1;
+    }
+    buf->header = (ntpacket_header_t) packet_ptr;
+    buf->payload = (char *) ((uint8_t *) packet_ptr + NTPACKET_HEADER_LEN);
+
+    DEBUG("ntp_shm_ntpacket_alloc success");
+    return 0;
+}
+
+void ntp_shm_ntpacket_free(ntp_shm_context_t shm_ctx, ntp_msg *buf) {
+    assert(shm_ctx);
+
+    if (!buf || !buf->header)   return -1;
+
+    shm_mempool_node *tmp_node = shm_mp_node_by_shmaddr(shm_ctx->mp_handler, (char *)buf->header);
+    if(tmp_node) {
+        shm_mp_free(shm_ctx->mp_handler, tmp_node);
+    }
+
+}
