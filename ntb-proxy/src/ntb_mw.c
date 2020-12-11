@@ -48,6 +48,7 @@ DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 int trans_data_link_cur_index(struct ntb_data_link *data_link)
 {
+    DEBUG("[trans_data_link_cur_index] =============recv sync read index request [cur_idx=%ld]=========\n", data_link->local_ring->cur_index);
     *data_link->remote_cum_ptr = data_link->local_ring->cur_index;
     DEBUG("trans cur index to peer, = %ld",data_link->local_ring->cur_index);
     return 0;
@@ -122,13 +123,14 @@ int ntb_ctrl_msg_enqueue(struct ntb_link_custom *ntlink, struct ntb_ctrl_msg *ms
     uint64_t next_index = r->cur_index + 1 < r->capacity ? r->cur_index + 1 : 0;
     //looping send
     int full_cnt = 0;
-    int sleep_us = 100, cnt_window = 50;
+    int sleep_us = 100, cnt_window = 100;
     while (next_index == *ntlink->ctrl_link->local_cum_ptr)
     {
         INFO("ntb_ctrl_msg_enqueue looping");
         full_cnt++;
         if (full_cnt % cnt_window == 0) {
-            usleep(100);   
+            full_cnt = 0;
+            usleep(BLOCKING_SLEEP_US);   
         }
         sched_yield();
     }
@@ -152,12 +154,14 @@ int ntb_pure_data_msg_enqueue(struct ntb_data_link *data_link, uint8_t *msg, int
     uint64_t next_index = r->cur_index + 1 < r->capacity ? r->cur_index + 1 : 0;
     //looping send
     int full_cnt = 0;
-    int sleep_us = 100, cnt_window = 50;
+    int sleep_us = 100, cnt_window = 100;
     while (UNLIKELY(next_index == *data_link->local_cum_ptr))
     {
         full_cnt++;
         if (full_cnt % cnt_window == 0) {
-            usleep(100);   
+            full_cnt = 0;
+            printf("[ntb_pure_data_msg_enqueue] *****blocking 'next_write_idx=%ld, shadown_read_idx=%ld'\n", next_index, *data_link->local_cum_ptr);
+            usleep(BLOCKING_SLEEP_US);
         }
         sched_yield();
     }
@@ -211,12 +215,14 @@ int ntb_data_msg_enqueue2(struct ntb_data_link *data_link, ntp_msg *outgoing_msg
     next_write_idx = peer_dataring->cur_index + 1 < peer_dataring->capacity ? peer_dataring->cur_index + 1 : 0;
 
     int full_cnt = 0;
-    int sleep_us = 100, cnt_window = 50;
+    int sleep_us = 100, cnt_window = 100;
     while (next_write_idx == *data_link->local_cum_ptr)
     {
         full_cnt++;
         if (full_cnt % cnt_window == 0) {
-            usleep(100);   
+            full_cnt = 0;
+            DEBUG("[ntb_data_msg_enqueue2] *****blocking 'next_write_idx=%ld, shadown_read_idx=%ld'\n", next_write_idx, *data_link->local_cum_ptr);
+            usleep(BLOCKING_SLEEP_US);
         }
         sched_yield();
     }
@@ -229,8 +235,14 @@ int ntb_data_msg_enqueue2(struct ntb_data_link *data_link, ntp_msg *outgoing_msg
         // data_link->local_cum_ptr: local cached read_index, 
         // when (next_write_idx - shadow_read_idx) % 1024 == 0, 
         // request peer node update local read_idx by remote write
-        if (UNLIKELY(((next_write_idx - *data_link->local_cum_ptr) & 0x3ff) == 0)) {
+        uint64_t wr_gap;
+        wr_gap = (next_write_idx >= *data_link->local_cum_ptr) ?  
+                    (next_write_idx - *data_link->local_cum_ptr) :
+                    (next_write_idx - *data_link->local_cum_ptr + peer_dataring->capacity);
+        if ((wr_gap & 0x3ff) == 0)
+        {
             // PSH: request to update local shadow read_index using remote write by peer side
+            DEBUG("[<= NTP_CONFIG.data_packet_size]=====start request the read index of remote ntb dataring==== [next_write_idx=%ld, shadow_read_indes=%ld]\n", next_write_idx, *data_link->local_cum_ptr);
             msg_len != (1 << 15);
         }
        
@@ -243,6 +255,7 @@ int ntb_data_msg_enqueue2(struct ntb_data_link *data_link, ntp_msg *outgoing_msg
         if (((next_write_idx + (tmp_msglen >> NTP_CONFIG.ntb_packetbits_size)) & 0xfc00) 
                         != (peer_dataring->cur_index & 0xfc00))
         {
+            DEBUG("[> NTP_CONFIG.data_packet_size]=====start request the read index of remote ntb dataring==== [next_write_idx=%ld, shadow_read_indes=%ld]\n", next_write_idx, *data_link->local_cum_ptr);
             // PSH: request to update local shadow read_index using remote write by peer side
             msg_len != (1 << 15);
         }
@@ -250,7 +263,7 @@ int ntb_data_msg_enqueue2(struct ntb_data_link *data_link, ntp_msg *outgoing_msg
         rte_memcpy(write_addr + MSGLEN_OFFSET, &msg_len, MSGLEN_SIZE);    // msg_len: 2 bytes
         rte_memcpy(write_addr + NTPACKET_HEADER_LEN, (uint8_t *)outgoing_msg->payload, NTP_CONFIG.data_packet_size - NTPACKET_HEADER_LEN);
     }
-
+     
     peer_dataring->cur_index = next_write_idx;
     return 0;
 }
@@ -266,13 +279,15 @@ int ntb_data_msg_enqueue(struct ntb_data_link *data_link, struct ntpacket *msg)
     //looping send
     // DEBUG("next_index = %ld,*data_link->local_cum_ptr= %ld",next_index,*data_link->local_cum_ptr);
     int full_cnt = 0;
-    int sleep_us = 100, cnt_window = 50;
+    int sleep_us = 100, cnt_window = 100;
     while (next_index == *data_link->local_cum_ptr) // compare the next write_index to current read_index, judge whether ntb ringbuffer is full
     {
         // DEBUG("next_index = %ld,*data_link->local_cum_ptr= %ld",next_index,*data_link->local_cum_ptr);
         full_cnt++;
         if (full_cnt % cnt_window == 0) {
-            usleep(100);   
+            full_cnt = 0;
+            printf("[ntb_data_msg_enqueue] *****blocking 'next_write_idx=%ld, shadown_read_idx=%ld'\n", next_index, *data_link->local_cum_ptr);
+            usleep(BLOCKING_SLEEP_US); 
         }
         sched_yield();
        
@@ -283,7 +298,11 @@ int ntb_data_msg_enqueue(struct ntb_data_link *data_link, struct ntpacket *msg)
     if (msg_len <= NTP_CONFIG.data_packet_size)
     {
         // remote peer write_index, read_index, 0x3ff == 1023
-        if (UNLIKELY(((next_index - *data_link->local_cum_ptr) & 0x3ff) == 0))
+        uint64_t wr_gap;
+        wr_gap = (next_index >= *data_link->local_cum_ptr) ?  
+                    (next_index - *data_link->local_cum_ptr) :
+                    (next_index - *data_link->local_cum_ptr + r->capacity);
+        if ((wr_gap & 0x3ff) == 0)
         {
             //PSH: update local shadow read_index using remote write by peer side
             msg->header->msg_len |= (1 << 15);   
@@ -490,6 +509,8 @@ struct ntb_link_custom * ntb_start(uint16_t dev_id)
     {   
         ntb_link->partitions[i].id = i;
         ntb_link->partitions[i].num_conns = 0;
+        ntb_link->partitions[i].recv_packet_counter = 0;
+        ntb_link->partitions[i].send_packet_counter = 0;
         ntb_link->partitions[i].data_link = (struct ntb_data_link *) malloc(sizeof(struct ntb_data_link));
 
         //create the list to be send for each ntb_partition, add ring_head/ring_tail
@@ -498,6 +519,8 @@ struct ntb_link_custom * ntb_start(uint16_t dev_id)
         send_list_node->next_node = send_list_node;
         ntb_link->partitions[i].send_list.ring_head = send_list_node;
         ntb_link->partitions[i].send_list.ring_tail = send_list_node;
+        
+        ntb_link->partitions[i].cache_msg_bulks = calloc(NTP_CONFIG.bulk_size, sizeof(ntp_msg *));
     }
 
     DEBUG("ntb dev started, NTB memory buffer formatting for ntb_partition, ctrl_ringbuffer");
@@ -521,5 +544,90 @@ struct ntb_link_custom * ntb_start(uint16_t dev_id)
     ntp_ntm_shm_accept(ntp_ntm, (char *)ntp_ntm_name, sizeof(ntp_ntm_name));
     ntb_link->ntp_ntm = ntp_ntm;
 
+    ntb_link->is_stop = false;
+
     return ntb_link;
 }
+
+void ntb_destroy(struct ntb_link_custom *ntb_link) {
+    if (!ntb_link)   return;
+
+    ntb_link->is_stop = true;
+
+    // wait or join for ntb_link->ntm_ntp_listener
+    pthread_join(ntb_link->ntm_ntp_listener, NULL);
+
+    if(ntb_link->ntp_ntm) {
+        ntp_ntm_shm_close(ntb_link->ntp_ntm);
+        ntp_ntm_shm_destroy(ntb_link->ntp_ntm);
+    }
+
+    if (ntb_link->ntm_ntp) {
+        ntm_ntp_shm_close(ntb_link->ntm_ntp);
+        ntm_ntp_shm_destroy(ntb_link->ntm_ntp);
+    }
+
+    for (int i = 0; i < ntb_link->num_partition; i++)
+    {
+        struct ntb_partition * partition;
+        partition = &ntb_link->partitions[i];
+
+        // first remove all ntb-conn in this partition
+        ntp_send_list_node *tmp_node, *curr_node;
+        curr_node = partition->send_list.ring_head;
+        while(curr_node->conn){
+            tmp_node = curr_node->next_node;
+            free(curr_node);
+            curr_node = tmp_node;
+        }
+        if(curr_node) {
+            free(curr_node);
+        }
+
+        // free cache_msg_bulks
+        free(partition->cache_msg_bulks);
+
+        // free data_link
+        free(partition->data_link);
+
+    }
+    
+    // free partitions
+    free(ntb_link->partitions);
+
+    // free ctrl_link
+    free(ntb_link->ctrl_link);
+
+    // free all ntb_connection list
+    HashMapIterator iter = createHashMapIterator(ntb_link->port2conn);
+    while (hasNextHashMapIterator(iter))
+    {
+        iter = nextHashMapIterator(iter);
+        ntb_conn_t conn = (ntb_conn_t) iter->entry->value;
+        Remove(ntb_link->port2conn, iter->entry->key);
+
+        conn->partition_id = -1;
+        conn->partition = NULL;
+
+        if (conn->nts_send_ring) {
+            ntp_shm_close(conn->nts_send_ring);
+            ntp_shm_destroy(conn->nts_send_ring);
+        }
+
+        if (conn->nts_recv_ring) {
+            ntp_shm_close(conn->nts_recv_ring);
+            ntp_shm_destroy(conn->nts_recv_ring);
+        }
+
+        free(conn);
+    }
+    freeHashMapIterator(&iter);
+    Clear(ntb_link->port2conn);
+    ntb_link->port2conn = NULL;
+    
+    // free ntb_link
+    free(ntb_link);
+
+    DEBUG("ntb_destroy success");
+}
+

@@ -22,7 +22,7 @@ DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 #define DEFAULT_NUM_PARTITION 2
 #define DEFAULT_NTPACKET_SIZE 7
 #define DEFAULT_CTRL_PACKET_SIZE 16
-#define DEFAULT_DATA_RING_SIZE 0x4000000 //8MB --> 64MB
+#define DEFAULT_DATA_RING_SIZE 0x4000000 // 8MB --> 64MB
 #define DEFAULT_CTRL_RING_SIZE 0x40000	 // 256KB
 #define MAX_NUM_PARTITION 4
 
@@ -32,7 +32,7 @@ struct ntp_config NTP_CONFIG = {
 	.sublink_data_ring_size = 8388608,
 	.sublink_ctrl_ring_size = 262144,
 	.nts_buff_size = 8388608,
-	.branch_trans_number = 512,
+	.bulk_size = 1,
 	.num_partition = DEFAULT_NUM_PARTITION,
 	.ntb_packetbits_size = DEFAULT_NTPACKET_SIZE,
 	.ctrl_packet_size = DEFAULT_CTRL_PACKET_SIZE,
@@ -125,6 +125,7 @@ int load_conf(const char *fname)
 		if (strcmp(_paramk, "sublink_number") == 0)
 		{
 			NTP_CONFIG.sublink_number = atoi(_paramv);
+			NTP_CONFIG.num_partition = NTP_CONFIG.sublink_number;
 		}
 		else if (strcmp(_paramk, "sublink_data_ring_size") == 0)
 		{
@@ -138,9 +139,9 @@ int load_conf(const char *fname)
 		{
 			NTP_CONFIG.nts_buff_size = atoi(_paramv);
 		}
-		else if (strcmp(_paramk, "branch_trans_number") == 0)
+		else if (strcmp(_paramk, "bulk_size") == 0)
 		{
-			NTP_CONFIG.branch_trans_number = atoi(_paramv);
+			NTP_CONFIG.bulk_size = atoi(_paramv);
 		}
 		else if (strcmp(_paramk, "num_partition") == 0)
 		{

@@ -36,6 +36,7 @@
 
 #include "ntp_func.h"
 #include "config.h"
+#include "utils.h"
 #include "nt_log.h"
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
@@ -94,7 +95,7 @@ static int add_conn_to_ntb_send_list(struct ntb_link_custom *ntb_link, ntb_parti
     DEBUG("add_conn_to_ntb_send_list with partition_id=%d", conn->partition_id);
     assert(partition);
 
-    ntp_send_list_node *list_node =  malloc(sizeof(*list_node));
+    ntp_send_list_node *list_node = (ntp_send_list_node *) malloc(sizeof(*list_node));
     list_node->conn = conn;
     list_node->next_node = partition->send_list.ring_head;
     partition->send_list.ring_tail->next_node = list_node;
@@ -247,17 +248,28 @@ int ntp_send_buff_data(struct ntb_data_link *data_link, ntb_partition_t partitio
     uint64_t read_index = ntp_get_read_index(ring->ntsring_handle);
     uint64_t peer_read_index = ntp_get_peer_read_index(ring->ntsring_handle);
     uint64_t send_window = peer_read_index - read_index > 0 ? peer_read_index - read_index - 1 : peer_read_index - read_index + NTS_MAX_BUFS - 1;
+    
     int i;
-    // NTP_CONFIG.branch_trans_number is equal to batch size
-    for (i = 0; i < NTP_CONFIG.branch_trans_number; i++)
+    // bulk packet forwarding from libnts send shmring
+    size_t recv_cnt = 0;
+    // recv_cnt = ntp_shm_recv_bulk(ring, partition->cache_msg_bulks, NTP_CONFIG.bulk_size);
+    // DEBUG("ntp_shm_recv_bulk recv_cnt = %d", (int)recv_cnt);
+    // if (recv_cnt == FAILED)  return FAILED;
+    
+    // NTP_CONFIG.bulk_size is equal to batch size
+    for (i = 0; i < NTP_CONFIG.bulk_size; i++)
     {
+        // send_msg = partition->cache_msg_bulks[i];
         rc = ntp_shm_recv(ring, &send_msg);
         if (rc == -1)
         {
             // DEBUG("send buff is empty");
             break;
         }
+        recv_cnt++;
+
         if (UNLIKELY(send_msg.header->msg_type == NTP_FIN)) // when NTP_FIN packet/msg, update ntb-conn state as `ACTIVE_CLOSE`
+
         {
             //如果检测到FIN包，发送FIN_PKG to peer，close队列，并将conn->state置为ACTIVE_CLOSE
             //正常APP的FIN包后不会再有数据包，直接return
@@ -312,13 +324,14 @@ int ntp_send_buff_data(struct ntb_data_link *data_link, ntb_partition_t partitio
     i = 0;
     //如果当前send_window < 512 且 当前时间 - 上一次发送探测包时间 > 4us，则发送探测包
     uint64_t current_time = rte_rdtsc();
-    if (send_window - i < 512 && current_time - conn->detect_time > detect_interval_time)
+    if (UNLIKELY(send_window - i < 512 && current_time - conn->detect_time > detect_interval_time))
     {
         ntb_data_msg_add_header(&data_packet, src_port, dst_port, 0, DETECT_PKG);
         ntb_data_msg_enqueue(data_link, &data_packet);
         conn->detect_time = current_time;
     }
-    return 0;
+
+    return recv_cnt;
 }
 
 int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_custom *ntb_link, ntb_partition_t partition)
@@ -336,7 +349,7 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
     int rc;
     void * packet_ptr;
 
-    while (1)
+    while (!ntb_link->is_stop)
     {
         packet_ptr = (void *)(recv_dataring->start_addr + 
                     (recv_dataring->cur_index << NTP_CONFIG.ntb_packetbits_size));
@@ -350,6 +363,8 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
         }
 
         msg_len = msg.header->msg_len;
+        partition->recv_packet_counter++;
+
         msg_len &= 0x0fff; // compute real msg_len == end 12 bits
         msg_type = parser_data_len_get_type(data_link, msg.header->msg_len);
         //如果当前包端口号与上次比有所改变，需要重新Get conn
@@ -508,6 +523,11 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
             msg.header->msg_len = 0;
             recv_dataring->cur_index = recv_dataring->cur_index + 1 < recv_dataring->capacity ? recv_dataring->cur_index + 1 : 0;
         }
+
+        // update the peer-side shadow read index every specific time interval.
+        if (partition->recv_packet_counter % IDX_UPDATE_INTERVAL == 0) {
+            trans_data_link_cur_index(data_link);
+        }
     }
 
     return 0;
@@ -520,8 +540,7 @@ int ntp_ctrl_msg_receive(struct ntb_link_custom *ntb_link)
     uint16_t msg_len;
     uint16_t src_port, dst_port;
     uint32_t conn_id;
-
-    while (1)
+    while (!ntb_link->is_stop)
     {
         msg = (struct ntb_ctrl_msg *)(r->start_addr + (r->cur_index << CTRL_NTPACKET_BITS));
         msg_len = msg->header.msg_len;

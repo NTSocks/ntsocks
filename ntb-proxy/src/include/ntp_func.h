@@ -25,6 +25,7 @@
 #define NTP_FIN 2
 
 #define DETECT_INTERVAL 4   //Unit : US
+#define DETECT_INTERVAL_TIME (DETECT_INTERVAL * 25000)
 
 #define SHM_NAME_LEN 50
 

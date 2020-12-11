@@ -15,7 +15,10 @@
 #include "ntm_ntp_shm.h"
 #include "ntp_ntm_shm.h"
 #include "ntp2nts_shm.h"
+#include "ntp2nts_msg.h"
 #include "utils.h"
+
+#include <stdbool.h>
 
 // #define CTRL_RING_SIZE 0x40000      // 256KB
 
@@ -23,6 +26,11 @@
 
 #define CTRL_NTPACKET_SIZE 16
 #define CTRL_NTPACKET_BITS 4
+
+// recv packet counts interval for peer-side shadow read-index updates.
+#define IDX_UPDATE_INTERVAL 512
+#define IDX_UPDATE_MASK 511
+#define BLOCKING_SLEEP_US 10
 
 enum ntpacket_type
 {
@@ -122,10 +130,17 @@ typedef struct ntb_partition {
     int16_t id;
     uint32_t num_conns; // the total number of assigned ntb_conn
 
+    uint64_t recv_packet_counter;   // count the number of total received packets 
+    uint64_t send_packet_counter;   // count the number of total send packets
+
     struct ntp_send_list send_list; // to cache the assigned ntb_conn in send_list, 
                                     // when forwarding packets, polling the send_list in round-robin manner
 
     struct ntb_data_link *data_link; // the send/recv buffer for the data message between local peer ntb nodes
+
+    ntp_msg ** cache_msg_bulks; // length = NTP_CONFIG.bulk_size, 
+                                // used to cache the poped bulk ntp_msg from libnts send_shmring
+                                
 
 }__attribute__((packed)) ntb_partition;
 
@@ -145,6 +160,8 @@ struct ntb_link_custom
     struct rte_rawdev *dev; // the abstract of ntb raw device
     struct ntb_hw *hw;      // the operation methods about ntb device
 
+    bool is_stop;
+
     HashMap port2conn;             // hash map for the ntb connection:
                                    // key: [src-port]-[dst-port]
                                    // value: ntb connection struct --> struct ntb_conn
@@ -161,7 +178,18 @@ struct ntb_link_custom
     struct ntb_ctrl_link *ctrl_link;    // the send/recv buffer for the control message between local and peer ntb nodes
     struct ntb_data_link *data_link;    // TODO: removed
                                         // the send/recv buffer for the data message between local peer ntb nodes
+
+    // used to receive ctrl msg from ntm
+    pthread_t ntm_ntp_listener;
+
 }__attribute__((packed));
+
+// used to update the peer-side shadow read index of 
+//  ntb data ringbuffer every specific times
+int trans_data_link_cur_index(struct ntb_data_link *data_link);
+// used to update the peer-side shadow read index of 
+//  ntb ctrl ringbuffer every specific times
+int trans_ctrl_link_cur_index(struct ntb_link_custom *ntb_link);
 
 int ntb_data_msg_add_header(struct ntpacket *msg, uint16_t src_port, uint16_t dst_port, int payload_len, int msg_type);
 
@@ -188,5 +216,7 @@ int ntpacket_enqueue(struct ntb_data_link *data_link,
 
 //start the ntb device,and return a ntb_link
 struct ntb_link_custom *ntb_start(uint16_t dev_id);
+
+void ntb_destroy(struct ntb_link_custom *ntb_link);
 
 #endif /* NTB_MW_H_ */

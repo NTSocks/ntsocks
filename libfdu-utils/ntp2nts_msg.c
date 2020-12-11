@@ -13,6 +13,3 @@
 
 #include "ntp2nts_msg.h"
 #include "nt_log.h"
-
-DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
-

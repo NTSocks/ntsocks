@@ -182,7 +182,7 @@ int ntm_init(const char *config_file)
 	/**
 	 * register signal callback functions
 	 */
-	signal(SIGINT, ntm_destroy);
+	// signal(SIGINT, ntm_destroy);
 	// signal(SIGKILL, ntm_destroy);
 	// signal(SIGSEGV, ntm_destroy);
 	// signal(SIGTERM, ntm_destroy);
@@ -369,7 +369,7 @@ int ntm_init(const char *config_file)
 
 void ntm_destroy()
 {
-	assert(ntm_mgr);
+	if (!ntm_mgr) return;
 	DEBUG("nt_destroy ready...");
 	bool ret;
 	void *status;

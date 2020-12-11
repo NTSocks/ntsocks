@@ -18,10 +18,10 @@ OBJS = $(patsubst %.c, %.o, $(SRCS))
 TEST_SRCS = $(wildcard $(TEST_DIR)/**/*.cpp $(TEST_DIR)/*.cpp)
 TEST_OBJS = $(patsubst %.cpp, %.o, $(TEST_SRCS))
 
-INCLUDE_PATH = -I./include/ -I./src/include/ -I./src/utils/include -I/usr/local/include
-LIB_PATH = -L./lib/ -lfdu-utils
+INCLUDE_PATH = -I./include/ -I./src/include/ -I./src/utils/include -I/usr/local/include 
+LIB_PATH = -L./lib/ -L/usr/local/lib 
 
-LIBS = -lpthread -lrt -luuid
+LIBS = -lpthread -lrt -luuid -lfdu-utils
 #LIBS = -ltest
 #LIBS = -libtest.a
 

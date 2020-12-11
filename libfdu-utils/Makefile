@@ -11,9 +11,9 @@ DEBUG = -g -O2
 CFLAGS += $(DEBUG) -Wall -std=c11 -D_BSD_SOURCE -DHAVE_GCC_C11_ATOMICS 
 LDFLAGS+= -L$(LIB_PATH) -l$(LIB_NAME)
 
-TARGET=shmring ntp2nts-shm hash_map
+TARGET=shmring ntp2nts-shm hash_map bulk_shmring multi_thread_bulk_shmring ntp2nts-bulk-shm
 
-all: clean $(LIB_OBJS) fdu_utils_static_lib fdu_utils_shared_lib local-install shmring ntp2nts-shm hash_map
+all: clean $(LIB_OBJS) fdu_utils_static_lib fdu_utils_shared_lib local-install shmring ntp2nts-shm hash_map bulk_shmring multi_thread_bulk_shmring ntp2nts-bulk-shm
 	rm -f *.o 
 	mv $(TARGET) $(BIN_PATH)
 
@@ -22,9 +22,18 @@ shmring: shmring_main.c
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS) -I$(INC_PATH)
 	# mv $(TARGET) $(BIN_PATH)
 
+bulk_shmring: shmring_bulk_main.c 
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS) -I$(INC_PATH)
+
+multi_thread_bulk_shmring: shmring_bulk_multi_thread_main.c
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS) -I$(INC_PATH)
+
 ntp2nts-shm: shm_main.c 
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS) -I$(INC_PATH)
 	# mv $(TARGET) $(BIN_PATH)
+
+ntp2nts-bulk-shm: shm_bulk_main.c
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS) -I$(INC_PATH)
 
 hash_map: hashmap_main.c
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS) -I$(INC_PATH)
@@ -40,7 +49,7 @@ $(LIB_OBJS): $(LIB_SRCS)
 
 
 clean: 
-	rm -rf *.o lib$(LIB_NAME).* $(TARGET) 
+	rm -rf *.o lib$(LIB_NAME).* $(TARGET) $(BIN_PATH)/* ${LIB_PATH}/*
 
 distclean:
 	rm -rf $(LIB_PATH)

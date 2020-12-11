@@ -22,6 +22,7 @@ int thrds = 0;
 int num_req = NUM_REQ;
 int run_latency = 0; // 0 - lat, 1 - tput, 2 - bw
 int payload_size = DEFAULT_PAYLOAD_SIZE;
+int numa_start = 32, numa_end = 48;
 
 void usage(char *program);
 void parse_args(int argc, char *argv[]);
@@ -98,7 +99,7 @@ void pin_1thread_to_1core(){
     thread = pthread_self();
     CPU_ZERO(&cpuset);
     int j,s;
-    for (j = 0; j < thrds; j++)
+    for (j = numa_start; j < numa_end; j++)
         CPU_SET(j, &cpuset);
     s = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
     if (s != 0)
@@ -246,6 +247,7 @@ void usage(char *program){
     printf(" -n <requests>  the number of request(default %d)\n", NUM_REQ);
     printf(" -l <metric>    0 - lat, 1 - tput, 2 - bw\n");
     printf(" -w             transfer data with ack\n");
+    printf(" -k             over kernel socket(defaule over ntb)");
     printf(" -h             display the help information\n");
 }
 
@@ -280,6 +282,9 @@ void parse_args(int argc, char *argv[]){
             }
         }else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-w") == 0){
             with_ack = true;
+        }else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-k") == 0){
+            numa_start = 48;
+            numa_end = 64;
         }else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-t") == 0){
             if(i+1 < argc){
                 thrds = atoi(argv[i+1]);
