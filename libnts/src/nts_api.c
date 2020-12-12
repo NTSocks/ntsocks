@@ -14,10 +14,10 @@
 
 #include "nts_api.h"
 #include "nts_config.h"
-#include "nt_log.h"
 #include "ntp2nts_shm.h"
 #include "ntm_shm.h"
 #include "nts_shm.h"
+#include "nt_log.h"
 
 #ifdef  ENABLE_DEBUG
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
@@ -203,6 +203,15 @@ int nts_socket(int domain, int type, int protocol) {
 	
 	nt_sock_ctx->ntm_msg_id = 1;
 
+	// allocate memory for ntp_buf to cache the last remaining un-read/recv payload data
+	nt_sock_ctx->ntp_buf = (char *) calloc(1, NTS_CONFIG.max_payloadsize);
+	if (!nt_sock_ctx->ntp_buf)
+	{
+		ERR("allocate memory for ntp_buf (nt_socket_context) failed");
+		goto FAIL;
+	}
+	
+
 	// generate nts_shm-uuid shm name
 	int retval;
 	retval = generate_nts_shmname(nt_sock_ctx->nts_shmaddr);
@@ -278,6 +287,10 @@ int nts_socket(int domain, int type, int protocol) {
 	}
 
 	if(nt_sock_ctx) {
+		if(nt_sock_ctx->ntp_buf) {
+			free(nt_sock_ctx->ntp_buf);
+		}
+
 		free(nt_sock_ctx);
 	}
 
@@ -535,6 +548,14 @@ int nts_accept(int sockid, const struct sockaddr *addr, socklen_t *addrlen) {
 	if(!nt_sock_ctx)
 		goto FAIL;
 
+	// allocate memory for ntp_buf to cache the last remaining un-read/recv payload data
+	client_sock_ctx->ntp_buf = (char *) calloc(1, NTS_CONFIG.max_payloadsize);
+	if (!client_sock_ctx->ntp_buf)
+	{
+		ERR("allocate memory for ntp_buf (client nt_socket_context) failed");
+		goto FAIL;
+	}
+
 	client_sock_ctx->ntm_msg_id = 1;
 	client_sock_ctx->socket = client_socket;
 	// set its `listener_socket`
@@ -566,8 +587,8 @@ int nts_accept(int sockid, const struct sockaddr *addr, socklen_t *addrlen) {
 	DEBUG("ntp send shm addr='%s', ntp recv shm addr='%s'", send_shmaddr, recv_shmaddr);
 
 	// TODO:init/create ntp_send_ctx/ntp_recv_ctx
-	client_sock_ctx->ntp_recv_ctx = ntp_shm();
-	client_sock_ctx->ntp_send_ctx = ntp_shm();
+	client_sock_ctx->ntp_recv_ctx = ntp_shm(NTS_CONFIG.mtu_size);
+	client_sock_ctx->ntp_send_ctx = ntp_shm(NTS_CONFIG.mtu_size);
 	ntp_shm_connect(client_sock_ctx->ntp_recv_ctx, recv_shmaddr, strlen(recv_shmaddr));
 	ntp_shm_connect(client_sock_ctx->ntp_send_ctx, send_shmaddr, strlen(send_shmaddr));
 	
@@ -647,6 +668,10 @@ int nts_accept(int sockid, const struct sockaddr *addr, socklen_t *addrlen) {
 	}
 
 	if(client_sock_ctx) {
+		if (client_sock_ctx->ntp_buf) {
+			free(client_sock_ctx->ntp_buf);
+		}
+
 		free(client_sock_ctx);
 	}
 
@@ -788,8 +813,8 @@ int nts_connect(int sockid, const struct sockaddr *name, socklen_t namelen) {
 	DEBUG("ntp send shm addr='%s', ntp recv shm addr='%s'", send_shmaddr, recv_shmaddr);
 
 	// TODO:init/create ntp_send_ctx/ntp_recv_ctx
-	nt_sock_ctx->ntp_recv_ctx = ntp_shm();
-	nt_sock_ctx->ntp_send_ctx = ntp_shm();
+	nt_sock_ctx->ntp_recv_ctx = ntp_shm(NTS_CONFIG.mtu_size);
+	nt_sock_ctx->ntp_send_ctx = ntp_shm(NTS_CONFIG.mtu_size);
 	ntp_shm_connect(nt_sock_ctx->ntp_recv_ctx, recv_shmaddr, strlen(recv_shmaddr));
 	ntp_shm_connect(nt_sock_ctx->ntp_send_ctx, send_shmaddr, strlen(send_shmaddr));
 	
@@ -845,6 +870,10 @@ int nts_close(int sockid) {
 
 		if (nt_sock_ctx->socket) {
 			free(nt_sock_ctx->socket);
+		}
+
+		if(nt_sock_ctx->ntp_buf) {
+			free(nt_sock_ctx->ntp_buf);
 		}
 
 		free(nt_sock_ctx);
@@ -935,27 +964,18 @@ int nts_close(int sockid) {
 	DEBUG("actively disconnect/close active or ESTABLISHED client nt_socket [sockfd=%d]", sockid);
 	nt_sock_ctx->socket->state = WAIT_FIN;
 
-
-
 	/* ready to ntp shm send ntp_msg */
-	shm_mempool_node *mp_node;
-    mp_node = shm_mp_malloc(nt_sock_ctx->ntp_send_ctx->mp_handler, sizeof(ntp_msg));
-    if (mp_node == NULL) {
-        // perror("shm_mp_malloc failed. \n");
-        return -1;
-    }
+	ntp_msg ntp_outgoing_msg;
+	retval = ntp_shm_ntpacket_alloc(nt_sock_ctx->ntp_send_ctx, 
+					&ntp_outgoing_msg, NTS_CONFIG.mtu_size);
+	if (retval == -1) {
+		ERR("ntp_shm_ntpacket_alloc failed");
+		return -1;
+	}
 
-	ntp_msg * ntp_outgoing_msg;
-	ntp_outgoing_msg = (ntp_msg *) shm_offset_mem(nt_sock_ctx->ntp_send_ctx->mp_handler, mp_node->node_idx);
-    if (ntp_outgoing_msg == NULL) {
-        perror("shm_offset_mem failed \n");
-        return -1;
-    }
-
-
-	ntp_outgoing_msg->msg_type = NTP_NTS_MSG_FIN;
-	ntp_outgoing_msg->msg_len = 0;
-	retval = ntp_shm_send(nt_sock_ctx->ntp_send_ctx, ntp_outgoing_msg);
+	ntp_outgoing_msg.header->msg_type = NTP_NTS_MSG_FIN;
+	ntp_outgoing_msg.header->msg_len = 0;
+	retval = ntp_shm_send(nt_sock_ctx->ntp_send_ctx, &ntp_outgoing_msg);
 	if(retval == -1) {
 		ERR("ntp_shm_send NTP_NTS_MSG_FIN failed");
 		goto FAIL;
@@ -1080,17 +1100,17 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 
 	// 3. else, then check whether msg_type is `NTP_NTS_MSG_FIN`
 	int retval;
-	ntp_msg * incoming_data;
+	ntp_msg incoming_data;
 
 	// If there is cached data in ntp_buf of nt_sock_ctx [nt_sock_ctx->ntp_buflen > 0], skip ntp_shm_front to check NTP_NTS_MSG_FIN
 	if (nt_sock_ctx->ntp_buflen <= 0) {
 		DEBUG("[out] ntp_shm_front");
 		// TODO: ntp_shm_recv is replaced with ntp_shm_front() method
-		incoming_data = ntp_shm_front(nt_sock_ctx->ntp_recv_ctx);
-		while (incoming_data == NULL)
+		retval = ntp_shm_front(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
+		while (retval == -1)
 		{
 			sched_yield();
-			incoming_data = ntp_shm_front(nt_sock_ctx->ntp_recv_ctx);
+			retval = ntp_shm_front(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
 		}
 		DEBUG("[out] ntp_shm_front end");
 
@@ -1106,7 +1126,7 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 		//			set socket state to `CLOSED`, destroy local resources, 
 		//			nts_shm_close() to unlink nts_shm.
 		// To the end, we determine to use solution 1.
-		if (incoming_data->msg_type == NTP_NTS_MSG_FIN) {
+		if (incoming_data.header->msg_type == NTP_NTS_MSG_FIN) {
 			DEBUG("Detect NTP_NTS_MSG_FIN msg to close ntb connection");
 			handle_ntp_fin_msg(nt_sock_ctx, sockid);
 			// set errno
@@ -1120,12 +1140,12 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 	//		then return the read bytes. The detailed workflow is the following:
 	//  0. check whether there is data in ntp_buf[char[253]] of nt_sock_ctx, 
 	//		if true, read payload in `ntp_buf`, follow the normal workflow.
-	//	i. check whether the first ntp_msg msg_len < NTP_PAYLOAD_MAX_SIZE or not, 
+	//	i. check whether the first ntp_msg msg_len < NTP_PAYLOAD_MAX_SIZE (NTS_CONFIG.max_payloadsize) or not, 
 	//	   if true, check whether the buf size >= msg_len or not, 
 	//			if true, copy payload into buf, return msg_len;
 	//			else, copy the buf-size part of payload into buf, cache the remaining
 	//			payload into ntp_buf[char[253]] in nt_sock_ctx, return params `nbytes`;
-	//	   else if msg_len == NTP_PAYLOAD_MAX_SIZE, then:
+	//	   else if msg_len == NTP_PAYLOAD_MAX_SIZE (NTS_CONFIG.max_payloadsize), then:
 	//			check whether the buf size < msg_len or not:
 	//			if true, then copy the buf-size part of payload into buf, cache the remaining
 	//			 payload into ntp_buf[char[253]] in nt_sock_ctx, return params `nbytes`;
@@ -1146,14 +1166,15 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 		payload_len = nt_sock_ctx->ntp_buflen;
 		is_cached = true;
 	} else {
-		incoming_data = ntp_shm_recv(nt_sock_ctx->ntp_recv_ctx);
-		if(incoming_data == NULL) {
+		retval = ntp_shm_recv(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
+		if(retval == -1) {
 			ERR("ntp_shm_recv failed");
 			goto FAIL;
 		}
 
-		payload = incoming_data->msg;
-		payload_len = incoming_data->msg_len;
+		payload = incoming_data.payload;
+		payload_len = incoming_data.header->msg_len;
+		DEBUG("[nts_read] payload='%s', payload_len=%d\n", payload, payload_len);
 	} 
 	
 
@@ -1170,10 +1191,11 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 	
 	while (bytes_left > 0)
 	{
-		if (bytes_left < NTP_PAYLOAD_MAX_SIZE) {
+		
+		if (bytes_left < NTS_CONFIG.max_payloadsize) {
 			
 			if(buf_avail_bytes >= bytes_left) {
-				DEBUG("bytes_left < NTP_PAYLOAD_MAX_SIZE and buf_avail_bytes >= bytes_left with bytes_read=%d", bytes_read);
+				DEBUG("bytes_left < NTP_PAYLOAD_MAX_SIZE (NTS_CONFIG.max_payloadsize) and buf_avail_bytes >= bytes_left with bytes_read=%d", bytes_read);
 				memcpy(ptr + bytes_read, payload, bytes_left);
 				bytes_read += bytes_left;
 
@@ -1182,18 +1204,14 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 					nt_sock_ctx->ntp_buflen = 0;
 				}
 
-				
-				tmp_node = shm_mp_node_by_shmaddr(nt_sock_ctx->ntp_recv_ctx->mp_handler, (char *)incoming_data);
-				DEBUG("tmp_node->node_idx=%d", tmp_node->node_idx);
-				if(tmp_node) {
-					shm_mp_free(nt_sock_ctx->ntp_recv_ctx->mp_handler, tmp_node);
-				}
-
-				DEBUG("bytes_read =%d, bytes_left = %d", bytes_read, bytes_left);
+				// free ntpacket into shm mempool
+				ntp_shm_ntpacket_free(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
+		
+				DEBUG("bytes_read =%d, bytes_left = %d, data=%s", bytes_read, bytes_left, ptr);
 				break;
 
 			} else {
-				DEBUG("bytes_left < NTP_PAYLOAD_MAX_SIZE and buf_avail_bytes < bytes_left with bytes_read=%d", bytes_read);
+				DEBUG("bytes_left < NTP_PAYLOAD_MAX_SIZE(NTS_CONFIG.max_payloadsize) and buf_avail_bytes < bytes_left with bytes_read=%d", bytes_read);
 				// memcpy(ptr + bytes_read, payload, bytes_left);
 				memcpy(ptr + bytes_read, payload, buf_avail_bytes);
 				payload += buf_avail_bytes;
@@ -1202,17 +1220,13 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 				memcpy(nt_sock_ctx->ntp_buf, payload, bytes_left);
 				nt_sock_ctx->ntp_buflen = bytes_left;
 
-				tmp_node = shm_mp_node_by_shmaddr(nt_sock_ctx->ntp_recv_ctx->mp_handler, (char *)incoming_data);
-				DEBUG("tmp_node->node_idx=%d", tmp_node->node_idx);
-				if(tmp_node) {
-					shm_mp_free(nt_sock_ctx->ntp_recv_ctx->mp_handler, tmp_node);
-				}
+				ntp_shm_ntpacket_free(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
 
 				break;
 
 			}
 		}
-		else {	// msg_len == NTP_PAYLOAD_MAX_SIZE
+		else {	// msg_len == NTP_PAYLOAD_MAX_SIZE (NTS_CONFIG.max_payloadsize)
 			DEBUG("buf_avail_bytes < bytes_left with bytes_read=%d", bytes_read);
 			if (buf_avail_bytes < bytes_left) {
 				memcpy(ptr + bytes_read, payload, buf_avail_bytes);
@@ -1222,14 +1236,8 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 				memcpy(nt_sock_ctx->ntp_buf, payload, bytes_left);
 				nt_sock_ctx->ntp_buflen = bytes_left;
 
-				tmp_node = shm_mp_node_by_shmaddr(nt_sock_ctx->ntp_recv_ctx->mp_handler, (char *)incoming_data);
-				DEBUG("tmp_node->node_idx=%d", tmp_node->node_idx);
-				if(tmp_node) {
-					shm_mp_free(nt_sock_ctx->ntp_recv_ctx->mp_handler, tmp_node);
-				}
-
+				ntp_shm_ntpacket_free(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
 				break;
-
 			} 
 			else if(buf_avail_bytes == bytes_left) {
 				DEBUG("buf_avail_bytes == bytes_left with bytes_read=%d", bytes_read);
@@ -1241,14 +1249,8 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 					nt_sock_ctx->ntp_buflen = 0;
 				}
 
-				tmp_node = shm_mp_node_by_shmaddr(nt_sock_ctx->ntp_recv_ctx->mp_handler, (char *)incoming_data);
-				DEBUG("tmp_node->node_idx=%d", tmp_node->node_idx);
-				if(tmp_node) {
-					shm_mp_free(nt_sock_ctx->ntp_recv_ctx->mp_handler, tmp_node);
-				}
-				
+				ntp_shm_ntpacket_free(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
 				break;
-
 			} 
 			else {	// avaliable buf size > msg_len or buf_avail_bytes > bytes_left
 
@@ -1264,13 +1266,7 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 				bytes_read += bytes_left;
 				DEBUG("bytes_read =%d, bytes_left = %d", bytes_read, bytes_left);
 
-				tmp_node = shm_mp_node_by_shmaddr(nt_sock_ctx->ntp_recv_ctx->mp_handler, (char *)incoming_data);
-				DEBUG("tmp_node->node_idx=%d", tmp_node->node_idx);
-				if(tmp_node) {
-					shm_mp_free(nt_sock_ctx->ntp_recv_ctx->mp_handler, tmp_node);
-				}
-
-				
+				ntp_shm_ntpacket_free(nt_sock_ctx->ntp_recv_ctx, &incoming_data);			
 
 				/**
 				 * ntp_shm_recv()/ntp_shm_front() poll next message
@@ -1279,16 +1275,16 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 				 * else, jump to `step 0`
 				 */
 				DEBUG("[in] ntp_shm_front");
-				incoming_data = ntp_shm_front(nt_sock_ctx->ntp_recv_ctx);
-				while (incoming_data == NULL)
+				retval = ntp_shm_front(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
+				while (retval == -1)
 				{
 					sched_yield();
-					incoming_data = ntp_shm_front(nt_sock_ctx->ntp_recv_ctx);
+					retval = ntp_shm_front(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
 				}
 				DEBUG("[in] ntp_shm_front end");
 
 				// judge whether msg_type is NTP_NTS_MSG_FIN or not
-				if (incoming_data->msg_type == NTP_NTS_MSG_FIN) {
+				if (incoming_data.header->msg_type == NTP_NTS_MSG_FIN) {
 		
 					handle_ntp_fin_msg(nt_sock_ctx, sockid);
 					// set errno
@@ -1300,14 +1296,14 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 					payload_len = nt_sock_ctx->ntp_buflen;
 					is_cached = true;
 				} else {
-					incoming_data = ntp_shm_recv(nt_sock_ctx->ntp_recv_ctx);
-					if(incoming_data == NULL) {
+					retval = ntp_shm_recv(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
+					if(retval == -1) {
 						ERR("ntp_shm_recv failed");
 						goto FAIL;
 					}
 
-					payload = incoming_data->msg;
-					payload_len = incoming_data->msg_len;
+					payload = incoming_data.payload;
+					payload_len = incoming_data.header->msg_len;
 				} 
 
 				bytes_left = payload_len;
@@ -1373,51 +1369,34 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 
 
 	/* ready to ntp shm send ntp_msg */
-	shm_mempool_node *mp_node;
-    mp_node = shm_mp_malloc(nt_sock_ctx->ntp_send_ctx->mp_handler, sizeof(ntp_msg));
-    if (mp_node == NULL) {
-        // perror("shm_mp_malloc failed. \n");
-        return -1;
-    }
+	ntp_msg outgoing_msg;
+	retval = ntp_shm_ntpacket_alloc(nt_sock_ctx->ntp_send_ctx, 
+					&outgoing_msg, NTS_CONFIG.mtu_size);
+	if (retval == -1) {
+		ERR("ntp_shm_ntpacket_alloc failed");
+		return -1;
+	}
 
-	ntp_msg *outgoing_msg;
-	outgoing_msg = (ntp_msg *) shm_offset_mem(nt_sock_ctx->ntp_send_ctx->mp_handler, mp_node->node_idx);
-    if (outgoing_msg == NULL) {
-        perror("shm_offset_mem failed \n");
-        return -1;
-    }
-
-	outgoing_msg->msg_type = NTP_NTS_MSG_DATA;
-	outgoing_msg->msg_len = nbytes < NTP_PAYLOAD_MAX_SIZE ? nbytes : NTP_PAYLOAD_MAX_SIZE;
-	memcpy(outgoing_msg->msg, buf, outgoing_msg->msg_len);
+	outgoing_msg.header->msg_type = NTP_NTS_MSG_DATA;
+	outgoing_msg.header->msg_len = nbytes < NTS_CONFIG.max_payloadsize ? nbytes : NTS_CONFIG.max_payloadsize;
+	memcpy(outgoing_msg.payload, buf, outgoing_msg.header->msg_len);
 	DEBUG("ntp_shm_send NTP_NTS_MSG_DATA msg with msg_len=%d, outgoing_msg.msg='%s'",
-		 outgoing_msg->msg_len, outgoing_msg->msg);
-	retval = ntp_shm_send(nt_sock_ctx->ntp_send_ctx, outgoing_msg);
+		 outgoing_msg.header->msg_len, outgoing_msg.payload);
+	retval = ntp_shm_send(nt_sock_ctx->ntp_send_ctx, &outgoing_msg);
 	if(retval == -1) {
 		ERR("ntp_shm_send NTP_NTS_MSG_DATA failed");
 		goto FAIL;
 	}
 
-	while(retval == 0){
-		DEBUG("ntp_shm_send NTP_NTS_MSG_DATA msg success");
+	while(retval == 0) {
+		// DEBUG("ntp_shm_send NTP_NTS_MSG_DATA msg success");
 
-		// ntp_msg tmp_ntp_msg;
-		// bool rs_front = ntp_shmring_front(nt_sock_ctx->ntp_send_ctx->ntsring_handle, &tmp_ntp_msg);
-		// if (rs_front)
-		// {
-		// 	DEBUG("ntp_shmring_front with top ele msg_type=%d, msg_len=%d, msg='%s'", 
-		// 		tmp_ntp_msg.msg_type, tmp_ntp_msg.msg_len, tmp_ntp_msg.msg);
-		// } else {
-		// 	DEBUG("no top element in ntp send shmring");
-		// }
-		
-
-		write_bytes += outgoing_msg->msg_len;
+		write_bytes += outgoing_msg.header->msg_len;
 		int next_msg_len;
-		if (nbytes - write_bytes < NTP_PAYLOAD_MAX_SIZE)
+		if (nbytes - write_bytes < NTS_CONFIG.max_payloadsize)
 			next_msg_len = nbytes - write_bytes;
 		else
-			next_msg_len = NTP_PAYLOAD_MAX_SIZE;
+			next_msg_len = NTS_CONFIG.max_payloadsize;
 
 		if(next_msg_len <= 0){
 			DEBUG("small msg pass");
@@ -1426,23 +1405,18 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 
 
 		/* ready to ntp shm send ntp_msg */
-		shm_mempool_node * send_mp_node;
-		send_mp_node = shm_mp_malloc(nt_sock_ctx->ntp_send_ctx->mp_handler, sizeof(ntp_msg));
-		if (send_mp_node == NULL) {
-			// perror("shm_mp_malloc failed. \n");
+		retval = ntp_shm_ntpacket_alloc(nt_sock_ctx->ntp_send_ctx, 
+						&outgoing_msg, NTS_CONFIG.mtu_size);
+		if (retval == -1) {
+			ERR("ntp_shm_ntpacket_alloc failed");
 			return -1;
 		}
 
-		outgoing_msg = (ntp_msg *) shm_offset_mem(nt_sock_ctx->ntp_send_ctx->mp_handler, send_mp_node->node_idx);
-		if (outgoing_msg == NULL) {
-			perror("shm_offset_mem failed \n");
-			return -1;
-		}
-		outgoing_msg->msg_type = NTP_NTS_MSG_DATA;
-		outgoing_msg->msg_len = next_msg_len;
+		outgoing_msg.header->msg_type = NTP_NTS_MSG_DATA;
+		outgoing_msg.header->msg_len = next_msg_len;
 
-		memcpy(outgoing_msg->msg, buf+write_bytes, outgoing_msg->msg_len);
-		retval = ntp_shm_send(nt_sock_ctx->ntp_send_ctx, outgoing_msg);
+		memcpy(outgoing_msg.payload, buf+write_bytes, outgoing_msg.header->msg_len);
+		retval = ntp_shm_send(nt_sock_ctx->ntp_send_ctx, &outgoing_msg);
 		if(retval == -1) {
 			ERR("ntp_shm_send NTP_NTS_MSG_FIN failed");
 			goto FAIL;

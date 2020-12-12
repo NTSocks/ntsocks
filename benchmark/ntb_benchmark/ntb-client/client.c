@@ -22,6 +22,7 @@ int thrds = 0;
 int num_req = NUM_REQ;
 int run_latency = 0; // 0 - lat, 1 - tput, 2 - bw
 int payload_size = DEFAULT_PAYLOAD_SIZE;
+int numa_start = 32, numa_end = 48;
 
 void usage(char *program);
 void parse_args(int argc, char *argv[]);
@@ -98,7 +99,7 @@ void pin_1thread_to_1core(){
     thread = pthread_self();
     CPU_ZERO(&cpuset);
     int j,s;
-    for (j = 0; j < thrds; j++)
+    for (j = numa_start; j < numa_end; j++)
         CPU_SET(j, &cpuset);
     s = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
     if (s != 0)
@@ -135,27 +136,16 @@ void *handle_connection(void* ptr){
     if (run_latency == 0){
         if(with_ack){
             latency_read_with_ack(sockfd);
-<<<<<<< HEAD
         } else {
             latency_read(sockfd);
         }
     } else if (run_latency == 1){
-=======
-        }else {
-            latency_read(sockfd);
-        }
-    }else if (run_latency == 1){
->>>>>>> 24d53783e55f27f27dea95e37b09eef1f98f96db
         if(with_ack){
             throughput_read_with_ack(sockfd);
         }else {
             throughput_read(sockfd);
         }
-<<<<<<< HEAD
     } else if (run_latency == 2)
-=======
-    }else if (run_latency == 2)
->>>>>>> 24d53783e55f27f27dea95e37b09eef1f98f96db
         bandwidth_read(sockfd);
     // close(sockfd);
     getchar();
@@ -191,7 +181,6 @@ void latency_read_with_ack(int sockfd){
     char msg[payload_size];
     char ack[payload_size];
     int n = 0;
-<<<<<<< HEAD
     int ret;
     for (size_t i = 0; i < num_req; ++i) {
         n = payload_size;
@@ -206,14 +195,6 @@ void latency_read_with_ack(int sockfd){
         if (ret != payload_size) {
             printf("[sockid = %d] send back %ld ACK msg failed\n", sockfd, i+1);
         }
-=======
-    for (size_t i = 0; i < num_req; ++i) {
-        n = payload_size;
-        while (n > 0) {
-            n = (n - read(sockfd, msg, n));
-        }
-        write(sockfd, ack, payload_size);
->>>>>>> 24d53783e55f27f27dea95e37b09eef1f98f96db
     }
 }
 
@@ -266,6 +247,7 @@ void usage(char *program){
     printf(" -n <requests>  the number of request(default %d)\n", NUM_REQ);
     printf(" -l <metric>    0 - lat, 1 - tput, 2 - bw\n");
     printf(" -w             transfer data with ack\n");
+    printf(" -k             over kernel socket(defaule over ntb)");
     printf(" -h             display the help information\n");
 }
 
@@ -300,6 +282,9 @@ void parse_args(int argc, char *argv[]){
             }
         }else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-w") == 0){
             with_ack = true;
+        }else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-k") == 0){
+            numa_start = 48;
+            numa_end = 64;
         }else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-t") == 0){
             if(i+1 < argc){
                 thrds = atoi(argv[i+1]);

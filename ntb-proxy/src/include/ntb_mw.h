@@ -25,16 +25,12 @@
 
 #include <stdbool.h>
 
-#define DATA_RING_SIZE 0x800000
-#define CTRL_RING_SIZE 0x40000
-
+// #define CTRL_RING_SIZE 0x40000      // 256KB
 
 #define GAP_REPORT_SIZE 10000000
 
-#define NTB_DATA_MSG_TL 128
-#define NTB_CTRL_MSG_TL 16
-#define NTB_HEADER_LEN 6
-#define DATA_MSG_LEN 122 //data_msg_len = NTB_DATA_MSG_TL - NTB_HEADER_LEN
+#define CTRL_NTPACKET_SIZE 16
+#define CTRL_NTPACKET_BITS 4
 
 #define NTP_NTM_SHM_NAME "/ntp-ntm"
 #define NTM_NTP_SHM_NAME "/ntm-ntp"
@@ -43,8 +39,7 @@
 #define IDX_UPDATE_MASK 511
 #define BLOCKING_SLEEP_US 10
 
-
-enum ntb_data_msg_type
+enum ntpacket_type
 {
     DETECT_PKG = 0,
     SINGLE_PKG = 1,
@@ -53,26 +48,12 @@ enum ntb_data_msg_type
     FIN_PKG = 4
 };
 
-struct ntb_message_header
-{
-    uint16_t src_port;
-    uint16_t dst_port;
-    uint16_t msg_len; // 2 bytes | 1 bit(push)  |  3 bit (msg_type)   |  12 bit (msg len)
-    // uint16_t extend_flags;  // 
-}__attribute__((packed));
-
-//one message length is 128B
-struct ntb_data_msg
-{
-    struct ntb_message_header header;
-    char msg[NTB_DATA_MSG_TL - NTB_HEADER_LEN];
-}__attribute__((packed));
 
 //one message length is 16B
 struct ntb_ctrl_msg
 {
-    struct ntb_message_header header;
-    char msg[NTB_CTRL_MSG_TL - NTB_HEADER_LEN];
+    struct ntpacket_header header;
+    char msg[CTRL_NTPACKET_SIZE - NTPACKET_HEADER_LEN];
 };
 
 struct ntb_ring_buffer // ntb buffer
@@ -266,7 +247,7 @@ int trans_data_link_cur_index(struct ntb_data_link *data_link);
 //  ntb ctrl ringbuffer every specific times
 int trans_ctrl_link_cur_index(struct ntb_link_custom *ntb_link);
 
-int ntb_data_msg_add_header(struct ntb_data_msg *msg, uint16_t src_port, uint16_t dst_port, int payload_len, int msg_type);
+int ntb_data_msg_add_header(struct ntpacket *msg, uint16_t src_port, uint16_t dst_port, int payload_len, int msg_type);
 
 int parser_data_len_get_type(struct ntb_data_link *data_link, uint16_t msg_len);
 
@@ -276,7 +257,7 @@ int ntb_ctrl_msg_enqueue(struct ntb_link_custom *ntb_link, struct ntb_ctrl_msg *
 
 int ntb_pure_data_msg_enqueue(struct ntb_data_link *data_link, uint8_t *msg, int data_len);
 
-int ntb_data_msg_enqueue(struct ntb_data_link *data_link, struct ntb_data_msg *msg);
+int ntb_data_msg_enqueue(struct ntb_data_link *data_link, struct ntpacket *msg);
 
 // start the ntb device,and return a ntb_link
 struct ntb_link_custom *ntb_start(uint16_t dev_id);
@@ -286,6 +267,17 @@ int ntb_close(struct ntb_link_custom * ntb_link);
 
 int ntb_data_msg_enqueue2(struct ntb_data_link *data_link, ntp_msg *outgoing_msg, 
                     uint16_t src_port, uint16_t dst_port, uint16_t payload_len, int msg_type);
+
+/** new added methods for different packet size */
+int pack_ntpacket_header(struct ntpacket_header *packet_header, 
+                uint16_t src_port, uint16_t dst_port, int payload_len, int msg_type);
+
+int ntpacket_enqueue(struct ntb_data_link *data_link, 
+                struct ntpacket_header *packet_header, ntp_msg *source_msg);
+
+
+//start the ntb device,and return a ntb_link
+struct ntb_link_custom *ntb_start(uint16_t dev_id);
 
 void ntb_destroy(struct ntb_link_custom *ntb_link);
 

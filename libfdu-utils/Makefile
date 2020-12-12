@@ -14,8 +14,7 @@ LIB_SRCS=utils.c shm_mempool.c shmring.c hash_map.c \
 CC=gcc
 LIBS+= -lpthread -lrt -luuid
 DEBUG = -g -O2
-# -DENABLE_DEBUG
-CFLAGS += $(DEBUG) -Wall -std=c11 -D_BSD_SOURCE -DHAVE_GCC_C11_ATOMICS
+CFLAGS += $(DEBUG) -Wall -std=c11 -D_BSD_SOURCE -DHAVE_GCC_C11_ATOMICS #-DCONFIG_ENABLE_DEBUG -DENABLE_DEBUG
 LDFLAGS+= -L$(LIB_PATH) -l$(LIB_NAME)
 
 TARGET=shmring ntp2nts-shm sem_shmring hashmap_main ep_eq_main ep_eqserver ep_eqclient \
@@ -93,4 +92,4 @@ local-install:
 
 install:
 	cp lib$(LIB_NAME).* /usr/local/lib
-	cp $(INC_PATH)/*.h /usr/local/include
+	cp *.h /usr/local/include

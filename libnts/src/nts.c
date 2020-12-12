@@ -36,6 +36,7 @@ int nts_context_init(const char *config_file) {
     print_conf();
     DEBUG("load the libnts config file");
     load_conf(config_file);
+    NTS_CONFIG.max_payloadsize = NTS_CONFIG.mtu_size - NTPACKET_HEADER_LEN;
     DEBUG("the libnts config file loaded");
     print_conf();
 
@@ -141,8 +142,8 @@ void nts_context_destroy() {
         
         /**
          * destroy one nt_sock_context_t(equal to the workflow of `close()`): 
-         * TODO:0. update local socket state, notify the ntm to destroy nt_socket resources
-         * TODO:1. close/destroy the send/recv ntp shm ring queue
+         * TODO: 0. update local socket state, notify the ntm to destroy nt_socket resources
+         * TODO: 1. close/destroy the send/recv ntp shm ring queue
          * 2. close/destroy the nts shm ring queue between nt_socket and ntm
          */
         DEBUG("0. update local socket state, notify the ntm to destroy nt_socket resources");
@@ -161,9 +162,12 @@ void nts_context_destroy() {
         if (nt_sock_ctx->socket) {
             free(nt_sock_ctx->socket);
         }
+        
+        if (nt_sock_ctx->ntp_buf) {
+            free(nt_sock_ctx->ntp_buf);
+        }
 
         DEBUG("free the nt_socket and nts_ntm_context");
-        // free(nt_sock_ctx->socket);
         free(nt_sock_ctx);
     }
     freeHashMapIterator(&iter);

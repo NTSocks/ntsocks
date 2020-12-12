@@ -221,14 +221,14 @@ bool shmring_pop(shmring_handle_t self, char *element, size_t ele_len) {
     assert(element);
     DEBUG("ntp_shmring_pop start with shmaddr='%s'.", self->shm_addr);
 
-    ele_len = UNLIKELY(ele_len > self->ele_size) ? self->ele_size : ele_len;
-
     uint64_t w_idx = nt_atomic_load64_explicit(&self->queue->write_idx, ATOMIC_MEMORY_ORDER_ACQUIRE);
     uint64_t r_idx = nt_atomic_load64_explicit(&self->queue->read_idx, ATOMIC_MEMORY_ORDER_RELAXED);
 
     /// Queue is empty (or was empty when we checked)
     if (empty(w_idx, r_idx))
         return false;
+
+    ele_len = UNLIKELY(ele_len > self->ele_size) ? self->ele_size : ele_len;
 
     DEBUG("ntp_msgcopy start with write_idx=%d, read_idx=%d", (int)w_idx, (int)r_idx);
     memset(element, 0, ele_len);

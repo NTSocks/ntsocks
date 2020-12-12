@@ -25,17 +25,23 @@ DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
 #endif  //ENABLE_DEBUG
 
 
-ntp_shm_context_t ntp_shm() {
+
+ntp_shm_context_t ntp_shm(size_t max_payloadsize) {
 	ntp_shm_context_t shm_ctx;
 
 	shm_ctx = (ntp_shm_context_t) malloc(sizeof(struct ntp_shm_context));
-	shm_ctx->shm_stat = NTP_SHM_UNREADY;
-	if (shm_ctx) {
-		DEBUG("[ntp_shm] create shm_ctx pass");
-	}
+    if(!shm_ctx) {
+        ERR("create ntp_shm_context_t failed");
+        return NULL;
+    }
 
+	shm_ctx->shm_stat = NTP_SHM_UNREADY;
+    shm_ctx->max_payloadsize = max_payloadsize;
+	
+    DEBUG("[ntp_shm] create shm_ctx success");
 	return shm_ctx;
 }
+
 
 int ntp_shm_accept(ntp_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
 	assert(shm_ctx);
@@ -84,12 +90,12 @@ int ntp_shm_accept(ntp_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
     shm_ctx->mp_handler = shm_mp_init(sizeof(ntp_msg), 
                             DEFAULT_MAX_NUM_NTP_MSG + 8, mp_name, strlen(mp_name));
     if(!shm_ctx->mp_handler) {
-        ERR("init shm mempool failed. ");
+        ERR("init shm mempool failed.");
         goto FAIL;
     }    
     shm_ctx->shm_stat = NTP_SHM_READY;
 
-	DEBUG("ntp_shm_accept pass");
+	DEBUG("ntp_shm_accept success");
 	return 0;
 
 FAIL: 
@@ -181,7 +187,7 @@ int ntp_shm_connect(ntp_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
     }
     shm_ctx->shm_stat = NTP_SHM_READY;
 
-	DEBUG("ntp_shm_connect pass");
+	DEBUG("ntp_shm_connect success");
 	return 0;
 
     FAIL: 
@@ -217,7 +223,6 @@ int ntp_shm_connect(ntp_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
     }
 
     return -1;
-
 }
 
 
@@ -229,9 +234,9 @@ int ntp_shm_send(ntp_shm_context_t shm_ctx, ntp_msg *buf) {
 	DEBUG("shmring_push invoked");
 
     shm_mempool_node * mp_node;
-    mp_node = shm_mp_node_by_shmaddr(shm_ctx->mp_handler, (char *)buf);
+    mp_node = shm_mp_node_by_shmaddr(shm_ctx->mp_handler, (char *)buf->header);
     if(!mp_node) {
-        ERR("cannot find corresponding shm_mempool_node in shm mempool with ntp_msg shm addr=%p", buf);
+        ERR("cannot find corresponding shm_mempool_node in shm mempool with ntp_msg shm addr=%p", buf->header);
         return -1;
     }
 
@@ -255,8 +260,9 @@ int ntp_shm_send(ntp_shm_context_t shm_ctx, ntp_msg *buf) {
 }
 
 
-ntp_msg * ntp_shm_recv(ntp_shm_context_t shm_ctx) {
+int ntp_shm_recv(ntp_shm_context_t shm_ctx, ntp_msg *buf) {
 	assert(shm_ctx);
+    assert(buf);
 
 	bool ret;
     int node_idx = -1;
@@ -268,28 +274,30 @@ ntp_msg * ntp_shm_recv(ntp_shm_context_t shm_ctx) {
         //  indicate current ntp_shm ring is empty and immediately return NULL
         if(retry_times > RETRY_TIMES){
             INFO("ntp_shm_recv failed: the ntp_shm_recv retry times > RETRY_TIME(%d)", RETRY_TIMES);
-            return NULL;
+            return -1;
         }
             
 		sched_yield();
 		ret = shmring_pop(shm_ctx->ntsring_handle, (char*)&node_idx, NODE_IDX_SIZE);
         retry_times ++;
 	}
-    DEBUG("node_idx=%d", node_idx);
-
-    ntp_msg *buf;
+    
     if(ret) {
-        buf = (ntp_msg *) shm_offset_mem(shm_ctx->mp_handler, node_idx);
-        if (UNLIKELY(!buf)) {
+        void * ptr = (void*) shm_offset_mem(shm_ctx->mp_handler, node_idx);
+        buf->header = (ntpacket_header_t) ptr;
+        if (!buf->header) {
             ERR("ntp_shm_recv failed");
-            return NULL;
+            return -1;
         }
+        buf->payload = (char *)((uint8_t *)ptr + NTPACKET_HEADER_LEN);
+        DEBUG("[ntp_shm_recv] buf->payload: %s\n", buf->payload);
+
         DEBUG("ntp_shm_recv success");
-        return buf;
+        return 0;
     }
 
 	ERR("ntp_shm_recv failed");
-	return NULL;
+	return -1;
 }
 
 
@@ -393,10 +401,9 @@ size_t ntp_shm_recv_bulk_idx(ntp_shm_context_t shm_ctx, char **node_idxs, size_t
 
 
 
-ntp_msg * ntp_shm_front(ntp_shm_context_t shm_ctx) {
+int ntp_shm_front(ntp_shm_context_t shm_ctx, ntp_msg *buf) {
 	assert(shm_ctx);
-
-    ntp_msg *buf;
+    assert(buf);
 
 	bool ret;
     int node_idx = -1;
@@ -404,18 +411,18 @@ ntp_msg * ntp_shm_front(ntp_shm_context_t shm_ctx) {
     DEBUG("node_idx=%d", node_idx);
 
     if(ret) {
-        buf = (ntp_msg *) shm_offset_mem(shm_ctx->mp_handler, node_idx);
-        if (!buf) {
+        buf->header = (ntpacket_header_t) shm_offset_mem(shm_ctx->mp_handler, node_idx);
+        if (!buf->header) {
             ERR("[in]ntp_shm_front failed");
-            return NULL;
+            return -1;
         }
+        buf->payload = (char *)buf->header + NTPACKET_HEADER_LEN;
+
         DEBUG("ntp_shm_front success");
-        return buf;
+        return 0;
     }
 
-
-	// DEBUG("[out]ntp_shm_front failed");
-	return NULL;
+	return -1;
 }
 
 //创建者销毁
@@ -439,7 +446,7 @@ int ntp_shm_close(ntp_shm_context_t shm_ctx) {
 
 	shm_ctx->shm_stat = NTP_SHM_UNLINK;
 
-	DEBUG("ntp_shm_close pass");
+	DEBUG("ntp_shm_close success");
 	return 0;
 }
 
@@ -464,7 +471,7 @@ int ntp_shm_nts_close(ntp_shm_context_t shm_ctx) {
 
 	shm_ctx->shm_stat = NTP_SHM_CLOSE;
 
-	DEBUG("ntp_shm_ntm_close pass");
+	DEBUG("ntp_shm_ntm_close success");
 	return 0;
 }
 
@@ -474,5 +481,43 @@ void ntp_shm_destroy(ntp_shm_context_t shm_ctx) {
 
 	free(shm_ctx);
 	shm_ctx = NULL;
-	DEBUG("ntp_shm_destroy pass");
+	DEBUG("ntp_shm_destroy success");
+}
+
+int ntp_shm_ntpacket_alloc(ntp_shm_context_t shm_ctx, ntp_msg *buf, size_t mtu_size) {
+    assert(shm_ctx);
+
+    if (!buf || mtu_size <= 0) {
+        return -1;
+    }
+
+    shm_mempool_node *mp_node;
+    mp_node = shm_mp_malloc(shm_ctx->mp_handler, mtu_size);
+    if (mp_node == NULL) {
+        ERR("shm_mp_malloc failed. \n");
+        return -1;
+    }
+
+    void * packet_ptr = (void *) shm_offset_mem(shm_ctx->mp_handler, mp_node->node_idx);
+    if (!packet_ptr) {
+        perror("shm_offset_mem failed \n");
+        return -1;
+    }
+    buf->header = (ntpacket_header_t) packet_ptr;
+    buf->payload = (char *) ((uint8_t *) packet_ptr + NTPACKET_HEADER_LEN);
+
+    DEBUG("ntp_shm_ntpacket_alloc success");
+    return 0;
+}
+
+void ntp_shm_ntpacket_free(ntp_shm_context_t shm_ctx, ntp_msg *buf) {
+    assert(shm_ctx);
+
+    if (!buf || !buf->header)   
+        return;
+
+    shm_mempool_node *tmp_node = shm_mp_node_by_shmaddr(shm_ctx->mp_handler, (char *)buf->header);
+    if(tmp_node) {
+        shm_mp_free(shm_ctx->mp_handler, tmp_node);
+    }
 }

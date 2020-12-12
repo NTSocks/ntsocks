@@ -17,6 +17,8 @@
 #include "ntp2nts_msg.h"
 #include "shm_mempool.h"
 
+#define RETRY_TIMES 5
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -36,6 +38,7 @@ struct ntp_shm_context
 {
 	ntp_shm_stat shm_stat;
 	shmring_handle_t ntsring_handle;
+	size_t max_payloadsize;	// determine the maximum size of payload
 	char *shm_addr;
 	size_t addrlen;
 
@@ -53,7 +56,7 @@ typedef struct ntp_shm_context *ntp_shm_context_t;
 /**
  * used by libnts app or nt-monitor to create ntp_shm_context
  */
-ntp_shm_context_t ntp_shm();
+ntp_shm_context_t ntp_shm(size_t max_payloadsize);
 
 /**
  * used by nts shm server (consumer)
@@ -73,7 +76,7 @@ int ntp_shm_send(ntp_shm_context_t shm_ctx, ntp_msg *buf);
 /**
  * used by libnts app to receive message from nt-monitor
  */
-ntp_msg * ntp_shm_recv(ntp_shm_context_t shm_ctx);
+int ntp_shm_recv(ntp_shm_context_t shm_ctx, ntp_msg *buf);
 
 //TODO: for bulk send/recv
 /**
@@ -108,7 +111,7 @@ size_t ntp_shm_recv_bulk_idx(ntp_shm_context_t shm_ctx, char **node_idxs, size_t
 /**
  * used by libnts to front the top or next-pop ntp_msg
  */
-ntp_msg * ntp_shm_front(ntp_shm_context_t shm_ctx);
+int ntp_shm_front(ntp_shm_context_t shm_ctx, ntp_msg *buf);
 
 /**
  * used by libnts app to close and unlink the shm ring buffer.
@@ -124,6 +127,18 @@ int ntp_shm_nts_close(ntp_shm_context_t shm_ctx);
  * used by libnts app or nt-monitor to free the memory of ntp_shm_context
  */
 void ntp_shm_destroy(ntp_shm_context_t shm_ctx);
+
+	/**
+     * used by libnts app and ntp to allocate ntpacket memory from shm mempool 
+	 *	return 0 if success; return -1 if failed
+     */
+	int ntp_shm_ntpacket_alloc(ntp_shm_context_t shm_ctx, ntp_msg *buf, size_t mtu_size);
+
+	/**
+	 * used by libnts and ntp to free ntpacket memory into shm mempool
+	 */
+	void ntp_shm_ntpacket_free(ntp_shm_context_t shm_ctx, ntp_msg *buf);
+
 
 #ifdef __cplusplus
 };
