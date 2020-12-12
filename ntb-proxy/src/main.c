@@ -60,7 +60,7 @@
 
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
-#define NTP_CONFIG_FILE "./ntp.cfg"
+#define NTP_CONFIG_FILE "/etc/ntp.cfg"
 
 #define XEON_LINK_STATUS_OFFSET 0x01a2
 #define RTE_RAWDEV_MAX_DEVS 64

@@ -33,6 +33,7 @@
 #include <rte_memzone.h>
 #include <rte_mempool.h>
 #include <rte_rwlock.h>
+#include <string.h>
 
 #include "ntp_func.h"
 #include "config.h"
@@ -267,6 +268,8 @@ int ntp_send_buff_data(struct ntb_data_link *data_link, ntb_partition_t partitio
             break;
         }
         recv_cnt++;
+        // if (strlen(send_msg.payload))
+        //     printf("send_msg:%s \n", send_msg.payload);
 
         if (UNLIKELY(send_msg.header->msg_type == NTP_FIN)) // when NTP_FIN packet/msg, update ntb-conn state as `ACTIVE_CLOSE`
 
@@ -364,6 +367,8 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
 
         msg_len = msg.header->msg_len;
         partition->recv_packet_counter++;
+        // if (msg.payload)
+        //     printf("msg.payload: %s \n", msg.payload);
 
         msg_len &= 0x0fff; // compute real msg_len == end 12 bits
         msg_type = parser_data_len_get_type(data_link, msg.header->msg_len);

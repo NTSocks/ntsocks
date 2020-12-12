@@ -8,7 +8,7 @@ LIB_SRCS=utils.c shm_mempool.c shmring.c hash_map.c array.c ntp2nts_msg.c ntp2nt
 CC=gcc
 LIBS+= -lpthread -lrt -luuid
 DEBUG = -g -O2
-CFLAGS += $(DEBUG) -Wall -std=c11 -D_BSD_SOURCE -DHAVE_GCC_C11_ATOMICS 
+CFLAGS += $(DEBUG) -Wall -std=c11 -D_BSD_SOURCE -DHAVE_GCC_C11_ATOMICS #-DCONFIG_ENABLE_DEBUG
 LDFLAGS+= -L$(LIB_PATH) -l$(LIB_NAME)
 
 TARGET=shmring ntp2nts-shm hash_map bulk_shmring multi_thread_bulk_shmring ntp2nts-bulk-shm
