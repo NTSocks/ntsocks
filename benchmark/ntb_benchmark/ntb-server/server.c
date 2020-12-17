@@ -47,10 +47,6 @@ void throughput_write(int sockfd, size_t *start_cycles, size_t *end_cycles);
 void throughput_write_with_ack(int sockfd, size_t *start_cycles, size_t *end_cycles);
 void pin_1thread_to_1core();
 void bandwidth_write(int sockfd);
-<<<<<<< HEAD
-=======
-
->>>>>>> develop
 
 int main(int argc, char *argv[]){
     setvbuf(stdout, 0, _IONBF, 0);

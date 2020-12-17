@@ -28,7 +28,6 @@ DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 struct ntp_config NTP_CONFIG = {
 	/* set default configuration */
-	.sublink_number = 1,
 	.sublink_data_ring_size = 8388608,
 	.sublink_ctrl_ring_size = 262144,
 	.nts_buff_size = 8388608,
@@ -50,6 +49,11 @@ static int trim(char s[])
 		s[n + 1] = '\0';
 	}
 	return n;
+}
+
+static int math_log2(int value) {
+	int log_v = log(value * 1.0) / log(2.0);
+	return log_v;
 }
 
 int load_conf(const char *fname)
@@ -122,12 +126,7 @@ int load_conf(const char *fname)
 		if (strcmp(_paramk, "") == 0 || strcmp(_paramv, "") == 0)
 			continue;
 		// DEBUG("ntb proxy configuration %s=%s", _paramk, _paramv);
-		if (strcmp(_paramk, "sublink_number") == 0)
-		{
-			NTP_CONFIG.sublink_number = atoi(_paramv);
-			NTP_CONFIG.num_partition = NTP_CONFIG.sublink_number;
-		}
-		else if (strcmp(_paramk, "sublink_data_ring_size") == 0)
+		if (strcmp(_paramk, "sublink_data_ring_size") == 0)
 		{
 			NTP_CONFIG.sublink_data_ring_size = atoi(_paramv);
 		}
@@ -171,6 +170,7 @@ int load_conf(const char *fname)
 		else if (strcmp(_paramk, "data_packet_size") == 0)
 		{
 			NTP_CONFIG.data_packet_size = atoi(_paramv);
+			NTP_CONFIG.ntb_packetbits_size = math_log2(NTP_CONFIG.data_packet_size);
 		}
 		else
 		{
@@ -188,5 +188,24 @@ void free_conf() {
 }
 
 void print_conf() {
-
+	printf("sublink_data_ring_size = %d\n\
+		sublink_ctrl_ring_size = %d\n\
+		nts_buff_size = %d\n\
+		bulk_size = %d\n\
+		num_partition = %d\n\
+		ntb_packetbits_size = %d\n\
+		data_packet_size = %d\n\
+		ctrl_packet_size = %d\n\
+		data_ringbuffer_size = %ld\n\
+		ctrl_ringbuffer_size = %ld\n\n", 
+	   NTP_CONFIG.sublink_data_ring_size, 
+	   NTP_CONFIG.sublink_ctrl_ring_size,
+	   NTP_CONFIG.nts_buff_size,
+	   NTP_CONFIG.bulk_size,
+	   NTP_CONFIG.num_partition,
+	   NTP_CONFIG.ntb_packetbits_size,
+	   NTP_CONFIG.data_packet_size,
+	   NTP_CONFIG.ctrl_packet_size,
+	   NTP_CONFIG.data_ringbuffer_size,
+	   NTP_CONFIG.ctrl_ringbuffer_size);
 }

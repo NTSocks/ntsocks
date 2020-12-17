@@ -24,7 +24,6 @@ extern "C" {
 
 struct ntp_config
 {
-    int sublink_number;
     int sublink_data_ring_size;
     int sublink_ctrl_ring_size;
     int nts_buff_size;

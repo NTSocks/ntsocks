@@ -248,10 +248,11 @@ int main(int argc, char **argv)
 	}
 	
 	/** load the customized NTP parameters */
-	load_conf(conf_file);
+	if (load_conf(conf_file) == -1) {
+		rte_exit(EXIT_FAILURE, "Cannot load NTP configuration file.\n");
+	}
+	print_conf();
 	NTP_CONFIG.datapacket_payload_size = NTP_CONFIG.data_packet_size - NTPACKET_HEADER_LEN;
-
-
 
 	ntb_link = ntb_start(dev_id);
 	DEBUG("mem addr == %ld ,len == %ld", ntb_link->hw->pci_dev->mem_resource[2].phys_addr, ntb_link->hw->pci_dev->mem_resource[2].len);

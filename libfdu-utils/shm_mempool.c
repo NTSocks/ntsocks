@@ -339,7 +339,7 @@ shm_mempool_node * shm_mp_node_by_shmaddr(shm_mp_handler_t mp_handler, char *shm
 
     uint64_t offset = shmaddr - mp_handler->shm_mem;
     DEBUG("\n offset=%ld\n", offset);
-    char offset_str[30] = {0};
+    char offset_str[SHM_OFFSET_SIZE] = {0};
     sprintf(offset_str, "%ld", offset);
 
     node_idx = (int *) Get(mp_handler->mp_node_map, offset_str);

@@ -470,7 +470,6 @@ static int ntb_mem_formatting(struct ntb_link_custom *ntb_link, uint8_t *local_p
 }
 
 
-
 struct ntb_link_custom * ntb_start(uint16_t dev_id)
 {
     struct rte_rawdev *dev;

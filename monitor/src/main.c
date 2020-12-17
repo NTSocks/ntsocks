@@ -52,7 +52,7 @@ void test_nts_shm() {
 			// sched_yield();
 			ret = nts_shmring_pop(handle, &msg);
 		}
-		printf("msg_id=%d, msg_type=%d, sockid=%d, retval=%d\n", 
+		printf("msg_id=%ld, msg_type=%d, sockid=%d, retval=%d\n", 
 					msg.msg_id, msg.msg_type, msg.sockid, msg.retval);
 		
 	}

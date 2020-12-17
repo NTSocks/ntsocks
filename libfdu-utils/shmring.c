@@ -246,15 +246,13 @@ bool shmring_pop(shmring_handle_t self, char *element, size_t ele_len) {
 
     DEBUG("ntp_msgcopy start with write_idx=%d, read_idx=%d", (int)w_idx, (int)r_idx);
     memset(element, 0, ele_len);
-    memcpy(element, self->shmring->buf[self->shmring->read_index], ele_len);
+    memcpy(element, self->shmring->buf[r_idx], ele_len);
 
     nt_atomic_store64_explicit(&self->shmring->read_index,
                                mask_increment(r_idx, self->MASK), ATOMIC_MEMORY_ORDER_RELEASE);
 
     DEBUG("pop shmring success!");
-
     return true;
-
 }
 
 
@@ -313,7 +311,6 @@ bool shmring_push_bulk(shmring_handle_t self, char **elements, size_t *ele_lens,
 
     nt_atomic_store64_explicit(&self->shmring->write_index,
                                w_next_idx, ATOMIC_MEMORY_ORDER_RELEASE);
-
     return true;
 }
 
@@ -407,7 +404,7 @@ bool shmring_front(shmring_handle_t self, char *element, size_t ele_len) {
 
     DEBUG("ntp_msgcopy start with write_idx=%d, read_idx=%d", (int)w_idx, (int)r_idx);
     memset(element, 0, ele_len);
-    memcpy(element, self->shmring->buf[self->shmring->read_index], ele_len);
+    memcpy(element, self->shmring->buf[r_idx], ele_len);
 
     DEBUG("front shmring success!");
 
