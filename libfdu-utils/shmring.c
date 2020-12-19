@@ -118,6 +118,7 @@ shmring_handle_t shmring_init(char *shm_addr, size_t addrlen) {
         perror("mmap");
         goto FAIL;
     }
+    close(shmring_handle->shm_fd);
     // init the shared memory
     shmring_handle->shmring->read_index = shmring_handle->shmring->write_index = 0;
     shmring_handle->peer_read_index = 0;
@@ -126,7 +127,6 @@ shmring_handle_t shmring_init(char *shm_addr, size_t addrlen) {
     shmring_handle->MASK = MAX_BUFS - 1;
     shmring_handle->max_size = MAX_BUFS;
     DEBUG("nts shmring init successfully!");
-
 
     return shmring_handle;
 
@@ -137,7 +137,6 @@ shmring_handle_t shmring_init(char *shm_addr, size_t addrlen) {
     }
 
     free(shmring_handle);
-
     return NULL;
 }
 
@@ -174,6 +173,7 @@ shmring_handle_t get_shmring(char *shm_addr, size_t addrlen) {
         goto FAIL;
     }
     DEBUG("mmap pass");
+    close(shmring_handle->shm_fd);
     
     shmring_handle->MASK = MAX_BUFS - 1;
     shmring_handle->max_size = MAX_BUFS;
@@ -188,7 +188,6 @@ shmring_handle_t get_shmring(char *shm_addr, size_t addrlen) {
     }
 
     free(shmring_handle);
-
     return NULL;
 }
 
@@ -416,7 +415,6 @@ void shmring_free(shmring_handle_t self, int unlink) {
     DEBUG("nts shmring free start");
 
     munmap(self->shmring, sizeof(struct shmring_buf));
-    close(self->shm_fd);
     DEBUG("munmap close pass");
 
     if (unlink) {

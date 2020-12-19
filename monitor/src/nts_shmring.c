@@ -130,6 +130,7 @@ nts_shmring_handle_t nts_shmring_init(char *shm_addr, size_t addrlen) {
         error("mmap");
         goto FAIL;
     }
+    close(shmring_handle->shm_fd);
     // init the shared memory
     shmring_handle->shmring->read_index = shmring_handle->shmring->write_index = 0;
     DEBUG("mmap pass with read_index=%ld, write_index=%ld", shmring_handle->shmring->read_index,  shmring_handle->shmring->write_index);
@@ -183,12 +184,14 @@ nts_shmring_handle_t nts_get_shmring(char *shm_addr, size_t addrlen) {
         error("mmap");
         goto FAIL;
     }
-    DEBUG("mmap pass with read_index=%ld, write_index=%ld", shmring_handle->shmring->read_index,  shmring_handle->shmring->write_index);
+    shmring_handle->shm_fd(shmring_handle->shm_fd);
+    DEBUG("mmap pass with read_index=%ld, write_index=%ld", 
+                shmring_handle->shmring->read_index,  shmring_handle->shmring->write_index);
 
     shmring_handle->MASK = NTS_MAX_BUFS - 1;
     shmring_handle->max_size = NTS_MAX_BUFS;
-    DEBUG("nts get shmring success!");
 
+    DEBUG("nts get shmring success!");
     return shmring_handle;
 
     FAIL:
@@ -237,9 +240,7 @@ bool nts_shmring_push(nts_shmring_handle_t self, nts_msg *element) {
                                w_next_idx, ATOMIC_MEMORY_ORDER_RELEASE);
 
     DEBUG("push nts shmring success!");
-
     return true;
-
 }
 
 bool nts_shmring_pop(nts_shmring_handle_t self, nts_msg *element) {
@@ -259,9 +260,7 @@ bool nts_shmring_pop(nts_shmring_handle_t self, nts_msg *element) {
                                mask_increment(r_idx, self->MASK), ATOMIC_MEMORY_ORDER_RELEASE);
 
     DEBUG("pop nts shmring success!");
-
     return true;
-
 }
 
 /**
@@ -274,8 +273,6 @@ void nts_shmring_free(nts_shmring_handle_t self, int unlink) {
     DEBUG("nts shmring free start");
 
     munmap(self->shmring, sizeof(struct nts_shmring_buf));
-    close(self->shm_fd);
-    DEBUG("munmap close pass");
 
     if (unlink) {
         shm_unlink(self->shm_addr);

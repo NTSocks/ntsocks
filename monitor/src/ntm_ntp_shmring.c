@@ -108,7 +108,6 @@ ntm_ntp_shmring_handle_t ntm_ntp_shmring_init(char *shm_addr, size_t addrlen) {
     }
     // set the permission of shm fd for write/read in non-root users 
     fchmod(shmring_handle->shm_fd, 0666);
-    DEBUG("shm_open pass");
 
     int ret;
     ret = ftruncate(shmring_handle->shm_fd, sizeof(struct ntm_ntp_shmring_buf));
@@ -116,7 +115,6 @@ ntm_ntp_shmring_handle_t ntm_ntp_shmring_init(char *shm_addr, size_t addrlen) {
         error("ftruncate");
         goto FAIL;
     }
-    DEBUG("ftruncate pass");
 
     // mmap the allocated shared memory to ntm_ntp_shmring
     shmring_handle->shmring = (struct ntm_ntp_shmring_buf *)
@@ -127,9 +125,9 @@ ntm_ntp_shmring_handle_t ntm_ntp_shmring_init(char *shm_addr, size_t addrlen) {
         error("mmap");
         goto FAIL;
     }
+    close(shmring_handle->shm_fd);
     // init the shared memory
     shmring_handle->shmring->read_index = shmring_handle->shmring->write_index = 0;
-    DEBUG("mmap pass");
 
     shmring_handle->MASK = NTP_MAX_BUFS - 1;
     shmring_handle->max_size = NTP_MAX_BUFS;
@@ -180,7 +178,7 @@ ntm_ntp_shmring_handle_t ntm_ntp_get_shmring(char *shm_addr, size_t addrlen) {
         error("mmap");
         goto FAIL;
     }
-    DEBUG("mmap pass");
+    close(shmring_handle->shm_fd);
 
     shmring_handle->MASK = NTP_MAX_BUFS - 1;
     shmring_handle->max_size = NTP_MAX_BUFS;
@@ -246,9 +244,7 @@ bool ntm_ntp_shmring_pop(ntm_ntp_shmring_handle_t self, ntm_ntp_msg *element) {
                                mask_increment(r_idx, self->MASK), ATOMIC_MEMORY_ORDER_RELEASE);
 
     DEBUG("pop ntm_ntp shmring successfully!");
-
     return true;
-
 }
 
 /**
@@ -261,8 +257,6 @@ void ntm_ntp_shmring_free(ntm_ntp_shmring_handle_t self, int unlink) {
     DEBUG("ntm_ntp shmring free start");
 
     munmap(self->shmring, sizeof(struct ntm_ntp_shmring_buf));
-    close(self->shm_fd);
-    DEBUG("munmap close pass");
 
     if (unlink) {
         shm_unlink(self->shm_addr);

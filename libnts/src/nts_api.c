@@ -1326,7 +1326,6 @@ ssize_t nts_readv(int fd, const struct iovec *iov, int iovcnt) {
 }
 
 
-
 ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 	DEBUG("nts_write start with sockid = %d", sockid);
 	if (!buf || nbytes <= 0)

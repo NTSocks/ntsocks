@@ -92,8 +92,13 @@ shm_mp_handler_t shm_mp_init(unsigned int block_len, unsigned int block_count, c
     }
 
 
-    mp_handler->shm_mem = (char *)(mmap(NULL, sizeof(u_char) * block_count * block_len, PROT_READ | PROT_WRITE, MAP_SHARED, mp_handler->shm_mem_fd, 0));
-
+    mp_handler->shm_mem = (char *)(mmap(NULL, sizeof(u_char) * block_count * block_len, 
+                                    PROT_READ | PROT_WRITE, MAP_SHARED, mp_handler->shm_mem_fd, 0));
+    if (mp_handler->shm_mem == MAP_FAILED) {
+        perror("mmap");
+        goto FAIL;
+    }
+    close(mp_handler->shm_mem_fd);
 
     memset(tmp_shm, 0, sizeof(tmp_shm));
     sprintf(tmp_shm, "%s%s", SHM_PATH_PREFIX, mp_handler->shm_mp_name);
@@ -121,7 +126,14 @@ shm_mp_handler_t shm_mp_init(unsigned int block_len, unsigned int block_count, c
     }
 
     DEBUG("mmap base_shm_mp with shm_mp_size=%d \n", shm_mp_size);
-    mp_handler->base_shm_mp = mmap(NULL, shm_mp_size, PROT_READ | PROT_WRITE, MAP_SHARED, mp_handler->shm_mp_fd, 0);
+    mp_handler->base_shm_mp = mmap(NULL, shm_mp_size, 
+                                    PROT_READ | PROT_WRITE, MAP_SHARED, mp_handler->shm_mp_fd, 0);
+    if (mp_handler->base_shm_mp == MAP_FAILED) {
+        perror("mmap");
+        goto FAIL;
+    }
+    close(mp_handler->shm_mp_fd);
+
     mp_handler->shm_mp = (shm_mempool *) mp_handler->base_shm_mp;
     mp_handler->shm_mp_nodes = (shm_mempool_node *) ((char *)mp_handler->base_shm_mp + sizeof(shm_mempool));
 
@@ -219,9 +231,7 @@ shm_mp_handler_t shm_mp_init(unsigned int block_len, unsigned int block_count, c
         goto FAIL;
     }
 
-
     DEBUG("shm_mp_init success\n");
-
     return mp_handler;
 
     FAIL:
@@ -251,6 +261,14 @@ shm_mp_handler_t shm_mp_init(unsigned int block_len, unsigned int block_count, c
         if (mp_handler->node_idxs) {
             free(mp_handler->node_idxs);
             mp_handler->node_idxs = NULL;
+        }
+
+        if (mp_handler->shm_mp_fd > 0) {
+            close(mp_handler->shm_mp_fd);
+        }
+
+        if (mp_handler->shm_mem_fd) {
+            close(mp_handler->shm_mem_fd);
         }
 
         free(mp_handler);
@@ -475,12 +493,9 @@ int shm_mp_destroy(shm_mp_handler_t mp_handler, int is_unlink) {
 
         DEBUG("munmap and close base_shm_mp (shm mempool), shm_mp_size=%d, block_count=%d\n", shm_mp_size, block_count);
         munmap(mp_handler->base_shm_mp, (size_t)(shm_mp_size));
-        DEBUG("close shm_mp_fd\n");
-        close(mp_handler->shm_mp_fd);
 
         DEBUG("munmap and close shm_mem start. \n");
         munmap(mp_handler->shm_mem, (size_t)(block_count * block_len));
-        close(mp_handler->shm_mem_fd);
 
         DEBUG("sem close sem_mutex\n");
         sem_close(mp_handler->sem_mutex);

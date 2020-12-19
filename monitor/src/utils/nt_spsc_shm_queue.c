@@ -147,6 +147,7 @@ static inline nt_spsc_shmring_handle_t _nt_spsc_shmring_init(char *shm_addr, siz
         error("mmap");
         goto FAIL;
     }
+    close(shmring_handle->shm_fd);
     shmring_handle->read_index = (uint64_t *) shmring_handle->shmbuf + RD_IDX_ADDR_IDX;
     shmring_handle->write_index = (uint64_t *) (shmring_handle->shmbuf + WR_IDX_ADDR_IDX);
     shmring_handle->data = shmring_handle->shmbuf + DATA_START_ADDR_IDX;
@@ -274,7 +275,6 @@ void nt_spsc_shmring_free(nt_spsc_shmring_handle_t self, int unlink) {
     assert(self);
 
     munmap(self->shmbuf, self->total_shm_size);
-    close(self->shm_fd);
 
     if (unlink) {
         shm_unlink(self->shm_addr);

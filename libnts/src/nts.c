@@ -132,7 +132,7 @@ void nts_context_destroy() {
         DEBUG("iter next");
         iter = nextHashMapIterator(iter);
         nt_sock_ctx = (nt_sock_context_t) iter->entry->value;
-        
+        if (!nt_sock_ctx)   continue;
 
         /**
          * destroy one nt_sock_context_t(equal to the workflow of `close()`): 
@@ -145,21 +145,21 @@ void nts_context_destroy() {
         DEBUG("1. close/destroy the send/recv ntp shm ring queue");
 
         DEBUG("2. close/destroy the nts shm ring queue between nt_socket and ntm");
-        if(nt_sock_ctx->nts_shm_ctx && 
+        if(nt_sock_ctx && nt_sock_ctx->nts_shm_ctx && 
                 nt_sock_ctx->nts_shm_ctx->shm_stat == NTS_SHM_READY) {
             nts_shm_close(nt_sock_ctx->nts_shm_ctx);
             nts_shm_destroy(nt_sock_ctx->nts_shm_ctx);
         }
-
-        if (nt_sock_ctx->socket) {
-            free(nt_sock_ctx->socket);
-        }
         
-        if (nt_sock_ctx->ntp_buf) {
+        if (nt_sock_ctx && nt_sock_ctx->ntp_buf) {
             free(nt_sock_ctx->ntp_buf);
         }
 
         Remove(nts_ctx->nt_sock_map, &nt_sock_ctx->socket->sockid);
+
+        if (nt_sock_ctx && nt_sock_ctx->socket) {
+            free(nt_sock_ctx->socket);
+        }
 
         DEBUG("free the nt_socket and nts_ntm_context");
         free(nt_sock_ctx);
@@ -182,7 +182,6 @@ void nts_context_destroy() {
     Clear(nts_ctx->fd_table);
 	nts_ctx->fd_table = NULL;
     
-    
     if(nts_ctx->ntp_ctx) {
          free(nts_ctx->ntp_ctx);
          nts_ctx->ntp_ctx = NULL;
@@ -198,7 +197,6 @@ void nts_context_destroy() {
         DEBUG("free(nts_ctx)");
         free(nts_ctx);
     }
-    
 
     /**
      * destroy the memory which is allocated to NTS_CONFIG

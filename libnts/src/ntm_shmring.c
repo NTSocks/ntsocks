@@ -102,10 +102,9 @@ ntm_shmring_handle_t ntm_shmring_init(char *shm_addr, size_t addrlen) {
         error("mmap");
         goto FAIL;
     }
+    close(shmring_handle->shm_fd);
     // init the shared memory
     shmring_handle->shmring->read_index = shmring_handle->shmring->write_index = 0;
-	DEBUG("mmap pass");
-
 
 
     // store old, umask for world-writable access of semaphores (mutex_sem, buf_count_sem, spool_signal_sem)
@@ -210,8 +209,7 @@ ntm_shmring_handle_t ntm_get_shmring(char *shm_addr, size_t addrlen) {
         error("mmap");
         goto FAIL;
     }
-	DEBUG("mmap pass");
-
+    close(shmring_handle->shm_fd);
 
 
     // store old, umask for world-writable access of semaphores (mutex_sem, buf_count_sem, spool_signal_sem)
@@ -387,7 +385,6 @@ void ntm_shmring_free(ntm_shmring_handle_t self, int unlink) {
     sem_close(self->mutex_sem);
 
     munmap(self->shmring, sizeof(struct ntm_shmring_buf));
-    close(self->shm_fd);
 	DEBUG("munmap close pass");
 
     sem_close(self->buf_count_sem);
