@@ -17,14 +17,12 @@
 #include "ntp2nts_msg.h"
 #include "shm_mempool.h"
 
-#define RETRY_TIMES 100
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
-#define RETRY_TIMES 5
+#define RETRY_TIMES 100
 
 typedef enum ntp_shm_stat
 {

@@ -1400,10 +1400,10 @@ int ntm_sock_handle_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg)
 
 		break;
 	}
-	case SUCCESS:
+	case NTM_SUCCESS:
 	{
 		// human_data *data = (human_data *)&msg.payload;
-		DEBUG("SUCCESS message \n");
+		DEBUG("NTM_SUCCESS message \n");
 		break;
 	}
 	case TRACK_CONFIRM:

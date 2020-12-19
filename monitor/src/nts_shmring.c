@@ -184,7 +184,7 @@ nts_shmring_handle_t nts_get_shmring(char *shm_addr, size_t addrlen) {
         error("mmap");
         goto FAIL;
     }
-    shmring_handle->shm_fd(shmring_handle->shm_fd);
+    close(shmring_handle->shm_fd);
     DEBUG("mmap pass with read_index=%ld, write_index=%ld", 
                 shmring_handle->shmring->read_index,  shmring_handle->shmring->write_index);
 
