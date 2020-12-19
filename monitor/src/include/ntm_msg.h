@@ -39,7 +39,7 @@ typedef enum {
     TRACK_CONFIRM = 15,
     STOP = 20,
     STOP_CONFIRM = 25,
-    SUCCESS = 30,
+    NTM_SUCCESS = 30,
     FAILURE = 40,
     QUIT = 50,
 
