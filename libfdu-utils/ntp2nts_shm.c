@@ -411,12 +411,13 @@ int ntp_shm_front(ntp_shm_context_t shm_ctx, ntp_msg *buf) {
     DEBUG("node_idx=%d", node_idx);
 
     if(ret) {
-        buf->header = (ntpacket_header_t) shm_offset_mem(shm_ctx->mp_handler, node_idx);
+        void * ptr = (void*) shm_offset_mem(shm_ctx->mp_handler, node_idx);
+        buf->header = (ntpacket_header_t) ptr;
         if (!buf->header) {
-            ERR("[in]ntp_shm_front failed");
+            ERR("ntp_shm_front failed");
             return -1;
         }
-        buf->payload = (char *)buf->header + NTPACKET_HEADER_LEN;
+        buf->payload = (char *)((uint8_t *)ptr + NTPACKET_HEADER_LEN);
 
         DEBUG("ntp_shm_front success");
         return 0;
@@ -513,8 +514,7 @@ int ntp_shm_ntpacket_alloc(ntp_shm_context_t shm_ctx, ntp_msg *buf, size_t mtu_s
 void ntp_shm_ntpacket_free(ntp_shm_context_t shm_ctx, ntp_msg *buf) {
     assert(shm_ctx);
 
-    if (!buf || !buf->header)   
-        return;
+    if (!buf || !buf->header)   return;
 
     shm_mempool_node *tmp_node = shm_mp_node_by_shmaddr(shm_ctx->mp_handler, (char *)buf->header);
     if(tmp_node) {

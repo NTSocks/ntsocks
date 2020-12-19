@@ -2250,14 +2250,13 @@ inline void handle_msg_nts_fin(ntm_manager_t ntm_mgr, ntm_msg msg) {
 	ntm_conn_t ntm_conn;
 	ntm_conn = nts_shm_conn->ntm_conn;
 	DEBUG("msg.address='%s'.", msg.address);
-	HashMapIterator iter;
-	iter = createHashMapIterator(ntm_mgr->ntm_conn_ctx->conn_map);
-	while(hasNextHashMapIterator(iter)) {
-		iter = nextHashMapIterator(iter);
-		// ntm_conn_t * tmp_ntm_conn = (ntm_conn_t *)iter->entry->value;
-		DEBUG("{ key = %d }", *(int *) iter->entry->key);
-	}
-	freeHashMapIterator(&iter);
+	// HashMapIterator iter = createHashMapIterator(ntm_mgr->ntm_conn_ctx->conn_map);
+	// while(hasNextHashMapIterator(iter)) {
+	// 	iter = nextHashMapIterator(iter);
+	// 	ntm_conn_t * tmp_ntm_conn = (ntm_conn_t *)iter->entry->value;
+	// 	DEBUG("{ key = %d }", *(int *) iter->entry->key);
+	// }
+	// freeHashMapIterator(&iter);
 
 	if(!ntm_conn && Exists(ntm_mgr->ntm_conn_ctx->conn_map, msg.address)) {
 		ntm_conn = (ntm_conn_t) Get(ntm_mgr->ntm_conn_ctx->conn_map, msg.address);
@@ -2289,7 +2288,6 @@ inline void handle_msg_nts_fin(ntm_manager_t ntm_mgr, ntm_msg msg) {
 	FAIL: 
 
 	return;
-
 }
 
 inline void handle_msg_err(ntm_manager_t ntm_mgr, ntm_msg msg)

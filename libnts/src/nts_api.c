@@ -1330,7 +1330,6 @@ ssize_t nts_readv(int fd, const struct iovec *iov, int iovcnt) {
 }
 
 
-
 ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 	DEBUG("nts_write start with sockid = %d", sockid);
 	if (!buf || nbytes <= 0)
@@ -1365,9 +1364,6 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 	}
 
 	// pack the data ntp_msg and push/write ntp_msg into ntp_send_buf
-	write_bytes = 0;
-
-
 	/* ready to ntp shm send ntp_msg */
 	ntp_msg outgoing_msg;
 	retval = ntp_shm_ntpacket_alloc(nt_sock_ctx->ntp_send_ctx, 
@@ -1377,23 +1373,27 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 		return -1;
 	}
 
+	write_bytes = 0;
 	outgoing_msg.header->msg_type = NTP_NTS_MSG_DATA;
 	outgoing_msg.header->msg_len = nbytes < NTS_CONFIG.max_payloadsize ? nbytes : NTS_CONFIG.max_payloadsize;
+	write_bytes += outgoing_msg.header->msg_len;
+
 	memcpy(outgoing_msg.payload, buf, outgoing_msg.header->msg_len);
 	DEBUG("ntp_shm_send NTP_NTS_MSG_DATA msg with msg_len=%d, outgoing_msg.msg='%s'",
 		 outgoing_msg.header->msg_len, outgoing_msg.payload);
 	retval = ntp_shm_send(nt_sock_ctx->ntp_send_ctx, &outgoing_msg);
 	if(retval == -1) {
 		ERR("ntp_shm_send NTP_NTS_MSG_DATA failed");
+		write_bytes -= outgoing_msg.header->msg_len;
+		ntp_shm_ntpacket_free(nt_sock_ctx->ntp_send_ctx, &outgoing_msg);
+
 		goto FAIL;
 	}
 
 	while(retval == 0) {
-		// DEBUG("ntp_shm_send NTP_NTS_MSG_DATA msg success");
 
-		write_bytes += outgoing_msg.header->msg_len;
 		int next_msg_len;
-		if (nbytes - write_bytes < NTS_CONFIG.max_payloadsize)
+		if (nbytes - write_bytes <= NTS_CONFIG.max_payloadsize)
 			next_msg_len = nbytes - write_bytes;
 		else
 			next_msg_len = NTS_CONFIG.max_payloadsize;
@@ -1402,7 +1402,6 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 			DEBUG("small msg pass");
 			break;
 		}
-
 
 		/* ready to ntp shm send ntp_msg */
 		retval = ntp_shm_ntpacket_alloc(nt_sock_ctx->ntp_send_ctx, 
@@ -1413,12 +1412,17 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 		}
 
 		outgoing_msg.header->msg_type = NTP_NTS_MSG_DATA;
-		outgoing_msg.header->msg_len = next_msg_len;
+		outgoing_msg.header->msg_len = next_msg_len < NTS_CONFIG.max_payloadsize ? 
+												next_msg_len : NTS_CONFIG.max_payloadsize;
+		write_bytes += outgoing_msg.header->msg_len;
 
 		memcpy(outgoing_msg.payload, buf+write_bytes, outgoing_msg.header->msg_len);
 		retval = ntp_shm_send(nt_sock_ctx->ntp_send_ctx, &outgoing_msg);
 		if(retval == -1) {
 			ERR("ntp_shm_send NTP_NTS_MSG_FIN failed");
+			write_bytes -= outgoing_msg.header->msg_len;
+			ntp_shm_ntpacket_free(nt_sock_ctx->ntp_send_ctx, &outgoing_msg);
+
 			goto FAIL;
 		}
 	}
@@ -1440,10 +1444,14 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 	return write_bytes;
 
 	FAIL:
+	if (write_bytes > 0) {
+		return write_bytes;
+	}
 
 	ERR("nts_write failed!");
 	return -1;
 }
+
 
 ssize_t nts_writev(int fd, const struct iovec *iov, int iovcnt) {
 	DEBUG("nts_writev start...");
@@ -1451,7 +1459,6 @@ ssize_t nts_writev(int fd, const struct iovec *iov, int iovcnt) {
 	DEBUG("nts_writev success");
 	return 0;
 }
-
 
 
 ssize_t nts_send(int sockid, const void *buf, size_t len, int flags) {
@@ -1475,7 +1482,6 @@ ssize_t nts_sendmsg(int sockid, const struct msghdr *msg, int flags) {
 	DEBUG("nts_sendmsg success");
 	return 0;
 }
-
 
 
 ssize_t nts_recv(int sockid, void *buf, size_t len, int flags) {
@@ -1532,7 +1538,6 @@ int nts_poll(struct pollfd fds[], nfds_t nfds, int timeout) {
 //
 //	return 0;
 //}
-
 
 
 int nts_gettimeofday(struct timeval *tv, struct timezone *tz) {

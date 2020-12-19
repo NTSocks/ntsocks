@@ -24,7 +24,7 @@
 
 #define SHM_PATH_PREFIX "/dev/shm"
 
-#define SHM_OFFSET_SIZE 20
+#define SHM_OFFSET_SIZE 32
 #define NODE_IDX_SIZE   sizeof(int)
 
 typedef struct {

@@ -142,6 +142,8 @@ shmring_handle_t _shmring_init(char *shm_addr, size_t addrlen, size_t ele_size, 
         ERR("mmap sem_shmring failed");
         goto FAIL;
     }
+    close(handle->shm_fd);
+
     if (is_owner) {
         handle->queue->write_idx = handle->queue->read_idx = 0;
     }
@@ -156,7 +158,7 @@ FAIL:
     if (handle->queue) {
         munmap((void*) handle->queue, handle->queue_size);
     }
-    if (handle->shm_fd) {
+    if (handle->shm_fd > 0) {
       close(handle->shm_fd);
         if (is_owner) { 
             shm_unlink(handle->shm_addr);
@@ -232,8 +234,8 @@ bool shmring_pop(shmring_handle_t self, char *element, size_t ele_len) {
 
     DEBUG("ntp_msgcopy start with write_idx=%d, read_idx=%d", (int)w_idx, (int)r_idx);
     memset(element, 0, ele_len);
-    memcpy(element, self->data[self->queue->read_idx], ele_len);
-    DEBUG("[pop]value=%s", self->data[self->queue->read_idx]);
+    memcpy(element, self->data[r_idx], ele_len);
+    DEBUG("[pop]value=%s", self->data[r_idx]);
 
     nt_atomic_store64_explicit(&self->queue->read_idx,
                                next_index(r_idx, self->capacity), ATOMIC_MEMORY_ORDER_RELEASE);
@@ -298,7 +300,6 @@ bool shmring_push_bulk(shmring_handle_t self, char **elements, size_t *ele_lens,
 
     nt_atomic_store64_explicit(&self->queue->write_idx,
                                w_next_idx, ATOMIC_MEMORY_ORDER_RELEASE);
-
     return true;
 }
 
@@ -389,12 +390,9 @@ bool shmring_front(shmring_handle_t self, char *element, size_t ele_len) {
        
     DEBUG("ntp_msgcopy start with write_idx=%d, read_idx=%d", (int)w_idx, (int)r_idx);
     memset(element, 0, ele_len);
-    memcpy(element, self->data[self->queue->read_idx], ele_len);
-    DEBUG("[front]value=%s", self->data[self->queue->read_idx]);
-
+    memcpy(element, self->data[r_idx], ele_len);
 
     DEBUG("front shmring success!");
-
     return true;
 }
 
@@ -405,12 +403,11 @@ void shmring_free(shmring_handle_t handle, bool is_unlink) {
     if (handle->queue) {
         munmap((void *)handle->queue, handle->queue_size);
     }
-    if (handle->shm_fd) {
-        close(handle->shm_fd);
-        if (is_unlink) { 
-            shm_unlink(handle->shm_addr);
-        }
+    
+    if (is_unlink) { 
+        shm_unlink(handle->shm_addr);
     }
+    
     if (handle->data) {
         free((void *)handle->data);
     }

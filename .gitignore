@@ -57,7 +57,8 @@ dpdk/x86_64-native-linuxapp-gcc/
 
 *libfdu-utils/bin*
 *libfdu-utils/include*
-*libfdu-utils/bin/
 *libfdu-utils/bin/*
 
 *benchmark/ntb_benchmark/bin/*
+*libnts/examples/bin*
+*benchmark/ntb_benchmark/bin*
