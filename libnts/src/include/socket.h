@@ -29,7 +29,7 @@ extern "C" {
 typedef uint32_t nt_sock_id;
 
 typedef enum socket_type {
-	 NT_SOCK_UNUSED = 1,
+	NT_SOCK_UNUSED = 0,
 	NT_SOCK_STREAM,  			// default, for connect-based socket
 	NT_SOCK_PROXY,	
 	NT_SOCK_LISTENER,			// for listener socket
