@@ -131,6 +131,7 @@ nts_shmring_handle_t nts_shmring_init(char *shm_addr, size_t addrlen) {
         goto FAIL;
     }
     close(shmring_handle->shm_fd);
+    shmring_handle->shm_fd = -1;
     // init the shared memory
     shmring_handle->shmring->read_index = shmring_handle->shmring->write_index = 0;
     DEBUG("mmap pass with read_index=%d, write_index=%d", shmring_handle->shmring->read_index,  shmring_handle->shmring->write_index);
@@ -184,6 +185,7 @@ nts_shmring_handle_t nts_get_shmring(char *shm_addr, size_t addrlen) {
         goto FAIL;
     }
     close(shmring_handle->shm_fd);
+    shmring_handle->shm_fd = -1;
     DEBUG("mmap pass with read_index=%d, write_index=%d", shmring_handle->shmring->read_index,  shmring_handle->shmring->write_index);
 
     shmring_handle->MASK = NTS_MAX_BUFS - 1;

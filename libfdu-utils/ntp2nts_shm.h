@@ -18,6 +18,7 @@
 #include "shm_mempool.h"
 
 #define RETRY_TIMES 100
+#define NTP_SHMADDR_SIZE 16
 
 #ifdef __cplusplus
 extern "C"
@@ -37,8 +38,8 @@ extern "C"
 		ntp_shm_stat shm_stat;
 		shmring_handle_t ntsring_handle;
 		size_t max_payloadsize;	// determine the maximum size of payload
-		char *shm_addr;
-		size_t addrlen;
+		char shm_addr[NTP_SHMADDR_SIZE];
+		uint16_t addrlen;
 
 		// for bulk operations on shmring
 		char ** node_idxs_cache;

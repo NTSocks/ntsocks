@@ -37,7 +37,7 @@ typedef struct _shmring {
     uint64_t peer_read_index;
     struct shmring_buf *shmring;
     uint64_t max_size;
-} _shmring;
+} __attribute__((packed)) _shmring;
 
 
 static inline uint64_t increment(uint64_t current_idx, uint64_t max_size) {
@@ -173,7 +173,6 @@ shmring_handle_t get_shmring(char *shm_addr, size_t addrlen) {
         goto FAIL;
     }
     DEBUG("mmap pass");
-    close(shmring_handle->shm_fd);
     
     shmring_handle->MASK = MAX_BUFS - 1;
     shmring_handle->max_size = MAX_BUFS;
@@ -415,6 +414,7 @@ void shmring_free(shmring_handle_t self, int unlink) {
     DEBUG("nts shmring free start");
 
     munmap(self->shmring, sizeof(struct shmring_buf));
+    if (self->shm_fd != -1)  close(self->shm_fd);
     DEBUG("munmap close pass");
 
     if (unlink) {

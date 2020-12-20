@@ -39,6 +39,9 @@ struct nts_config {
 	uint16_t max_payloadsize;
 };
 
+#define SOCKET_HASHMAP_SIZE 65536
+#define FD_HASHMAP_SIZE 65536
+
 typedef struct nt_host_entry {
 	char ipaddr[IP_ADDRLEN];
 	uint16_t ipaddrlen;

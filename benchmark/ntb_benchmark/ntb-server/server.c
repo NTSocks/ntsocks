@@ -126,9 +126,6 @@ Overall QPS TPUT = %.2f REQ/s\nOverall BandWidth = %.2f Gbps\n",
 
     }
 
-    // if(thrds > 0){
-    //     free(serv_thread);
-    // }
     printf("server done!\n");
     // getchar();
     // close(listen_fd);

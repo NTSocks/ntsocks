@@ -60,11 +60,8 @@ int main(int argc, char *argv[]){
     for(int i=0; i < thrds; ++i) {
         pthread_join(serv_thread[i], NULL);
     }
-    // if(thrds > 0){
-    //     free(serv_thread);
-    // }
+  
     printf("client done!\n");
-    getchar();
     return 0;
 }
 
@@ -148,7 +145,6 @@ void *handle_connection(void* ptr){
     } else if (run_latency == 2)
         bandwidth_read(sockfd);
     // close(sockfd);
-    getchar();
     return (void*)0;
 }
 

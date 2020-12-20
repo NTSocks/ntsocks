@@ -107,7 +107,7 @@ void nts_context_destroy() {
     /**
      * destroy the ntm shm ring queue between libnts and ntb monitor
      */
-    if (nts_ctx->ntm_ctx->shm_send_ctx && 
+    if (nts_ctx->ntm_ctx && nts_ctx->ntm_ctx->shm_send_ctx && 
             nts_ctx->ntm_ctx->shm_send_ctx->shm_stat == NTM_SHM_READY) {
         ntm_shm_nts_close(nts_ctx->ntm_ctx->shm_send_ctx);
         ntm_shm_destroy(nts_ctx->ntm_ctx->shm_send_ctx);
