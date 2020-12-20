@@ -155,8 +155,6 @@ void nts_context_destroy() {
             free(nt_sock_ctx->ntp_buf);
         }
 
-        Remove(nts_ctx->nt_sock_map, &nt_sock_ctx->socket->sockid);
-
         if (nt_sock_ctx && nt_sock_ctx->socket) {
             free(nt_sock_ctx->socket);
         }
