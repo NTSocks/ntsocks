@@ -31,12 +31,6 @@ static bool defaultExists(HashMap hashMap, let key);
 // 默认清空Map
 static void defaultClear(HashMap hashMap);
 
-// 重新构建
-static void resetHashMap(HashMap hashMap, int listSize);
-
-
-
-
 
 int defaultHashCode(HashMap hashMap, let key) {
     char * k = (char *)key;
@@ -251,7 +245,7 @@ void defaultClear(HashMap hashMap) {
 HashMap createHashMap(HashCode hashCode, Equal equal) {
     HashMap hashMap = newHashMap();
     hashMap->size = 0;
-    hashMap->listSize = 8;
+    hashMap->listSize = DEFAULT_HASHMAP_SIZE;
     hashMap->hashCode = hashCode == NULL ? defaultHashCode : hashCode;
     hashMap->equal = equal == NULL ? defaultEqual : equal;
     hashMap->exists = defaultExists;

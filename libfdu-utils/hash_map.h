@@ -27,6 +27,8 @@ typedef struct entry {
 #define newEntry() NEW(struct entry)
 #define newEntryList(length) (Entry)malloc(length * sizeof(struct entry))
 
+#define DEFAULT_HASHMAP_SIZE 4096
+
 // define hashmap structure
 typedef struct hashMap *HashMap;
 
@@ -83,6 +85,9 @@ HashMap createHashMap(HashCode hashCode, Equal equal);
 
 // 创建哈希结构迭代器
 HashMapIterator createHashMapIterator(HashMap hashMap);
+
+// 重新构建
+void resetHashMap(HashMap hashMap, int listSize);
 
 // 迭代器是否有下一个
 bool hasNextHashMapIterator(HashMapIterator iterator);

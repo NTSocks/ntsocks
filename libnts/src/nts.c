@@ -54,6 +54,7 @@ int nts_context_init(const char *config_file) {
 
     // init hash map for the mapping between nt_socket_id and nt_sock_context_t
     nts_ctx->nt_sock_map = createHashMap(NULL, NULL);
+    resetHashMap(nts_ctx->nt_sock_map, SOCKET_HASHMAP_SIZE);
 
     nts_ctx->ntm_ctx = (nts_ntm_context_t) calloc(1, sizeof(struct nts_ntm_context));
     if(!nts_ctx->ntm_ctx) {
@@ -91,10 +92,9 @@ int nts_context_init(const char *config_file) {
 
     // init FD remmaping table
 	nts_ctx->fd_table = createHashMap(NULL, NULL);
-
+    resetHashMap(nts_ctx->fd_table, FD_HASHMAP_SIZE);
 
     DEBUG("nts_context_init pass");
-
     return 0;
 }
 
