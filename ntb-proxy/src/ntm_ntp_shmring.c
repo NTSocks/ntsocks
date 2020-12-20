@@ -139,6 +139,7 @@ ntm_ntp_shmring_handle_t ntm_ntp_shmring_init(char *shm_addr, size_t addrlen)
         goto FAIL;
     }
     close(shmring_handle->shm_fd);
+    shmring_handle->shm_fd = -1;
     // init the shared memory
     shmring_handle->shmring->read_index = shmring_handle->shmring->write_index = 0;
     DEBUG("mmap pass");
@@ -194,7 +195,8 @@ ntm_ntp_shmring_handle_t ntm_ntp_get_shmring(char *shm_addr, size_t addrlen)
         goto FAIL;
     }
     close(shmring_handle->shm_fd);
-
+    shmring_handle->shm_fd = -1;
+    
     shmring_handle->MASK = NTS_MAX_BUFS - 1;
     shmring_handle->max_size = NTS_MAX_BUFS;
     DEBUG("ntm_ntp get shmring successfully!");

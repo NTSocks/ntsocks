@@ -47,8 +47,7 @@ int ntp_shm_accept(ntp_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
 	assert(shm_ctx);
 	assert(addrlen > 0);
 
-	shm_ctx->shm_addr = (char *)malloc(addrlen);
-	memset(shm_ctx->shm_addr, 0, addrlen);
+	memset(shm_ctx->shm_addr, 0, NTP_SHMADDR_SIZE);
 	shm_ctx->addrlen = addrlen;
 	memcpy(shm_ctx->shm_addr, shm_addr, addrlen);
 	shm_ctx->ntsring_handle = shmring_create(shm_ctx->shm_addr, 
@@ -124,10 +123,6 @@ FAIL:
         shm_ctx->ntsring_handle = NULL;
     }
 
-    if(shm_ctx->shm_addr) {
-        free(shm_ctx->shm_addr);
-	    shm_ctx->shm_addr = NULL;
-    }
     return -1;
 }
 
@@ -136,12 +131,7 @@ int ntp_shm_connect(ntp_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
 	assert(shm_ctx);
 	assert(addrlen > 0);
 
-	shm_ctx->shm_addr = (char *)malloc(addrlen);
-    if(!shm_ctx->shm_addr){
-        perror("malloc");
-        return -1;
-    }
-	memset(shm_ctx->shm_addr, 0, addrlen);
+	memset(shm_ctx->shm_addr, 0, NTP_SHMADDR_SIZE);
 	shm_ctx->addrlen = addrlen;
 	memcpy(shm_ctx->shm_addr, shm_addr, addrlen);
 	shm_ctx->ntsring_handle = shmring_init(shm_ctx->shm_addr, 
@@ -215,11 +205,6 @@ int ntp_shm_connect(ntp_shm_context_t shm_ctx, char *shm_addr, size_t addrlen) {
     if(shm_ctx->ntsring_handle) {
         shmring_free(shm_ctx->ntsring_handle, false);
         shm_ctx->ntsring_handle = NULL;
-    }
-
-    if(shm_ctx->shm_addr) {
-        free(shm_ctx->shm_addr);
-	    shm_ctx->shm_addr = NULL;
     }
 
     return -1;
@@ -440,11 +425,6 @@ int ntp_shm_close(ntp_shm_context_t shm_ctx) {
         shm_ctx->mp_handler = NULL;
     }
 
-    if(shm_ctx->shm_addr) {
-        free(shm_ctx->shm_addr);
-	    shm_ctx->shm_addr = NULL;
-    }
-
 	shm_ctx->shm_stat = NTP_SHM_UNLINK;
 
 	DEBUG("ntp_shm_close success");
@@ -463,11 +443,6 @@ int ntp_shm_nts_close(ntp_shm_context_t shm_ctx) {
     if(shm_ctx->mp_handler) {
         shm_mp_destroy(shm_ctx->mp_handler, 0);
         shm_ctx->mp_handler = NULL;
-    }
-
-    if(shm_ctx->shm_addr) {
-        free(shm_ctx->shm_addr);
-	    shm_ctx->shm_addr = NULL;
     }
 
 	shm_ctx->shm_stat = NTP_SHM_CLOSE;

@@ -1985,7 +1985,6 @@ inline void handle_msg_nts_listen(ntm_manager_t ntm_mgr, ntm_msg msg)
 	FAIL: 
 
 	return;
-
 }
 
 inline void handle_msg_nts_accept(ntm_manager_t ntm_mgr, ntm_msg msg)
@@ -2015,7 +2014,6 @@ inline void handle_msg_nts_accept(ntm_manager_t ntm_mgr, ntm_msg msg)
 		nts_shm_send(nts_shm_conn->nts_shm_ctx, &response_msg);
 		goto FAIL;
 	}
-
 
 	DEBUG("handle_msg_nts_accept success");
 	return;

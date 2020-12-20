@@ -103,6 +103,7 @@ ntm_shmring_handle_t ntm_shmring_init(char *shm_addr, size_t addrlen) {
         goto FAIL;
     }
     close(shmring_handle->shm_fd);
+    shmring_handle->shm_fd = -1;
     // init the shared memory
     shmring_handle->shmring->read_index = shmring_handle->shmring->write_index = 0;
 
@@ -210,7 +211,7 @@ ntm_shmring_handle_t ntm_get_shmring(char *shm_addr, size_t addrlen) {
         goto FAIL;
     }
     close(shmring_handle->shm_fd);
-
+    shmring_handle->shm_fd = -1;
 
     // store old, umask for world-writable access of semaphores (mutex_sem, buf_count_sem, spool_signal_sem)
     mode_t old_umask = umask(0);

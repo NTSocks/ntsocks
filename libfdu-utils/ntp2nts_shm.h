@@ -17,12 +17,13 @@
 #include "ntp2nts_msg.h"
 #include "shm_mempool.h"
 
+#define RETRY_TIMES 100
+#define NTP_SHMADDR_SIZE 16
+
 #ifdef __cplusplus
 extern "C"
 {
 #endif
-
-#define RETRY_TIMES 100
 
 typedef enum ntp_shm_stat
 {
@@ -37,7 +38,7 @@ struct ntp_shm_context
 	ntp_shm_stat shm_stat;
 	shmring_handle_t ntsring_handle;
 	size_t max_payloadsize;	// determine the maximum size of payload
-	char *shm_addr;
+	char shm_addr[NTP_SHMADDR_SIZE];
 	size_t addrlen;
 
 	// for bulk operations on shmring

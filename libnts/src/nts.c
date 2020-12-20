@@ -55,6 +55,7 @@ int nts_context_init(const char *config_file) {
 
     // init hash map for the mapping between nt_socket_id and nt_sock_context_t
     nts_ctx->nt_sock_map = createHashMap(NULL, NULL);
+    resetHashMap(nts_ctx->nt_sock_map, SOCKET_HASHMAP_SIZE);
 
     nts_ctx->ntm_ctx = (nts_ntm_context_t) calloc(1, sizeof(struct nts_ntm_context));
     if(!nts_ctx->ntm_ctx) {
@@ -98,9 +99,9 @@ int nts_context_init(const char *config_file) {
     nts_ctx->init_flag = 1;
     // init FD remmaping table
 	nts_ctx->fd_table = createHashMap(NULL, NULL);
+    resetHashMap(nts_ctx->fd_table, FD_HASHMAP_SIZE);
 
     DEBUG("nts_context_init pass");
-
     return 0;
 }
 
@@ -114,7 +115,7 @@ void nts_context_destroy() {
     /**
      * destroy the ntm shm ring queue between libnts and ntb monitor
      */
-    if (nts_ctx->ntm_ctx->shm_send_ctx && 
+    if (nts_ctx->ntm_ctx && nts_ctx->ntm_ctx->shm_send_ctx && 
             nts_ctx->ntm_ctx->shm_send_ctx->shm_stat == NTM_SHM_READY) {
         ntm_shm_nts_close(nts_ctx->ntm_ctx->shm_send_ctx);
         ntm_shm_destroy(nts_ctx->ntm_ctx->shm_send_ctx);
@@ -161,8 +162,6 @@ void nts_context_destroy() {
         if (nt_sock_ctx && nt_sock_ctx->ntp_buf) {
             free(nt_sock_ctx->ntp_buf);
         }
-
-        Remove(nts_ctx->nt_sock_map, &nt_sock_ctx->socket->sockid);
 
         if (nt_sock_ctx && nt_sock_ctx->socket) {
             free(nt_sock_ctx->socket);

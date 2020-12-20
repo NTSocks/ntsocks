@@ -99,6 +99,7 @@ ntm_shmring_handle_t ntm_shmring_init(char *shm_addr, size_t addrlen) {
         goto FAIL;
     }
     close(shmring_handle->shm_fd);
+    shmring_handle->shm_fd = -1;
     // init the shared memory
     shmring_handle->shmring->read_index = shmring_handle->shmring->write_index = 0;
 	DEBUG("mmap pass");
@@ -138,7 +139,6 @@ ntm_shmring_handle_t ntm_shmring_init(char *shm_addr, size_t addrlen) {
     // restore old mask
     umask(old_umask);
 
-    ///???
     // init complete; now set mutex semaphore as 1 to
     // indicate the shared memory segment is available
     ret = sem_post(shmring_handle->mutex_sem);
@@ -209,6 +209,7 @@ ntm_shmring_handle_t ntm_get_shmring(char *shm_addr, size_t addrlen) {
         goto FAIL;
     }
     close(shmring_handle->shm_fd);
+    shmring_handle->shm_fd = -1;
 
 
     // store old, umask for world-writable access of semaphores (mutex_sem, buf_count_sem, spool_signal_sem)
@@ -319,8 +320,8 @@ bool ntm_shmring_push(ntm_shmring_handle_t self, ntm_msg *element) {
         error("sem_post: spool_signal_sem");
         goto FAIL;
     }
-	DEBUG("push ntm shmring successfully!");
 
+	DEBUG("push ntm shmring successfully!");
     return true;
 
     FAIL:

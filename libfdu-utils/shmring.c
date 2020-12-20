@@ -143,6 +143,7 @@ shmring_handle_t _shmring_init(char *shm_addr, size_t addrlen, size_t ele_size, 
         goto FAIL;
     }
     close(handle->shm_fd);
+    handle->shm_fd = -1;
 
     if (is_owner) {
         handle->queue->write_idx = handle->queue->read_idx = 0;
@@ -402,7 +403,10 @@ void shmring_free(shmring_handle_t handle, bool is_unlink) {
 
     if (handle->queue) {
         munmap((void *)handle->queue, handle->queue_size);
+        DEBUG("munmap close pass");
     }
+
+    if (handle->shm_fd != -1)  close(handle->shm_fd);
     
     if (is_unlink) { 
         shm_unlink(handle->shm_addr);
