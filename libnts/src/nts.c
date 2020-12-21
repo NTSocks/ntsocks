@@ -213,7 +213,6 @@ void nts_context_destroy() {
         iter = nextHashMapIterator(iter);
         int * shadow_fd;
         shadow_fd = (int *) iter->entry->key;
-        Remove(nts_ctx->fd_table, shadow_fd);
         free(shadow_fd);
     }
     freeHashMapIterator(&iter);

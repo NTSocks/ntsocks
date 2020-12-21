@@ -642,7 +642,6 @@ void ntb_destroy(struct ntb_link_custom *ntb_link) {
     {
         iter = nextHashMapIterator(iter);
         ntb_conn_t conn = (ntb_conn_t) iter->entry->value;
-        Remove(ntb_link->port2conn, iter->entry->key);
 
         conn->partition_id = -1;
         conn->partition = NULL;
