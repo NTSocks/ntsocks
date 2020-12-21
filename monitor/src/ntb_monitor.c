@@ -417,7 +417,6 @@ void ntm_destroy()
 		pthread_join(ntm_conn->recv_thr, &status);
 
 		ntm_close_socket(ntm_conn->client_sock);
-		Remove(ntm_mgr->ntm_conn_ctx->conn_map, ntm_conn->ip);
 		free(ntm_conn);
 	}
 	freeHashMapIterator(&iter);
@@ -455,8 +454,6 @@ void ntm_destroy()
 		{
 			nt_conn_iter = nextHashMapIterator(iter);
 			tmp_socket = (nt_socket_t) nt_conn_iter->entry->value;
-
-			Remove(nt_listener_wrapper->accepted_conn_map, &tmp_socket->sockid);
 		}
 		freeHashMapIterator(&nt_conn_iter);
 		Clear(nt_listener_wrapper->accepted_conn_map);
@@ -464,7 +461,6 @@ void ntm_destroy()
 		DEBUG("free hash map for client socket connection accepted by the specified nt_listener socket success");
 
 		// free or unbound nt_listener socket id
-		Remove(ntm_mgr->nt_listener_ctx->listener_map, &nt_listener_wrapper->port);
 		free_socket(ntm_mgr->nt_sock_ctx, nt_listener_wrapper->listener->sockid, 1);
 		free(nt_listener_wrapper);
 	}
@@ -496,7 +492,6 @@ void ntm_destroy()
 			nts_shm_destroy(nts_shm_conn->nts_shm_ctx);
 		}
 
-		Remove(ntm_mgr->nts_ctx->nts_shm_conn_map, &nts_shm_conn->sockid);
 		DEBUG("free nts_shm_conn");
 		free(nts_shm_conn);
 	}
