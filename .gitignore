@@ -59,3 +59,6 @@ dpdk/x86_64-native-linuxapp-gcc/
 *libfdu-utils/include*
 *libnts/examples/bin*
 *benchmark/ntb_benchmark/bin*
+
+*ntb-bench-tools/ntbring_benchtool/build*
+*ntb-bench-tools/rawntb_benchtool/build*
