@@ -62,3 +62,4 @@ dpdk/x86_64-native-linuxapp-gcc/
 *libnts/examples/bin/*
 
 *benchmark/epoll_benchmark/bin/*
+*benchmark/epoll_benchmark/bin*

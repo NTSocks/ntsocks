@@ -26,17 +26,28 @@ int run_latency = 0; // by default, we run the throughput benchmark
 int payload_size = DEFAULT_PAYLOAD_SIZE;
 struct CON_INFO *fd_con_info = NULL;
 size_t run_num = 0;
+bool to_file = false;
+int partition = 1;
+int packet_size = 128;
+char file_path[256];
+char file_name[128];
+
+pthread_mutex_t mutex;
+
+int cmp(const void *a , const void *b){
+    return *(double*)a > *(double*)b ? 1 : -1;
+}
 
 void usage(char *program);
 void parse_args(int argc, char *argv[]);
 void latency_report_perf(size_t *start_cycles, size_t *end_cycles);
+void latency_report_perf_to_file(size_t *start_cycles, size_t *end_cycles);
 void throughput_report_perf(size_t duration);
 void latency_write_with_ack(int sockfd, size_t *start_cycles, size_t *end_cycles, char *buf);
 bool bandwidth_write(int epfd, int sockfd, char *buf);
 void throughput_write_with_ack(int epfd, int sockfd, char *buf);
 int connect_setup();
-static void
-handle_epoll_events(int epfd, struct epoll_event *wait_events, int ret, char *buf);
+static void handle_epoll_events(int epfd, struct epoll_event *wait_events, int ret, char *buf);
 static void handle_send(int epfd, int socket, char *buf);
 static void handle_recv(int epfd, int sockfd, char *buf);
 int do_send(int sockfd, char *buf, int send_cnt);
@@ -53,6 +64,7 @@ void usage(char *program)
     printf(" -c <connection number>   connection size \n");
     printf(" -s <size>      payload size(default %d)\n", DEFAULT_PAYLOAD_SIZE);
     printf(" -n <requests>  the number of request(default %d)\n", NUM_REQ);
+    printf(" -f <filepath>      the file path to save the data\n");
     printf(" -w             transfer data with ack\n");
     printf(" -l             run the lantency benchmark\n");
     printf(" -t             run the throughput benchmark\n");
@@ -113,6 +125,18 @@ void parse_args(int argc, char *argv[])
             else
             {
                 printf("cannot read payload size\n");
+                usage(argv[0]);
+                exit(EXIT_FAILURE);
+            }
+        }
+        else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-f") == 0)
+        {
+            to_file = true;
+            if(i+1 < argc){
+                strcpy(file_path, argv[i+1]);
+                i++;
+            }else {
+                printf("cannot read file path\n");
                 usage(argv[0]);
                 exit(EXIT_FAILURE);
             }
@@ -192,6 +216,18 @@ int main(int argc, char *argv[])
     parse_args(argc, argv);
     fd_con_info = init_conn_info(conn_num + 100); // initialize connection infomation
 
+    if (to_file) {
+        if (run_latency == 1) {
+            sprintf(file_name, "benchmark_0_%d_%d_%d_%d_%d.txt",
+                    payload_size, num_req, conn_num, partition, packet_size);
+            strcat(file_path, file_name);
+        } else if (run_throughput == 1) {
+            sprintf(file_name, "benchmark_1_%d_%d_%d_%d_%d.txt",
+                payload_size, num_req, conn_num, partition, packet_size);
+            strcat(file_path, file_name);
+        }
+    }
+
     struct epoll_event *wait_event = NULL;
     char *buf = (char *)malloc(payload_size);
     int *socket_set = (int *)malloc(sizeof(int) * conn_num);
@@ -260,21 +296,25 @@ int connect_setup(int port)
     int socket_fd;
     struct sockaddr_in server_addr;
     struct hostent *server;
+    printf("=== 1 ===\n");
     if ((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
         perror("create socket failed");
         exit(EXIT_FAILURE);
     }
+    printf("=== 2 ===\n");
     bzero((char *)&server_addr, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(port);
     inet_pton(AF_INET, server_ip, &server_addr.sin_addr);
+    printf("=== 3 ===\n");
     printf("connecting to %s:%d\n", server_ip, port);
     if (connect(socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
     {
         perror("connect failed");
         exit(EXIT_FAILURE);
     }
+    printf("=== 4 ===\n");
     return socket_fd;
 }
 
@@ -328,6 +368,40 @@ void latency_report_perf(size_t *start_cycles, size_t *end_cycles)
     free(lat);
 }
 
+void latency_report_perf_to_file(size_t *start_cycles, size_t *end_cycles)
+{
+    double *lat = (double *)malloc(num_req * sizeof(double));
+    memset(lat, 0, num_req * sizeof(double));
+    double cpu_mhz = get_cpu_mhz();
+    double sum = 0.0;
+    // printf("\nbefore sort:\n");
+    for (size_t i = 0; i < num_req; i++)
+    {
+        lat[i] = (double)(end_cycles[i] - start_cycles[i]) / cpu_mhz;
+        sum += lat[i];
+    }
+    qsort(lat, num_req, sizeof(lat[0]), cmp);
+    size_t idx_m, idx_99, idx_99_9, idx_99_99;
+    idx_m = floor(num_req * 0.5);
+    idx_99 = floor(num_req * 0.99);
+    idx_99_9 = floor(num_req * 0.999);
+    idx_99_99 = floor(num_req * 0.9999);
+    //printf("idx_99 = %lu; idx_99_t = %lu; idx_99_99 = %lu\n", idx_99, idx_99_9, idx_99_99);
+
+    pthread_mutex_lock(&mutex);
+
+    log_ctx_t ctx = log_init(file_path, strlen(file_path));
+
+    fprintf(ctx->file, "@MEASUREMENT(requests = %d, payload size = %d):\n", num_req, payload_size);
+    fprintf(ctx->file, "MEDIAN = %.2f us\n50 TAIL = %.2f us\n99 TAIL = %.2f us\n99.9 TAIL = %.2f us\n99.99 TAIL = %.2f us\n", sum / num_req, lat[idx_m], lat[idx_99], lat[idx_99_9], lat[idx_99_99]);
+    
+    log_destroy(ctx);
+
+    pthread_mutex_unlock(&mutex);
+
+    free(lat);
+}
+
 static void handle_recv(int epfd, int sockfd, char *buf)
 {
     //puts("hadnle recv and");
@@ -354,7 +428,11 @@ static void handle_send(int epfd, int sockfd, char *buf)
         memset(end_cycles, 0, sizeof(size_t) * num_req);
         epoll_delete_event(epfd, sockfd, EPOLLIN);
         latency_write_with_ack(sockfd, start_cycles, end_cycles, buf);
-        latency_report_perf(start_cycles, end_cycles);
+        if (to_file) {
+            latency_report_perf_to_file(start_cycles, end_cycles);
+        } else {
+            latency_report_perf(start_cycles, end_cycles);
+        }
         free(start_cycles);
         free(end_cycles);
         fd_con_info[sockfd].recv_cnt = fd_con_info[sockfd].send_cnt = 0;
@@ -409,7 +487,7 @@ void latency_write_with_ack(int sockfd, size_t *start_cycles, size_t *end_cycles
             perror("send data error in latency_write_with_ack\n");
             return;
         }
-        printf("[+] fd->%d read %ld \n",sockfd, i);
+        // printf("[+] fd->%d read %ld \n",sockfd, i);
         int cnt = 0;
         while (n < recv_cnt)
         {
@@ -554,6 +632,6 @@ void close_program(int epfd, int sockfd, char *buf)
     //close(epfd);
     free(fd_con_info);
     puts("[+] program client finished\n");
-    fflush(stdout);
+    // fflush(stdout);
     exit(0);
 }

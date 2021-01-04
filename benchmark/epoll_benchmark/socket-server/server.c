@@ -293,7 +293,7 @@ static void handle_accpet(int epfd, int listen_fd, char *buf)
     }
     else
     {
-        printf("fd=%d\n", sockfd);
+        // printf("fd=%d\n", sockfd);
         printf("accept a new client: %s:%d\n", inet_ntoa(cli_addr.sin_addr), cli_addr.sin_port);
         set_nonblock(sockfd);
         fd_con_info[sockfd].recv_cnt = 0;
@@ -331,7 +331,7 @@ static void handle_recv(int epfd, int fd, char *buf)
     }
     //printf("recving %ld\n",TOTAL_RECV_PACKAGET/payload_size);
     // in order to benchmark bandwidth
-    printf("%d\n",payload_size);
+    // printf("%d\n",payload_size);
     start_cycles = get_cycles();
     int ret = do_read(epfd, fd, buf, read_cnt);
     end_cycles = get_cycles();
@@ -341,7 +341,7 @@ static void handle_recv(int epfd, int fd, char *buf)
         perror("error in handle_recv\n");
         return;
     }
-     printf("[+] %d recv packet %ld\n", fd,fd_con_info[fd].recv_cnt / read_cnt);
+    //  printf("[+] %d recv packet %ld\n", fd,fd_con_info[fd].recv_cnt / read_cnt);
     if (ret == 1 && with_ack) //no ack is bandwidth
     {
 
@@ -351,7 +351,7 @@ static void handle_recv(int epfd, int fd, char *buf)
             fd_con_info[fd].temp_throughput_time = get_cycles();
         }
         do_send(epfd, fd, buf);
-        if ((double)fd_con_info[fd].recv_cnt > (double)num_req * read_cnt)
+        if ((double)fd_con_info[fd].recv_cnt >= (double)num_req * read_cnt)
         {
 
             epoll_delete_event(epfd, fd, EPOLLIN);
@@ -498,7 +498,7 @@ void close_program(int epfd, int sockfd, char *buf)
     puts("[+] program server already finished\n ");
     //close(epfd);
     free(fd_con_info);
-    fflush(stdout);
+    // fflush(stdout);
     exit(0);
 }
 
