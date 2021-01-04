@@ -26,13 +26,6 @@ DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 #define MSG "Hello NT-Monitor! I am libnts app. Nice to meet you!"
 
-static void *nts_recv_thread(void *arg);
-
-static void *nts_send_thread(void *arg);
-
-static void *ntp_recv_thread(void *arg);
-
-static void *ntp_send_thread(void *arg);
 
 static inline bool try_close_ntm_listener(ntm_conn_ctx_t ntm_conn_ctx);
 
@@ -84,91 +77,6 @@ static inline void test_ntm_ring()
 	ntm_shmring_free(ns_handle, 1);
 }
 
-static inline void test_ntm_shm()
-{
-	//	ntm_shm_context_t ns_ctx;
-	//	char *ntm_name = "/ntm-shm-ring";
-	//
-	//	ns_ctx = ntm_shm();
-	//	ntm_shm_accept(ns_ctx, ntm_name, sizeof(ntm_name));
-	//
-	//	ntm_shm_send(ns_ctx, MSG, sizeof(MSG));
-	//	char data[50];
-	//	size_t len = 50;
-	//	len = ntm_shm_recv(ns_ctx, data, len);
-	//	printf("recv data: %s \n", data);
-	//
-	//	ntm_shm_close(ns_ctx);
-	//	ntm_shm_destroy(ns_ctx);
-}
-
-static inline void test_nts_shm()
-{
-	//	ntm_shm_context_t ns_ctx;
-	//	char *ntm_name = "/ntm-shm-ring";
-	//
-	//	ns_ctx = ntm_shm();
-	//	ntm_shm_accept(ns_ctx, ntm_name, sizeof(ntm_name));
-	//
-	//	getchar();
-	//	printf("Start to receive messages from libnts app...\n");
-	//
-	//	char data[50];
-	//	size_t len = 50;
-	//	int recv_msg_len;
-	//	for (int i = 0; i < 10; i++) {
-	//		recv_msg_len = ntm_shm_recv(ns_ctx, data, len);
-	//		printf("recv msg %d with length %d : %s \n", i + 1, recv_msg_len, data);
-	//	}
-	//
-	//	getchar();
-	//	ntm_shm_close(ns_ctx);
-	//	ntm_shm_destroy(ns_ctx);
-}
-
-void *nts_recv_thread(void *arg)
-{
-	assert(ntm_mgr->nts_ctx->shm_recv_ctx);
-
-	// ntm_nts_context_t nts_ctx;
-	// nts_ctx = ntm_mgr->nts_ctx;
-
-	DEBUG("nts_recv_thread ready...");
-
-	//	char data[50];
-	//	size_t len = 50;
-	//	int recv_msg_len;
-	//	for (int i = 0; i < 10; i++) {
-	//		recv_msg_len = ntm_shm_recv(ntm_mgr->nts_ctx->shm_recv_ctx, data, len);
-	//		printf("recv msg %d with length %d : %s \n", i+1, recv_msg_len, data);
-	//	}
-
-	DEBUG("nts_recv_thread end!");
-
-	return 0;
-}
-
-void *nts_send_thread(void *arg)
-{
-
-	DEBUG("nts_send_thread ready...");
-
-	DEBUG("nts_send_thread end!");
-
-	return 0;
-}
-
-void *ntp_recv_thread(void *arg)
-{
-
-	return 0;
-}
-
-void *ntp_send_thread(void *arg)
-{
-
-	return 0;
-}
 
 ntm_manager_t get_ntm_manager()
 {
@@ -441,7 +349,6 @@ void ntm_destroy()
 	 */
 	HashMapIterator nt_conn_iter;
 	nt_listener_wrapper_t nt_listener_wrapper;
-	nt_socket_t tmp_socket;
 	iter = createHashMapIterator(ntm_mgr->nt_listener_ctx->listener_map);
 	while (hasNextHashMapIterator(iter))
 	{
@@ -452,6 +359,7 @@ void ntm_destroy()
 
 		while (hasNextHashMapIterator(nt_conn_iter))
 		{
+			nt_socket_t tmp_socket;
 			nt_conn_iter = nextHashMapIterator(iter);
 			tmp_socket = (nt_socket_t) nt_conn_iter->entry->value;
 		}
@@ -838,14 +746,6 @@ inline void handle_nt_syn_ack_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 	}
 
 	// locate the coressponding client nt_client via `dport`
-	DEBUG("nt_syn_ack_msg: dport=%d, sport=%d", dport, sport);
-	HashMapIterator iter = createHashMapIterator(ntm_mgr->port_sock_map);
-	while(hasNextHashMapIterator(iter)) {
-		iter = nextHashMapIterator(iter);
-		nt_socket_t tmp_sock = (nt_socket_t)iter->entry->value;
-		DEBUG("{ key = %d }", *(int *) iter->entry->key);
-	}
-	freeHashMapIterator(&iter);
 
 	nt_socket_t client_sock;
 	client_sock = (nt_socket_t) Get(ntm_mgr->port_sock_map, &dport);
@@ -2517,9 +2417,7 @@ int print_monitor()
 {
 	printf("Hello Ntb Monitor.\n");
 
-		test_ntm_ring();
-	//	test_ntm_shm();
-	//	test_nts_shm();
+	test_ntm_ring();
 	printf("Bye, Ntb Monitor.\n");
 
 	return 0;
