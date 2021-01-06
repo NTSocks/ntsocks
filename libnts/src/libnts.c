@@ -82,55 +82,6 @@ static int (*real_epoll_ctl)(int, int, int, struct epoll_event *);
 static int (*real_epoll_wait)(int, struct epoll_event *, int, int);
 static int (*real_epoll_pwait)(int, struct epoll_event *, int, int, const __sigset_t *);
 
-
-static inline void test_ntm_ring()
-{
-	char *shm_name = "huangyibo";
-	ntm_msg msg;
-	msg.msg_id = 1357;
-	msg.msg_type = NTM_MSG_NEW_SOCK;
-	msg.sockid = 22;
-	msg.domain = 1;
-	msg.protocol = 2;
-	msg.sock_type = 3;
-	msg.nts_shm_addrlen = strlen(shm_name) + 1;
-	memcpy(msg.nts_shm_name, shm_name, msg.nts_shm_addrlen);
-
-	ntm_shmring_handle_t ns_handle;
-	char *ntm_name = "/ntm-shm-ring";
-	
-
-	// ns_handle = ntm_shmring_init(ntm_name, sizeof(ntm_name));
-	ns_handle = ntm_get_shmring(ntm_name, sizeof(ntm_name));
-	ntm_shmring_push(ns_handle, &msg);
-
-	ntm_shmring_free(ns_handle, 0);
-	if (!ns_handle) {
-		printf("free ntm shmring pass \n\n");
-	}
-
-	// ns_handle = ntm_get_shmring(ntm_name, sizeof(ntm_name));
-	// if (ns_handle) {
-	// 	printf("ntm get shmring pass \n");
-	// }
-
-	// ntm_msg incoming_msg;
-
-	// bool retval;
-	// retval = ntm_shmring_pop(ns_handle, &incoming_msg);
-	// printf("retval=%d\n", retval);
-
-	// // printf("pop an element: msg_id-%d, msg_type=%d, nts_shm_addrlen=%d \n", 
-	// // 			incoming_msg.msg_id, incoming_msg.msg_type, incoming_msg.nts_shm_addrlen);
-	// printf("pop an element: msg_id-%d, msg_type=%d, sockid=%d, domain=%d, protocol=%d, sock_type=%d shmaddr=%s, nts_shm_addrlen=%d \n", 
-	// 			incoming_msg.msg_id, incoming_msg.msg_type, 
-	// 			incoming_msg.sockid, incoming_msg.domain, 
-	// 			incoming_msg.protocol, incoming_msg.sock_type,
-	// 			 incoming_msg.nts_shm_name, incoming_msg.nts_shm_addrlen);
-
-	// ntm_shmring_free(ns_handle, 1);
-}
-
 __attribute__((constructor))
 void ntsocket_init(void) {
 	INIT_FUNCTION(socket);

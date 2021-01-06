@@ -247,8 +247,8 @@ int ntb_data_msg_enqueue2(struct ntb_data_link *data_link, ntp_msg *outgoing_msg
             msg_len != (1 << 15);
         }
        
-        rte_memcpy(write_addr + MSGLEN_OFFSET, &msg_len, MSGLEN_SIZE);    // msg_len: 2 bytes
         rte_memcpy(write_addr + NTPACKET_HEADER_LEN, (uint8_t *)outgoing_msg->payload, payload_len);
+        rte_memcpy(write_addr + MSGLEN_OFFSET, &msg_len, MSGLEN_SIZE);    // msg_len: 2 bytes
     }
     else 
     {
@@ -261,8 +261,8 @@ int ntb_data_msg_enqueue2(struct ntb_data_link *data_link, ntp_msg *outgoing_msg
             msg_len != (1 << 15);
         }
 
-        rte_memcpy(write_addr + MSGLEN_OFFSET, &msg_len, MSGLEN_SIZE);    // msg_len: 2 bytes
         rte_memcpy(write_addr + NTPACKET_HEADER_LEN, (uint8_t *)outgoing_msg->payload, NTP_CONFIG.data_packet_size - NTPACKET_HEADER_LEN);
+        rte_memcpy(write_addr + MSGLEN_OFFSET, &msg_len, MSGLEN_SIZE);    // msg_len: 2 bytes
     }
      
     peer_dataring->cur_index = next_write_idx;
@@ -308,8 +308,8 @@ int ntb_data_msg_enqueue(struct ntb_data_link *data_link, struct ntpacket *msg)
             //PSH: update local shadow read_index using remote write by peer side
             msg->header->msg_len |= (1 << 15);   
         }
-        rte_memcpy(ptr, msg->header, NTPACKET_HEADER_LEN);
         rte_memcpy(ptr + NTPACKET_HEADER_LEN, msg->payload, msg_len - NTPACKET_HEADER_LEN);
+        rte_memcpy(ptr, msg->header, NTPACKET_HEADER_LEN);
     }
     else
     {
@@ -318,8 +318,8 @@ int ntb_data_msg_enqueue(struct ntb_data_link *data_link, struct ntpacket *msg)
         {
             msg->header->msg_len |= (1 << 15);
         }
-        rte_memcpy(ptr, msg->header, NTPACKET_HEADER_LEN);
         rte_memcpy(ptr + NTPACKET_HEADER_LEN, msg->payload, NTP_CONFIG.data_packet_size - NTPACKET_HEADER_LEN);
+        rte_memcpy(ptr, msg->header, NTPACKET_HEADER_LEN);
     }
     // DEBUG("enqueue cur_index = %ld",r->cur_index);
     r->cur_index = next_index;
@@ -404,8 +404,8 @@ int ntpacket_enqueue(struct ntb_data_link *data_link,
             //PSH: update local shadow read_index using remote write by peer side
             packet_header->msg_len |= (1 << 15);   
         }
-        rte_memcpy(ptr, source_msg->header, NTPACKET_HEADER_LEN);
         rte_memcpy(ptr + NTPACKET_HEADER_LEN, source_msg->payload, msg_len - NTPACKET_HEADER_LEN);
+        rte_memcpy(ptr, source_msg->header, NTPACKET_HEADER_LEN);
     }
     else
     {
@@ -414,8 +414,8 @@ int ntpacket_enqueue(struct ntb_data_link *data_link,
         {
             packet_header->msg_len |= (1 << 15);
         } 
-        rte_memcpy(ptr, source_msg->header, NTPACKET_HEADER_LEN);
         rte_memcpy(ptr + NTPACKET_HEADER_LEN, source_msg->payload, NTP_CONFIG.data_packet_size - NTPACKET_HEADER_LEN);
+        rte_memcpy(ptr, source_msg->header, NTPACKET_HEADER_LEN);
     }
 
     // DEBUG("enqueue cur_index = %ld",r->cur_index);

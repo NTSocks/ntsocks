@@ -357,7 +357,6 @@ void ntm_destroy()
 	 */
 	HashMapIterator nt_conn_iter;
 	nt_listener_wrapper_t nt_listener_wrapper;
-	nt_socket_t tmp_socket;
 	iter = createHashMapIterator(ntm_mgr->nt_listener_ctx->listener_map);
 	while (hasNextHashMapIterator(iter))
 	{
@@ -368,6 +367,7 @@ void ntm_destroy()
 
 		while (hasNextHashMapIterator(nt_conn_iter))
 		{
+			nt_socket_t tmp_socket;
 			nt_conn_iter = nextHashMapIterator(iter);
 			tmp_socket = (nt_socket_t) nt_conn_iter->entry->value;
 		}
@@ -767,14 +767,6 @@ inline void handle_nt_syn_ack_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg) {
 	}
 
 	// locate the coressponding client nt_client via `dport`
-	DEBUG("nt_syn_ack_msg: dport=%d, sport=%d", dport, sport);
-	HashMapIterator iter = createHashMapIterator(ntm_mgr->port_sock_map);
-	while(hasNextHashMapIterator(iter)) {
-		iter = nextHashMapIterator(iter);
-		// nt_socket_t tmp_sock = (nt_socket_t)iter->entry->value;
-		DEBUG("{ key = %d }", *(int *) iter->entry->key);
-	}
-	freeHashMapIterator(&iter);
 
 	nt_socket_t client_sock;
 	client_sock = (nt_socket_t) Get(ntm_mgr->port_sock_map, &dport);

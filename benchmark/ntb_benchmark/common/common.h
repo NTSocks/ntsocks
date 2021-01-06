@@ -2,6 +2,7 @@
 #define COMMON_H
 
 #include <stdlib.h>
+#include <stdio.h>
 
 #define DEFAULT_SERVER_ADDR "10.176.22.210"
 #define DEFAULT_PORT 9091
@@ -13,8 +14,13 @@
 
 #define	h_addr	h_addr_list[0]
 
-int cmp(const void *a , const void *b){
-    return *(double*)a > *(double*)b ? 1 : -1;
-}
+typedef struct log_context {
+    char filepath[128];
+    FILE *file;
+} log_ctx, *log_ctx_t;
+
+log_ctx_t log_init(char *filepath, size_t pathlen);
+void log_append(log_ctx_t ctx, char *msg, size_t msglen);
+void log_destroy(log_ctx_t ctx);
 
 #endif

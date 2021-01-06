@@ -26,6 +26,18 @@ int run_latency = 0; // 0 - lat, 1 - tput, 2 - bw
 int payload_size = DEFAULT_PAYLOAD_SIZE;
 int numa_start = 32, numa_end = 48;
 
+bool to_file = false;
+int partition = 1;
+int packet_size = 128;
+char file_path[256];
+char file_name[128];
+
+pthread_mutex_t mutex;
+
+static int cmp(const void *a , const void *b){
+    return *(double*)a > *(double*)b ? 1 : -1;
+}
+
 typedef struct conn_ctx {
     int sockfd;
     int id;
@@ -36,17 +48,18 @@ double tput_qps_total[10000];
 double tput_bw_total[10000];
 
 
-void usage(char *program);
-void parse_args(int argc, char *argv[]);
-void *handle_connection(void* ptr);
-void latency_report_perf(size_t *start_cycles, size_t *end_cycles, int sockfd);
-void throughput_report_perf(size_t duration, int sockfd, struct conn_ctx* ctx);
-void latency_write(int sockfd, size_t *start_cycles, size_t *end_cycles);
-void latency_write_with_ack(int sockfd, size_t *start_cycles, size_t *end_cycles);
-void throughput_write(int sockfd, size_t *start_cycles, size_t *end_cycles);
-void throughput_write_with_ack(int sockfd, size_t *start_cycles, size_t *end_cycles);
-void pin_1thread_to_1core();
-void bandwidth_write(int sockfd);
+static void usage(char *program);
+static void parse_args(int argc, char *argv[]);
+static void *handle_connection(void* ptr);
+static void latency_report_perf(size_t *start_cycles, size_t *end_cycles, int sockfd);
+static void latency_report_perf_to_file(size_t *start_cycles, size_t *end_cycles, int sockfd);
+static void throughput_report_perf(size_t duration, int sockfd, struct conn_ctx* ctx);
+static void latency_write(int sockfd, size_t *start_cycles, size_t *end_cycles);
+static void latency_write_with_ack(int sockfd, size_t *start_cycles, size_t *end_cycles);
+static void throughput_write(int sockfd, size_t *start_cycles, size_t *end_cycles);
+static void throughput_write_with_ack(int sockfd, size_t *start_cycles, size_t *end_cycles);
+static void pin_1thread_to_1core();
+static void bandwidth_write(int sockfd);
 
 int main(int argc, char *argv[]){
     setvbuf(stdout, 0, _IONBF, 0);
@@ -76,6 +89,12 @@ int main(int argc, char *argv[]){
         exit(EXIT_FAILURE);
     }
     printf("server listens on 0.0.0.0:%d\n", server_port);
+
+    if (to_file) {
+        sprintf(file_name, "NTSocks_benchmark_%d_%d_%d_%d_%d_%d.txt",
+                run_latency, payload_size, num_req, thrds, partition, packet_size);
+        strcat(file_path, file_name);
+    }
 
     if(thrds > 0){
         for(int i=0; i < thrds; ++i) {
@@ -180,7 +199,13 @@ void *handle_connection(void* ptr){
         }else {
             latency_write(sockfd, start_cycles, end_cycles);
         }
-        latency_report_perf(start_cycles, end_cycles, sockfd);
+
+        if (to_file){
+            latency_report_perf_to_file(start_cycles, end_cycles, sockfd);
+        } else {
+            latency_report_perf(start_cycles, end_cycles, sockfd);
+        }
+
         free(start_cycles);
         free(end_cycles);
     }else if (run_latency == 1){
@@ -288,6 +313,42 @@ MEDIAN = %.2f us\n50 TAIL = %.2f us\n99 TAIL = %.2f us\n99.9 TAIL = %.2f us\n99.
     free(lat);
 }
 
+
+void latency_report_perf_to_file(size_t *start_cycles, size_t *end_cycles, int sockfd) {
+
+    double* lat = (double*)malloc(num_req * sizeof(double));
+    double cpu_mhz = get_cpu_mhz();
+    double sum = 0.0;
+    // printf("\nbefore sort:\n");
+    for (size_t i = 0; i < num_req; i++) {
+        lat[i] = (double)(end_cycles[i] - start_cycles[i]) / cpu_mhz;
+        sum += lat[i];
+    }
+    qsort(lat, num_req, sizeof(lat[0]), cmp);
+    size_t idx_m, idx_99, idx_99_9, idx_99_99;
+    idx_m = floor(num_req * 0.5);
+    idx_99 = floor(num_req * 0.99);
+    idx_99_9 = floor(num_req * 0.999);
+    idx_99_99 = floor(num_req * 0.9999);
+
+    // Lock
+    pthread_mutex_lock(&mutex);
+
+    log_ctx_t ctx = log_init(file_path, strlen(file_path));
+
+    fprintf(ctx->file, "@MEASUREMENT(requests = %d, payload size = %d, sockfd = %d):\n\
+MEDIAN = %.2f us\n50 TAIL = %.2f us\n99 TAIL = %.2f us\n99.9 TAIL = %.2f us\n99.99 TAIL = %.2f us\n", 
+        num_req, payload_size, sockfd, sum/num_req, lat[idx_m], lat[idx_99], lat[idx_99_9], lat[idx_99_99]);
+    
+    log_destroy(ctx);
+
+    // Unlock
+    pthread_mutex_unlock(&mutex);
+
+    free(lat);
+}
+
+
 // print throughput performance data
 void throughput_report_perf(size_t duration, int sockfd, struct conn_ctx* ctx) {
     double cpu_mhz = get_cpu_mhz();
@@ -317,6 +378,9 @@ void usage(char *program){
     printf(" -s <size>      payload size(default %d)\n", DEFAULT_PAYLOAD_SIZE);
     printf(" -n <requests>  the number of request(default %d)\n", NUM_REQ);
     printf(" -l <metric>    0 - lat, 1 - tput, 2 - bw\n");
+    printf(" -f <filepath>      the file path to save the data\n");
+    printf(" -r <partition>     partition\n");
+    printf(" -c <packetsize>    packet size\n");
     printf(" -w             transfer data with ack\n");
     printf(" -l             run the lantency benchmark\n");
     printf(" -k             over kernel socket(defaule over ntb)");
@@ -363,7 +427,19 @@ void parse_args(int argc, char *argv[]){
             }
         }else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-w") == 0){
             with_ack = true;
-        }else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-k") == 0){
+        }
+        else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-f") == 0){
+            to_file = true;
+            if(i+1 < argc){
+                strcpy(file_path, argv[i+1]);
+                i++;
+            }else {
+                printf("cannot read file path\n");
+                usage(argv[0]);
+                exit(EXIT_FAILURE);
+            }
+        }
+        else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-k") == 0){
             numa_start = 48;
             numa_end = 64;
         }else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-t") == 0){
@@ -379,7 +455,35 @@ void parse_args(int argc, char *argv[]){
                 usage(argv[0]);
                 exit(EXIT_FAILURE);
             }
-        }else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-l") == 0){
+        }
+        else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-r") == 0){
+            if(i+1 < argc){
+                partition = atoi(argv[i+1]);
+                if(partition <= 0){
+                    printf("invalid partition number\n");
+                    exit(EXIT_FAILURE);
+                }
+                i++;
+            }else {
+                printf("cannot read partition number\n");
+                usage(argv[0]);
+                exit(EXIT_FAILURE);
+            }
+        }else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-c") == 0){
+            if(i+1 < argc){
+                packet_size = atoi(argv[i+1]);
+                if(packet_size <= 0){
+                    printf("invalid packet size\n");
+                    exit(EXIT_FAILURE);
+                }
+                i++;
+            }else {
+                printf("cannot read packet size\n");
+                usage(argv[0]);
+                exit(EXIT_FAILURE);
+            }
+        }
+        else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-l") == 0){
             if(i+1 < argc){
                 run_latency = atoi(argv[i+1]);
                 if(run_latency != 0 && run_latency != 1 && run_latency != 2){

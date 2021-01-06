@@ -24,6 +24,15 @@ int run_latency = 0; // 0 - lat, 1 - tput, 2 - bw
 int payload_size = DEFAULT_PAYLOAD_SIZE;
 int numa_start = 32, numa_end = 48;
 
+int partition = 1;
+int packet_size = 128;
+
+typedef struct conn_ctx {
+    int sockfd;
+    int id;
+    int cpumask;
+} conn_ctx;
+
 void usage(char *program);
 void parse_args(int argc, char *argv[]);
 void *handle_connection(void* ptr);
@@ -113,7 +122,7 @@ void pin_1thread_to_1core(){
 void *handle_connection(void* ptr){
     int sockfd = *(int*)ptr;
 
-    int start = 0;
+    // int start = 0;
     struct timeval curr_time;
     gettimeofday(&curr_time, NULL);
     printf("waiting for transfer data on %d, time is %ld.%ld\n", sockfd, curr_time.tv_sec, curr_time.tv_usec);
@@ -235,14 +244,19 @@ void bandwidth_read(int sockfd){
 
 void usage(char *program){
     printf("Usage: \n");
-    printf("%s\tstart a server and wait for connection\n", program);
+    printf("%s\tready to connect %s:%d\n", program, server_ip, server_port);
     printf("Options:\n");
-    printf(" -p <port>      listen on port number(default %d)\n", DEFAULT_PORT);
+    printf(" -a <addr>      connect to server addr(default %s)\n", DEFAULT_SERVER_ADDR);
+    printf(" -p <port>      connect to port number(default %d)\n", DEFAULT_PORT);
     printf(" -t <threads>   handle connection with multi-threads\n");
     printf(" -s <size>      payload size(default %d)\n", DEFAULT_PAYLOAD_SIZE);
     printf(" -n <requests>  the number of request(default %d)\n", NUM_REQ);
     printf(" -l <metric>    0 - lat, 1 - tput, 2 - bw\n");
+    printf(" -f <filepath>      the file path to save the data\n");
+    printf(" -r <partition>     partition\n");
+    printf(" -c <packetsize>    packet size\n");
     printf(" -w             transfer data with ack\n");
+    printf(" -l             run the lantency benchmark\n");
     printf(" -k             over kernel socket(defaule over ntb)");
     printf(" -h             display the help information\n");
 }
@@ -263,7 +277,18 @@ void parse_args(int argc, char *argv[]){
                 usage(argv[0]);
                 exit(EXIT_FAILURE);
             }
-        }else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-s") == 0){
+        }
+        else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-a") == 0){
+            if(i+1 < argc) {
+                server_ip = argv[i+1];
+                i++;
+            }else {
+                printf("cannot read server addr\n");
+                usage(argv[0]);
+                exit(EXIT_FAILURE);
+            }
+        }
+        else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-s") == 0){
             if(i+1 < argc){
                 payload_size = atoi(argv[i+1]);
                 if(payload_size <= 0){
@@ -294,7 +319,36 @@ void parse_args(int argc, char *argv[]){
                 usage(argv[0]);
                 exit(EXIT_FAILURE);
             }
-        }else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-l") == 0){
+        }
+        else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-r") == 0){
+            if(i+1 < argc){
+                partition = atoi(argv[i+1]);
+                if(partition <= 0){
+                    printf("invalid partition number\n");
+                    exit(EXIT_FAILURE);
+                }
+                i++;
+            }else {
+                printf("cannot read partition number\n");
+                usage(argv[0]);
+                exit(EXIT_FAILURE);
+            }
+        }
+        else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-c") == 0){
+            if(i+1 < argc){
+                packet_size = atoi(argv[i+1]);
+                if(packet_size <= 0){
+                    printf("invalid packet size\n");
+                    exit(EXIT_FAILURE);
+                }
+                i++;
+            }else {
+                printf("cannot read packet size\n");
+                usage(argv[0]);
+                exit(EXIT_FAILURE);
+            }
+        }
+        else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-l") == 0){
             if(i+1 < argc){
                 run_latency = atoi(argv[i+1]);
                 if(run_latency != 0 && run_latency != 1 && run_latency != 2){
@@ -307,7 +361,8 @@ void parse_args(int argc, char *argv[]){
                 usage(argv[0]);
                 exit(EXIT_FAILURE);
             }
-        }else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-n") == 0){
+        }
+        else if (strlen(argv[i]) == 2 && strcmp(argv[i], "-n") == 0){
             if(i+1 < argc){
                 num_req = atoi(argv[i+1]);
                 if(num_req <= 0){
