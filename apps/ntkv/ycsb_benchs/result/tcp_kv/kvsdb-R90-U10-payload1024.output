@@ -1,0 +1,12 @@
+kvs client connected to 192.168.2.211:10000
+KVS_DB begins working
+# Loading records:	100000
+# OPERATION record:	100000
+ALL TIME = 6.225481
+THROUGHPUT = 16.063015KTPS
+AVERAGE = 62.254813us
+MEDIAN = 60.341000us
+99 = 134.613000us
+99.9 = 142.930000us
+99.99 = 228.227000us
+error num 0

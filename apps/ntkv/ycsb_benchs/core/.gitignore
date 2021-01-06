@@ -1,0 +1,7 @@
+/Debug/
+.cproject
+.project
+*.o
+/result-old
+*.log
+nohup.out

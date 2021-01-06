@@ -1,0 +1,2 @@
+shm_open: No such file or directory
+ycsbc: ../../src/ntm_shmring.c:278: ntm_shmring_push: Assertion `self' failed.

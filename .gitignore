@@ -66,3 +66,5 @@ dpdk/x86_64-native-linuxapp-gcc/
 
 *ntb-bench-tools/ntbring_benchtool/build*
 *ntb-bench-tools/rawntb_benchtool/build*
+
+*/bin/*

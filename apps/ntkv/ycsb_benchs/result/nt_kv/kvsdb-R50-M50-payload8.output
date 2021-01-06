@@ -1,0 +1,16 @@
+nts configuration: tcp_timewait=0, tcp_timeout=1000, local_nt_host=
+nts configuration: tcp_timewait=1, tcp_timeout=2, local_nt_host=10.176.22.210
+nts configuration: tcp_timewait=1, tcp_timeout=2, local_nt_host=10.176.22.210
+kvs client connected to 10.176.22.211:10000
+KVS_DB begins working
+# Loading records:	100000
+put fail
+# OPERATION record:	100000
+ALL TIME = 2.067017
+THROUGHPUT = 48.378901KTPS
+AVERAGE = 20.670168us
+MEDIAN = 10.759000us
+99 = 175.099000us
+99.9 = 199.169000us
+99.99 = 202.627000us
+error num 1
