@@ -53,18 +53,8 @@ dkms.conf
 dpdk/x86_64-native-linuxapp-gcc/
 .vscode/
 
-*monitor/bin*
+/libfdu-utils/include/
+/libfdu-utils/lib/
 
-*libfdu-utils/include/*
-*libfdu-utils/bin/*
-
-*benchmark/ntb_benchmark/bin/*
-*libnts/examples/bin/*
-
-*benchmark/epoll_benchmark/bin/*
-*benchmark/epoll_benchmark/bin*
-
-*ntb-bench-tools/ntbring_benchtool/build*
-*ntb-bench-tools/rawntb_benchtool/build*
-
-*/bin/*
+bin/
+build/
