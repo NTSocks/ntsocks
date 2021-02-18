@@ -857,7 +857,7 @@ struct ntb_link *raw_ntb_start(uint16_t dev_id)
 
 void usage(void)
 {
-    fprintf(stdout, "NTB Usage: \n");
+    fprintf(stdout, "NTB-bench-tool Usage: \n");
     fprintf(stdout, " -s <size>      payload size(default %d)\n", 16);
     fprintf(stdout, " -n <requests>  the number of request(default %d)\n", 10000);
     fprintf(stdout, " -m <metric>    the method of measuring raw ntb\n");

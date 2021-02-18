@@ -332,16 +332,22 @@ void *monitor_bandwidth_update()
             bytes_cnt_end[thr_id] = read_persecond[thr_id];
         }
 
-        // caculate BW
-        for(int thr_id = 0; thr_id < thrds; thr_id++) {
-            bandwidth[thr_id][seconds] = 1.0 * (bytes_cnt_end[thr_id] - bytes_cnt_start[thr_id]) * 1000000 * 8 / (end_time - start_time) / 1024 / 1024 / 1024;
-            if (DEBUG)
-            {
-                printf("thread %d bandwidth is %lf Gbits/sec, time diff is %ld\n", thr_id, bandwidth[thr_id][seconds], end_time - start_time);
+        if (seconds < MAX_TIME_IN_BANDWIDTH) {
+            // caculate BW
+            for(int thr_id = 0; thr_id < thrds; thr_id++) {
+                bandwidth[thr_id][seconds] = 1.0 * (bytes_cnt_end[thr_id] - bytes_cnt_start[thr_id]) * 1000000 * 8 / (end_time - start_time) / 1024 / 1024 / 1024;
+                if (DEBUG)
+                {
+                    printf("thread %d bandwidth is %lf Gbits/sec, time diff is %ld\n", thr_id, bandwidth[thr_id][seconds], end_time - start_time);
+                }
             }
         }
+        
         seconds++;
     }
+
+    // if seconds > MAX_TIME_IN_BANDWIDTH, use MAX_TIME_IN_BANDWIDTH
+    seconds = seconds < MAX_TIME_IN_BANDWIDTH ? seconds : MAX_TIME_IN_BANDWIDTH;
 
     // Count the amount of data transferred by all threads per second
     totalbandwidth_eachsecond = (double *)malloc(seconds * sizeof(double));
