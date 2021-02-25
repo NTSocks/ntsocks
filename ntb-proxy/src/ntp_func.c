@@ -272,7 +272,6 @@ int ntp_send_buff_data(struct ntb_data_link *data_link, ntb_partition_t partitio
         //     printf("send_msg:%s \n", send_msg.payload);
 
         if (UNLIKELY(send_msg.header->msg_type == NTP_FIN)) // when NTP_FIN packet/msg, update ntb-conn state as `ACTIVE_CLOSE`
-
         {
             //如果检测到FIN包，发送FIN_PKG to peer，close队列，并将conn->state置为ACTIVE_CLOSE
             //正常APP的FIN包后不会再有数据包，直接return
@@ -290,15 +289,12 @@ int ntp_send_buff_data(struct ntb_data_link *data_link, ntb_partition_t partitio
         {
             pack_ntpacket_header(send_msg.header, src_port, dst_port, data_len, SINGLE_PKG);
             ntpacket_enqueue(data_link, send_msg.header, &send_msg);
-            // ntb_data_msg_enqueue2(data_link, &send_msg, 
-            //             src_port, dst_port, data_len, SINGLE_PKG);
         }
         else
         {
-            ntb_data_msg_enqueue2(data_link, &send_msg, 
+            ntb_data_msg_enqueue2(data_link, &send_msg,
                         src_port, dst_port, data_len, MULTI_PKG);
 
-            // DEBUG("multi pkg header,src_port = %d ,dst_port=%d,msg_len = %d", src_port, dst_port, data_len);
             uint16_t sent = NTP_CONFIG.datapacket_payload_size;
             //下面为纯data包，NTP_CONFIG.data_packet_size 不需要减去header长度
             while (data_len - sent > NTP_CONFIG.data_packet_size)
@@ -318,9 +314,6 @@ int ntp_send_buff_data(struct ntb_data_link *data_link, ntb_partition_t partitio
             ntb_data_msg_enqueue(data_link, &data_packet);
         }
 
-        // global_send_data += send_msg.header->msg_len;
-        // global_send_msg += 1;
-        // DEBUG("send_msg counter = %ld,send_msg_len counter = %ld", global_send_msg, global_send_data);
         ntp_shm_ntpacket_free(ring, &send_msg);
     }
 
@@ -357,10 +350,9 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
         packet_ptr = (void *)(recv_dataring->start_addr + 
                     (recv_dataring->cur_index << NTP_CONFIG.ntb_packetbits_size));
         rc = parse_ntpacket(packet_ptr, &msg);
-        if (rc == -1)   continue;
 
         // if no msg,continue
-        if (msg.header && msg.header->msg_len == 0)
+        if (rc == -1 || (msg.header && msg.header->msg_len == 0))
         {
             continue;
         }
@@ -370,8 +362,7 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
         // if (msg.payload)
         //     printf("msg.payload: %s \n", msg.payload);
 
-        msg_len &= 0x0fff; // compute real msg_len == end 12 bits
-        msg_type = parser_data_len_get_type(data_link, msg.header->msg_len);
+        msg_type = parser_data_len_get_type(data_link, msg.header->msg_type);
         //如果当前包端口号与上次比有所改变，需要重新Get conn
         if (src_port != msg.header->dst_port || dst_port != msg.header->src_port)
         {
@@ -380,13 +371,14 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
             dst_port = msg.header->src_port;
             conn_id = create_conn_id(src_port, dst_port);
             conn = (ntb_conn *)Get(ntb_link->port2conn, &conn_id);
-            // DEBUG("search conn_id = %d", conn_id);
         }
 
         //当前消息的端口号与上一条消息完全相等时，为同一条conn的消息，将不会重复进行get
-        if (UNLIKELY(conn == NULL || conn->state == ACTIVE_CLOSE || conn->state == PASSIVE_CLOSE))
-        { // if the ntb conn is close state, then drop current nt_packet
-            
+        if (UNLIKELY(conn == NULL 
+                || conn->state == ACTIVE_CLOSE 
+                || conn->state == PASSIVE_CLOSE))
+        { 
+            // if the ntb conn is close state, then drop current nt_packet
             count = (msg_len + NTP_CONFIG.data_packet_size - 1) >> NTP_CONFIG.ntb_packetbits_size;
             temp_index = recv_dataring->cur_index;
             //会将ENF_MULTI包所在位置也清零
@@ -419,7 +411,6 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
         // report the statistics about the used element ratio of data ringbuffer,
         // if write_idx > read_idx, then write_idx - read_idx
         // else, r->capacity - (read_idx - write_idx) 
-        // if ()
 
         if (msg_type == SINGLE_PKG)
         {
@@ -427,7 +418,6 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
             recv_msg.header->msg_type = NTP_DATA;
             recv_msg.header->msg_len = msg_len - NTPACKET_HEADER_LEN;
             rte_memcpy(recv_msg.payload, msg.payload, recv_msg.header->msg_len);
-
 
             rc = ntp_shm_send(conn->nts_recv_ring, &recv_msg);
             if (UNLIKELY(rc == -1)) {
@@ -437,11 +427,10 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
 
             //将msg_len置为0，cur_index++
             msg.header->msg_len = 0;
-            // if(recv_dataring->cur_index +1 >= max_cap)
-            recv_dataring->cur_index = recv_dataring->cur_index + 1 < recv_dataring->capacity ? recv_dataring->cur_index + 1 : 0;
-            // global_rece_data += recv_msg.header->msg_len;
-            // global_rece_msg += 1;
-            // DEBUG("recv_msg counter = %ld,rece_msg_len counter = %ld", global_rece_msg, global_rece_data);
+            msg.header->msg_type = 0;
+            recv_dataring->cur_index = recv_dataring->cur_index + 1 < recv_dataring->capacity 
+                        ? recv_dataring->cur_index + 1 : 0;
+
             // DEBUG("recv_msg.payload = %s", recv_msg.payload);
             // DEBUG("receive SINGLE_PKG end");
 
@@ -483,14 +472,17 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link, struct ntb_link_cu
             }
             else
             {
-                first_len = ((recv_dataring->capacity - temp_index - 1) << NTP_CONFIG.ntb_packetbits_size) + NTP_CONFIG.datapacket_payload_size;
+                first_len = ((recv_dataring->capacity - temp_index - 1) << NTP_CONFIG.ntb_packetbits_size) 
+                            + NTP_CONFIG.datapacket_payload_size;
                 rte_memcpy(recv_msg.payload, msg.payload, first_len);
-                rte_memcpy((recv_msg.payload + first_len), recv_dataring->start_addr, recv_msg.header->msg_len - first_len);
+                rte_memcpy((recv_msg.payload + first_len), 
+                            recv_dataring->start_addr, recv_msg.header->msg_len - first_len);
             }
             // 将所有接收到的消息清空
             for (i = 0; i <= next_index - recv_dataring->cur_index; i++)
             {
-                packet_ptr = (void *)(recv_dataring->start_addr + (temp_index << NTP_CONFIG.ntb_packetbits_size));
+                packet_ptr = (void *)(recv_dataring->start_addr + 
+                            (temp_index << NTP_CONFIG.ntb_packetbits_size));
                 temp_index = temp_index + 1 < recv_dataring->capacity ? temp_index + 1 : 0;
                 rc = parse_ntpacket(packet_ptr, &msg);
                 if (rc == -1 || !msg.header) {

@@ -249,7 +249,7 @@ int trans_ctrl_link_cur_index(struct ntb_link_custom *ntb_link);
 
 int ntb_data_msg_add_header(struct ntpacket *msg, uint16_t src_port, uint16_t dst_port, int payload_len, int msg_type);
 
-int parser_data_len_get_type(struct ntb_data_link *data_link, uint16_t msg_len);
+int parser_data_len_get_type(struct ntb_data_link *data_link, uint16_t msg_type);
 
 int parser_ctrl_msg_header(struct ntb_link_custom *ntb_link, uint16_t msg_len);
 

@@ -980,10 +980,6 @@ int nts_close(int sockid) {
 		ERR("ntp_shm_send NTP_NTS_MSG_FIN failed");
 		goto FAIL;
 	}
-	// while (retval) {
-	// 	sched_yield();
-	// 	retval = ntp_shm_send(nt_sock_ctx->ntp_send_ctx, &ntp_outgoing_msg);
-	// } 
 
 	DEBUG("wait for FIN_ACK msg from remote monitor");
 	nts_msg nts_incoming_msg;
@@ -1043,7 +1039,6 @@ int nts_shutdown(int sockid, int how) {
 }
 
 
-
 int nts_getpeername(int sockid, struct sockaddr *name,
     socklen_t *namelen) {
 
@@ -1055,7 +1050,6 @@ int nts_getsockname(int sockid, struct sockaddr *name,
 
 	return 0;
 }
-
 
 
 ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
@@ -1310,8 +1304,6 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes) {
 
 			}
 		}
-
-
 	}
 
 	DEBUG("nts_read success with bytes_read=%d", bytes_read);
@@ -1375,7 +1367,8 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 
 	write_bytes = 0;
 	outgoing_msg.header->msg_type = NTP_NTS_MSG_DATA;
-	outgoing_msg.header->msg_len = nbytes < NTS_CONFIG.max_payloadsize ? nbytes : NTS_CONFIG.max_payloadsize;
+	outgoing_msg.header->msg_len = nbytes < NTS_CONFIG.max_payloadsize 
+				? nbytes : NTS_CONFIG.max_payloadsize;
 	write_bytes += outgoing_msg.header->msg_len;
 
 	memcpy(outgoing_msg.payload, buf, outgoing_msg.header->msg_len);
@@ -1391,7 +1384,6 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes) {
 	}
 
 	while(retval == 0) {
-
 		int next_msg_len;
 		if (nbytes - write_bytes <= NTS_CONFIG.max_payloadsize)
 			next_msg_len = nbytes - write_bytes;

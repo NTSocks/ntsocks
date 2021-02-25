@@ -18,6 +18,13 @@ DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 #define MAX_KEY_LEN 64
 #define MAX_VAL_LEN 256
 
+#define NTS_PARAM_MTU_SIZE "mtu_size"
+#define NTS_PARAM_TCP_TIMEOUT "tcp_timeout"
+#define NTS_PARAM_TCP_TIMEWAIT "tcp_timewait"
+#define NTS_PARAM_REMOTE_HOST "nt_host"
+#define NTS_PARAM_LOCAL_HOST "local_nt_host"
+
+
 struct nts_config NTS_CONFIG = {
     /* set default configuration */
     .tcp_timewait = 0,
@@ -151,24 +158,24 @@ int load_conf(const char *fname)
             continue;
 
         DEBUG("ntb monitor configuration %s=%s\n", _paramk, _paramv);
-        if (strcmp(_paramk, "local_nt_host") == 0)
+        if (strcmp(_paramk, NTS_PARAM_LOCAL_HOST) == 0)
         {
             NTS_CONFIG.local_hostlen = _vlen;
             memcpy(NTS_CONFIG.local_nt_host, _paramv, _vlen);
         }
-        else if (strcmp(_paramk, "nt_host") == 0)
+        else if (strcmp(_paramk, NTS_PARAM_REMOTE_HOST) == 0)
         {
             parse_nt_host(_paramv);
         }
-        else if (strcmp(_paramk, "tcp_timewait") == 0)
+        else if (strcmp(_paramk, NTS_PARAM_TCP_TIMEWAIT) == 0)
         {
             NTS_CONFIG.tcp_timewait = atoi(_paramv);
         }
-        else if (strcmp(_paramk, "tcp_timeout") == 0)
+        else if (strcmp(_paramk, NTS_PARAM_TCP_TIMEOUT) == 0)
         {
             NTS_CONFIG.tcp_timeout = atoi(_paramv);
         }
-        else if (strcmp(_paramk, "mtu_size") == 0)
+        else if (strcmp(_paramk, NTS_PARAM_MTU_SIZE) == 0)
         {
             NTS_CONFIG.mtu_size = atoi(_paramv);
         }
