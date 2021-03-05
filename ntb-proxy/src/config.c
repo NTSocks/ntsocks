@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include "ntb.h"
 #include "config.h"
@@ -36,8 +37,7 @@ struct ntp_config NTP_CONFIG = {
 	.ntb_packetbits_size = DEFAULT_NTPACKET_SIZE,
 	.ctrl_packet_size = DEFAULT_CTRL_PACKET_SIZE,
 	.data_ringbuffer_size = DEFAULT_DATA_RING_SIZE,
-	.ctrl_ringbuffer_size = DEFAULT_CTRL_RING_SIZE
-};
+	.ctrl_ringbuffer_size = DEFAULT_CTRL_RING_SIZE};
 
 static int trim(char s[])
 {
@@ -51,7 +51,8 @@ static int trim(char s[])
 	return n;
 }
 
-static int math_log2(int value) {
+static int math_log2(int value)
+{
 	int log_v = log(value * 1.0) / log(2.0);
 	return log_v;
 }
@@ -145,8 +146,10 @@ int load_conf(const char *fname)
 		else if (strcmp(_paramk, "num_partition") == 0)
 		{
 			NTP_CONFIG.num_partition = atoi(_paramv);
-			NTP_CONFIG.num_partition = NTP_CONFIG.num_partition <= MAX_NUM_PARTITION ? 
-											NTP_CONFIG.num_partition : MAX_NUM_PARTITION; 
+			NTP_CONFIG.num_partition =
+				NTP_CONFIG.num_partition <= MAX_NUM_PARTITION
+					? NTP_CONFIG.num_partition
+					: MAX_NUM_PARTITION;
 		}
 		else if (strcmp(_paramk, "ntb_packetbits_size") == 0)
 		{
@@ -183,11 +186,8 @@ int load_conf(const char *fname)
 	return 0;
 }
 
-void free_conf() {
-	
-}
-
-void print_conf() {
+void print_conf()
+{
 	printf("sublink_data_ring_size = %d\n\
 		sublink_ctrl_ring_size = %d\n\
 		nts_buff_size = %d\n\
@@ -197,15 +197,15 @@ void print_conf() {
 		data_packet_size = %d\n\
 		ctrl_packet_size = %d\n\
 		data_ringbuffer_size = %ld\n\
-		ctrl_ringbuffer_size = %ld\n\n", 
-	   NTP_CONFIG.sublink_data_ring_size, 
-	   NTP_CONFIG.sublink_ctrl_ring_size,
-	   NTP_CONFIG.nts_buff_size,
-	   NTP_CONFIG.bulk_size,
-	   NTP_CONFIG.num_partition,
-	   NTP_CONFIG.ntb_packetbits_size,
-	   NTP_CONFIG.data_packet_size,
-	   NTP_CONFIG.ctrl_packet_size,
-	   NTP_CONFIG.data_ringbuffer_size,
-	   NTP_CONFIG.ctrl_ringbuffer_size);
+		ctrl_ringbuffer_size = %ld\n\n",
+		   NTP_CONFIG.sublink_data_ring_size,
+		   NTP_CONFIG.sublink_ctrl_ring_size,
+		   NTP_CONFIG.nts_buff_size,
+		   NTP_CONFIG.bulk_size,
+		   NTP_CONFIG.num_partition,
+		   NTP_CONFIG.ntb_packetbits_size,
+		   NTP_CONFIG.data_packet_size,
+		   NTP_CONFIG.ctrl_packet_size,
+		   NTP_CONFIG.data_ringbuffer_size,
+		   NTP_CONFIG.ctrl_ringbuffer_size);
 }

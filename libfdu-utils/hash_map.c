@@ -32,10 +32,12 @@ static bool defaultExists(HashMap hashMap, let key);
 static void defaultClear(HashMap hashMap);
 
 
-int defaultHashCode(HashMap hashMap, let key) {
+int defaultHashCode(HashMap hashMap, let key) 
+{
     char * k = (char *)key;
     unsigned long h = 0;
-    while (*k) {
+    while (*k) 
+    {
         h = (h << 4) + *k++;
         unsigned long g = h & 0xF0000000L;
         if (g) {
@@ -46,11 +48,13 @@ int defaultHashCode(HashMap hashMap, let key) {
     return h % hashMap->listSize;
 }
 
-bool defaultEqual(let key1, let key2) {
+bool defaultEqual(let key1, let key2) 
+{
     return strcmp((string)key1, (string)key2) ? false : true;
 }
 
-void resetHashMap(HashMap hashMap, int listSize) {
+void resetHashMap(HashMap hashMap, int listSize) 
+{
 
     if (listSize < 8) return;
 
@@ -59,7 +63,8 @@ void resetHashMap(HashMap hashMap, int listSize) {
 
     HashMapIterator iterator = createHashMapIterator(hashMap);
     int length = hashMap->size;
-    for (int index = 0; hasNextHashMapIterator(iterator); index++) {
+    for (int index = 0; hasNextHashMapIterator(iterator); index++) 
+    {
         // 迭代取出所有键值对
         iterator = nextHashMapIterator(iterator);
         tempList[index].key = iterator->entry->key;
@@ -70,12 +75,15 @@ void resetHashMap(HashMap hashMap, int listSize) {
 
     // 清除原有键值对数据
     hashMap->size = 0;
-    for (int i = 0; i < hashMap->listSize; i++) {
+    for (int i = 0; i < hashMap->listSize; i++) 
+    {
         Entry current = &hashMap->list[i];
         current->key = NULL;
         current->value = NULL;
-        if (current->next != NULL) {
-            while (current->next != NULL) {
+        if (current->next != NULL) 
+        {
+            while (current->next != NULL) 
+            {
                 Entry temp = current->next->next;
                 free(current->next);
                 current->next = temp;
@@ -85,40 +93,49 @@ void resetHashMap(HashMap hashMap, int listSize) {
 
     // 更改内存大小
     hashMap->listSize = listSize;
-    Entry relist = (Entry)realloc(hashMap->list, hashMap->listSize * sizeof(struct entry));
-    if (relist != NULL) {
+    Entry relist = (Entry)
+            realloc(hashMap->list, hashMap->listSize * sizeof(struct entry));
+    if (relist != NULL) 
+    {
         hashMap->list = relist;
         relist = NULL;
     }
 
     // 初始化数据
-    for (int i = 0; i < hashMap->listSize; i++) {
+    for (int i = 0; i < hashMap->listSize; i++) 
+    {
         hashMap->list[i].key = NULL;
         hashMap->list[i].value = NULL;
         hashMap->list[i].next = NULL;
     }
 
     // 将所有键值对重新写入内存
-    for (int i = 0; i < length; i++) {
+    for (int i = 0; i < length; i++) 
+    {
 //        Array x = tempList[i].value;
         hashMap->put(hashMap, tempList[i].key, tempList[i].value);
     }
     free(tempList);
 }
 
-void defaultPut(HashMap hashMap, let key, let value) {
+void defaultPut(HashMap hashMap, let key, let value) 
+{
     int index = hashMap->hashCode(hashMap, key);
-    if (hashMap->list[index].key == NULL) {
+    if (hashMap->list[index].key == NULL) 
+    {
         hashMap->size++;
         // 该地址为空时直接存储
         hashMap->list[index].key = key;
         hashMap->list[index].value = value;
     }
-    else {
+    else 
+    {
 
         Entry current = &hashMap->list[index];
-        while (current != NULL) {
-            if (hashMap->equal(key, current->key)) {
+        while (current != NULL) 
+        {
+            if (hashMap->equal(key, current->key)) 
+            {
                 // 对于键值已经存在的直接覆盖
                 hashMap->list[index].value = value;
                 return;
@@ -135,7 +152,8 @@ void defaultPut(HashMap hashMap, let key, let value) {
         hashMap->size++;
     }
 
-    if (hashMap->autoAssign && hashMap->size >= hashMap->listSize) {
+    if (hashMap->autoAssign && hashMap->size >= hashMap->listSize) 
+    {
 
         // 内存扩充至原来的两倍
         // *注: 扩充时考虑的是当前存储元素数量与存储空间的大小关系，而不是存储空间是否已经存满，
@@ -147,12 +165,16 @@ void defaultPut(HashMap hashMap, let key, let value) {
     }
 }
 
-let defaultGet(HashMap hashMap, let key) {
-    if (hashMap->exists(hashMap, key)) {
+let defaultGet(HashMap hashMap, let key) 
+{
+    if (hashMap->exists(hashMap, key)) 
+    {
         int index = hashMap->hashCode(hashMap, key);
         Entry entry = &hashMap->list[index];
-        while (entry != NULL) {
-            if (hashMap->equal(entry->key, key)) {
+        while (entry != NULL) 
+        {
+            if (hashMap->equal(entry->key, key)) 
+            {
                 return entry->value;
             }
             entry = entry->next;
@@ -161,34 +183,42 @@ let defaultGet(HashMap hashMap, let key) {
     return NULL;
 }
 
-let defaultRemove(HashMap hashMap, let key) {
+let defaultRemove(HashMap hashMap, let key) 
+{
     int index = hashMap->hashCode(hashMap, key);
     Entry entry = &hashMap->list[index];
-    if (entry->key == NULL) {
+    if (entry->key == NULL) 
+    {
         return NULL;
     }
+
     let entryKey = entry->key;
     bool result = false;
-    if (hashMap->equal(entry->key, key)) {
+    if (hashMap->equal(entry->key, key)) 
+    {
         hashMap->size--;
-        if (entry->next != NULL) {
+        if (entry->next != NULL) 
+        {
             Entry temp = entry->next;
             entry->key = temp->key;
             entry->value = temp->value;
             entry->next = temp->next;
             free(temp);
         }
-        else {
+        else 
+        {
             entry->key = NULL;
             entry->value = NULL;
         }
         result = true;
     }
-    else {
+    else 
+    {
         Entry p = entry;
         entry = entry->next;
         while (entry != NULL) {
-            if (hashMap->equal(entry->key, key)) {
+            if (hashMap->equal(entry->key, key)) 
+            {
                 hashMap->size--;
                 p->next = entry->next;
                 free(entry);
@@ -201,21 +231,28 @@ let defaultRemove(HashMap hashMap, let key) {
     }
 
     // 如果空间占用不足一半，则释放多余内存
-    if (result && hashMap->autoAssign &&  hashMap->size < hashMap->listSize / 2) {
+    if (result && hashMap->autoAssign 
+            && hashMap->size < hashMap->listSize / 2) 
+    {
         resetHashMap(hashMap, hashMap->listSize / 2);
     }
     return entryKey;
 }
 
-bool defaultExists(HashMap hashMap, let key) {
+bool defaultExists(HashMap hashMap, let key) 
+{
     int index = hashMap->hashCode(hashMap, key);
     Entry entry = &hashMap->list[index];
-    if (entry->key == NULL) {
+    if (entry->key == NULL) 
+    {
         return false;
     }
-    else {
-        while (entry != NULL) {
-            if (hashMap->equal(entry->key, key)) {
+    else 
+    {
+        while (entry != NULL) 
+        {
+            if (hashMap->equal(entry->key, key)) 
+            {
                 return true;
             }
             entry = entry->next;
@@ -225,7 +262,8 @@ bool defaultExists(HashMap hashMap, let key) {
 }
 
 void defaultClear(HashMap hashMap) {
-    for (int i = 0; i < hashMap->listSize; i++) {
+    for (int i = 0; i < hashMap->listSize; i++) 
+    {
         // 释放冲突值内存
         Entry entry = hashMap->list[i].next;
         while (entry != NULL) {
@@ -242,7 +280,8 @@ void defaultClear(HashMap hashMap) {
     hashMap->listSize = 0;
 }
 
-HashMap createHashMap(HashCode hashCode, Equal equal) {
+HashMap createHashMap(HashCode hashCode, Equal equal) 
+{
     HashMap hashMap = newHashMap();
     hashMap->size = 0;
     hashMap->listSize = DEFAULT_HASHMAP_SIZE;
@@ -258,13 +297,15 @@ HashMap createHashMap(HashCode hashCode, Equal equal) {
     // 起始分配8个内存空间，溢出时会自动扩充
     hashMap->list = newEntryList(hashMap->listSize);
     Entry p = hashMap->list;
-    for (int i = 0; i < hashMap->listSize; i++) {
+    for (int i = 0; i < hashMap->listSize; i++) 
+    {
         p[i].key = p[i].value = p[i].next = NULL;
     }
     return hashMap;
 }
 
-HashMapIterator createHashMapIterator(HashMap hashMap) {
+HashMapIterator createHashMapIterator(HashMap hashMap) 
+{
     HashMapIterator iterator = newHashMapIterator();
     iterator->hashMap = hashMap;
     iterator->count = 0;
@@ -273,20 +314,26 @@ HashMapIterator createHashMapIterator(HashMap hashMap) {
     return iterator;
 }
 
-bool hasNextHashMapIterator(HashMapIterator iterator) {
+bool hasNextHashMapIterator(HashMapIterator iterator) 
+{
     return iterator->count < iterator->hashMap->size ? true : false;
 }
 
-HashMapIterator nextHashMapIterator(HashMapIterator iterator) {
-    if (hasNextHashMapIterator(iterator)) {
-        if (iterator->entry != NULL && iterator->entry->next != NULL) {
+HashMapIterator nextHashMapIterator(HashMapIterator iterator) 
+{
+    if (hasNextHashMapIterator(iterator)) 
+    {
+        if (iterator->entry != NULL && iterator->entry->next != NULL) 
+        {
             iterator->count++;
             iterator->entry = iterator->entry->next;
             return iterator;
         }
-        while (++iterator->hashCode < iterator->hashMap->listSize) {
+        while (++iterator->hashCode < iterator->hashMap->listSize) 
+        {
             Entry entry = &iterator->hashMap->list[iterator->hashCode];
-            if (entry->key != NULL) {
+            if (entry->key != NULL) 
+            {
                 iterator->count++;
                 iterator->entry = entry;
                 break;
@@ -296,7 +343,8 @@ HashMapIterator nextHashMapIterator(HashMapIterator iterator) {
     return iterator;
 }
 
-void freeHashMapIterator(HashMapIterator * iterator) {
+void freeHashMapIterator(HashMapIterator * iterator) 
+{
     free(*iterator);
     *iterator = NULL;
 }

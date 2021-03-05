@@ -47,20 +47,25 @@ void pin_1thread_to_1core(int core_id)
 {
     cpu_set_t cpuset;
     pthread_t thread;
+
     thread = pthread_self();
     CPU_ZERO(&cpuset);
+
     int s;
     CPU_SET(core_id, &cpuset);
+
     s = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
     if (s != 0)
+    {
         fprintf(stderr, "pthread_setaffinity_np:%d", s);
+    }
+
     s = pthread_getaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
     if (s != 0)
+    {
         fprintf(stderr, "pthread_getaffinity_np:%d", s);
-    // printf("Set returned by pthread_getaffinity_np() contained:\n");
-    // for (j = 0; j < __CPU_SETSIZE; j++)
-    //     if (CPU_ISSET(j, &cpuset))
-    //         printf("    CPU %d\n", j);
+    }
+
 }
 
 int get_core_id(int *last_core, int cpucores, int inc_or_dec)
@@ -79,11 +84,12 @@ int get_core_id(int *last_core, int cpucores, int inc_or_dec)
     }
     return *last_core;
 }
-/*
-    get core from 16-31,48-63.
-    when inc_or_dec is 0, allocate from small to large.
-    when inc_or_dec is 1, allocate from large to small.
-*/
+
+/**
+ *   get core from 16-31,48-63.
+ *   when inc_or_dec is 0, allocate from small to large.
+ *   when inc_or_dec is 1, allocate from large to small.
+ */
 int get_core_id2(int *last_core, int inc_or_dec)
 {
     if (inc_or_dec == 0)

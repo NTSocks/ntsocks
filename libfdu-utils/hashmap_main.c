@@ -5,23 +5,25 @@
 
 typedef uint32_t nt_sock_id;
 
-struct nt_socket {
-	nt_sock_id sockid;
-	int socktype;
-	uint32_t opts;
+struct nt_socket
+{
+    nt_sock_id sockid;
+    int socktype;
+    uint32_t opts;
 
-	uint32_t epoll;
-	uint32_t events;
-	uint64_t ep_data;
+    uint32_t epoll;
+    uint32_t events;
+    uint64_t ep_data;
 } nt_socket;
-typedef struct nt_socket * nt_socket_t;
+typedef struct nt_socket *nt_socket_t;
 
-int main() {
+int main()
+{
     int id = 1;
 
     HashMap map = createHashMap(NULL, NULL);
-    
-    nt_socket_t sock = (nt_socket_t) calloc(1, sizeof(struct nt_socket));
+
+    nt_socket_t sock = (nt_socket_t)calloc(1, sizeof(struct nt_socket));
     sock->sockid = 1;
     sock->socktype = 45;
     sock->epoll = 431;
@@ -29,21 +31,30 @@ int main() {
     Put(map, &sock->sockid, sock);
 
     nt_socket_t rs = NULL;
-    rs = (nt_socket_t) Get(map, &id);
-    if (rs == NULL) {
+    rs = (nt_socket_t)Get(map, &id);
+    if (rs == NULL)
+    {
         printf("NULL is true\n");
-    } else {
+    }
+    else
+    {
         printf("data: %d, %d \n", rs->sockid, rs->socktype);
     }
 
     free(rs);
+    rs = NULL;
 
-    rs = (nt_socket_t) Get(map, &id);
-    if (rs == NULL) {
+    rs = (nt_socket_t)Get(map, &id);
+    if (rs == NULL)
+    {
         printf("NULL is true\n");
-    } else {
+    }
+    else
+    {
         printf("data: %d, %d \n", rs->sockid, rs->socktype);
     }
+    free(map);
+    map = NULL;
 
     return 0;
 }

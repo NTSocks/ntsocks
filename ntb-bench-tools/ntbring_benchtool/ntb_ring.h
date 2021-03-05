@@ -62,7 +62,8 @@ struct ring_t
  * 2. local_ring中cus_ptr表示本地消费指针，pd_ptr表示对端生产指针
  * 3. local_ring中cus_ptr表示对端消费指针，pd_ptr表示本地生产指针
  * 4. local_ring中cus_ptr和pd_ptr均表示对端
- * 5. local_ring中cus_ptr表示本地消费指针，remote_ring中pd_ptr表示对端生产指针，本地留出32 bits同步远程消费指针
+ * 5. local_ring中cus_ptr表示本地消费指针，remote_ring中
+ *      pd_ptr表示对端生产指针，本地留出32 bits同步远程消费指针
  */
 
 enum NTB_RING_TYPE
@@ -88,9 +89,12 @@ struct ntb_ring
     struct ring_t *ring;
 };
 
-static struct ntb_ring *ring_create(uint8_t *ptr, int num_of_ele, int size_of_ele, enum NTB_RING_TYPE ring_type, uint8_t *base_ptr);
+static struct ntb_ring *
+ring_create(uint8_t *ptr, int num_of_ele, int size_of_ele,
+            enum NTB_RING_TYPE ring_type, uint8_t *base_ptr);
 
-void ring_init(struct ntb_link *link, int num_of_ele, int size_of_ele, enum NTB_RING_TYPE ring_type);
+void ring_init(struct ntb_link *link, int num_of_ele,
+               int size_of_ele, enum NTB_RING_TYPE ring_type);
 
 int ring_enqueue_1(struct ntb_link *link, struct ring_item *in_item);
 int ring_enqueue_2(struct ntb_link *link, struct ring_item *in_item);

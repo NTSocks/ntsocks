@@ -53,9 +53,10 @@ int make_socket_non_blocking(int sockfd)
 
 int main(int argc, char *argv[])
 {
-    if (argc != 3) {
+    if (argc != 3)
+    {
         fprintf(stdout, "Usage:\n");
-        fprintf(stdout, "  %s <host> <port>    connect to echo server at <host>:<port>\n", argv[0]);
+        fprintf(stdout, "  %s <host> <port>    echo server listen at <host>:<port>\n", argv[0]);
         fprintf(stdout, "\n");
         exit(EXIT_FAILURE);
     }
@@ -77,7 +78,8 @@ int main(int argc, char *argv[])
     addr.sin_port = htons(server_port);
     addr.sin_addr.s_addr = inet_addr(argv[1]);
 
-    rc = bind(listen_fd, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
+    rc = bind(listen_fd,
+              (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
     if (rc < 0)
     {
         perror("bind");
@@ -145,7 +147,8 @@ int main(int argc, char *argv[])
                 memset(&client_addr, 0, sizeof(struct sockaddr_in));
                 socklen_t client_addrlen = sizeof(client_addr);
 
-                int client_fd = accept(listen_fd, (struct sockaddr *)&client_addr, &client_addrlen);
+                int client_fd = accept(listen_fd,
+                                       (struct sockaddr *)&client_addr, &client_addrlen);
                 if (client_fd <= 0)
                     continue;
 

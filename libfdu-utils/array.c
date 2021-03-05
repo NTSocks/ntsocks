@@ -31,8 +31,6 @@ static Array filter(Array array, FilterBy filter);
 static let indexOf(Array array, int index);
 
 
-
-
 Array concat(Array a, Array b) {
     Array array = createArray(0);
     ListNode node = a->head;
@@ -128,12 +126,10 @@ Array slice(Array array, int start, int end) {
     Array sliceArray = createArray(0);
 
     // 验证区间合法性
-    if (
-            (start > array->length && end < -array->length)
+    if ((start > array->length && end < -array->length)
             || ((start^end) > 0 && start >= end)
             || (start >= 0 && end < 0 && start >= end + array->length)
-            || (start < 0 && end >= 0 && start + array->length >= end)
-            )
+            || (start < 0 && end >= 0 && start + array->length >= end))
     {
         return sliceArray;
     }
@@ -325,7 +321,8 @@ bool hasNextArrayIterator(ArrayIterator iterator) {
 }
 
 ArrayIterator nextArrayIterator(ArrayIterator iterator) {
-    iterator->node = iterator->node == NULL ? iterator->array->head : iterator->node->next;
+    iterator->node = iterator->node == NULL ? 
+            iterator->array->head : iterator->node->next;
     return iterator;
 }
 

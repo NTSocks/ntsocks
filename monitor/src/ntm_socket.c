@@ -16,11 +16,13 @@
 
 #include "ntm_socket.h"
 
-ntm_socket_t ntm_sock_create() {
-	ntm_socket_t ntsock;
+ntm_socket_t ntm_sock_create()
+{
+    ntm_socket_t ntsock;
 
     ntsock = (ntm_socket_t)calloc(1, sizeof(struct ntm_socket));
-    if (!ntsock) {
+    if (!ntsock)
+    {
         perror("malloc");
         printf("failed to allocate nt_socket.\n");
         return NULL;
@@ -32,12 +34,14 @@ ntm_socket_t ntm_sock_create() {
     return ntsock;
 }
 
-ntm_socket_t ntm_client_create(int fd) {
+ntm_socket_t ntm_client_create(int fd)
+{
     assert(fd >= 0);
     ntm_socket_t ntsock;
 
     ntsock = (ntm_socket_t)calloc(1, sizeof(struct ntm_socket));
-    if (!ntsock) {
+    if (!ntsock)
+    {
         perror("malloc");
         printf("failed to allocate nt_socket.\n");
         return NULL;
@@ -50,36 +54,45 @@ ntm_socket_t ntm_client_create(int fd) {
     return ntsock;
 }
 
-int ntm_free(ntm_socket_t ntsock) {
-    int ret;
-    ret = ntm_close_socket(ntsock);
+int ntm_free(ntm_socket_t ntsock)
+{
 
-    return ret;
+    ntm_close_socket(ntsock);
+    if (ntsock)
+    {
+        free(ntsock);
+        ntsock = NULL;
+    }
+
+    return 0;
 }
 
-int ntm_send_tcp_msg(ntm_socket_t ntsock, char *msg, int msg_size) {
+int ntm_send_tcp_msg(ntm_socket_t ntsock, char *msg, int msg_size)
+{
     assert(ntsock);
     assert(msg);
     assert(msg_size > 0);
 
     int ret;
-    ret = (int) send(ntsock->socket_fd, msg, msg_size, 0);
+    ret = (int)send(ntsock->socket_fd, msg, msg_size, 0);
 
     return ret;
 }
 
-int ntm_recv_tcp_msg(ntm_socket_t ntsock, char *buf, int buf_size) {
+int ntm_recv_tcp_msg(ntm_socket_t ntsock, char *buf, int buf_size)
+{
     assert(ntsock);
     assert(buf);
     assert(buf_size > 0);
 
     int msglen;
-    msglen = (int) recv(ntsock->socket_fd, buf, buf_size, 0);
+    msglen = (int)recv(ntsock->socket_fd, buf, buf_size, 0);
 
     return msglen;
 }
 
-int ntm_start_tcp_server(ntm_socket_t ntsock, int port, char *address) {
+int ntm_start_tcp_server(ntm_socket_t ntsock, int port, char *address)
+{
     assert(ntsock);
     assert(address);
 
@@ -87,43 +100,52 @@ int ntm_start_tcp_server(ntm_socket_t ntsock, int port, char *address) {
     ntsock->socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     // refer to https://blog.pinkd.moe/others/2018/07/29/TCP-reuse
     int reuse = 1;
-    setsockopt(ntsock->socket_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+    setsockopt(ntsock->socket_fd, SOL_SOCKET,
+               SO_REUSEADDR, &reuse, sizeof(reuse));
 
     // setup socket
     ntsock->local.sin_family = AF_INET;
     ntsock->hp = gethostbyname(address);
-//    ntsock->local.sin_addr.s_addr = (in_addr_t) address;
-    memcpy(&ntsock->local.sin_addr, ntsock->hp->h_addr_list[0], (size_t) ntsock->hp->h_length);
-    ntsock->local.sin_port = (in_port_t) port;
+    //    ntsock->local.sin_addr.s_addr = (in_addr_t) address;
+    memcpy(&ntsock->local.sin_addr,
+           ntsock->hp->h_addr_list[0], (size_t)ntsock->hp->h_length);
+    ntsock->local.sin_port = (in_port_t)port;
 
     // bind socket to addr
-    bind(ntsock->socket_fd, (const struct sockaddr *) &ntsock->local, ntsock->len);
+    bind(ntsock->socket_fd,
+         (const struct sockaddr *)&ntsock->local, ntsock->len);
     listen(ntsock->socket_fd, LISTEN_QUEUE_NUM);
 
     // return port number
-    getsockname(ntsock->socket_fd, (struct sockaddr *) &ntsock->local, &ntsock->len);
+    getsockname(ntsock->socket_fd,
+                (struct sockaddr *)&ntsock->local, &ntsock->len);
 
     return ntsock->local.sin_port;
 }
 
-ntm_socket_t ntm_accept_tcp_conn(ntm_socket_t ntsock) {
+ntm_socket_t ntm_accept_tcp_conn(ntm_socket_t ntsock)
+{
     assert(ntsock);
 
     ntm_socket_t new_socket;
     int accept_conn_fd;
     new_socket = ntm_sock_create();
 
-    accept_conn_fd = accept(ntsock->socket_fd, (struct sockaddr *) &new_socket->remote, &new_socket->rlen);
-    if (accept_conn_fd != -1) {
+    accept_conn_fd = accept(ntsock->socket_fd,
+                            (struct sockaddr *)&new_socket->remote, &new_socket->rlen);
+    if (accept_conn_fd != -1)
+    {
         new_socket->socket_fd = accept_conn_fd;
         return new_socket;
     }
 
-    ntm_close_socket(new_socket);
+    ntm_free(new_socket);
     return NULL;
 }
 
-int ntm_connect_to_tcp_server(ntm_socket_t ntsock, int port, char *name) {
+int ntm_connect_to_tcp_server(
+    ntm_socket_t ntsock, int port, char *name)
+{
     assert(ntsock);
     int ret;
 
@@ -133,13 +155,16 @@ int ntm_connect_to_tcp_server(ntm_socket_t ntsock, int port, char *name) {
     // setup socket
     ntsock->remote.sin_family = AF_INET;
     ntsock->hp = gethostbyname(name);
-    memcpy(&ntsock->remote.sin_addr, ntsock->hp->h_addr_list[0], (size_t) ntsock->hp->h_length);
-    ntsock->remote.sin_port = (in_port_t) port;
+    memcpy(&ntsock->remote.sin_addr,
+           ntsock->hp->h_addr_list[0], (size_t)ntsock->hp->h_length);
+    ntsock->remote.sin_port = (in_port_t)port;
 
     // connect to server
-    ret = connect(ntsock->socket_fd, (const struct sockaddr *) &ntsock->remote, ntsock->rlen);
+    ret = connect(ntsock->socket_fd,
+                  (const struct sockaddr *)&ntsock->remote, ntsock->rlen);
     printf("try connect to %s:%d with ret=%d\n", name, port, ret);
-    if (ret < 0) {
+    if (ret < 0)
+    {
         close(ntsock->socket_fd);
         return -1;
     }
@@ -147,19 +172,18 @@ int ntm_connect_to_tcp_server(ntm_socket_t ntsock, int port, char *name) {
     return 0;
 }
 
-
-int ntm_close_socket(ntm_socket_t ntsock) {
+int ntm_close_socket(ntm_socket_t ntsock)
+{
     assert(ntsock);
 
-    if (ntsock->socket_fd >= 0) {
-       close(ntsock->socket_fd);
+    if (ntsock->socket_fd >= 0)
+    {
+        close(ntsock->socket_fd);
     }
 
     // if(ntsock) {
     //     free(ntsock);
     // }
-    
 
     return 0;
 }
-

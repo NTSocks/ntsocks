@@ -8,10 +8,10 @@
  * @version 1.0
  */
 
-#include "nts.h"
 #include "nts_config.h"
 
 #include "nt_log.h"
+#include "nts.h"
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
 #define MAX_BUF_LEN 1024
@@ -24,13 +24,11 @@ DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 #define NTS_PARAM_REMOTE_HOST "nt_host"
 #define NTS_PARAM_LOCAL_HOST "local_nt_host"
 
-
 struct nts_config NTS_CONFIG = {
     /* set default configuration */
     .tcp_timewait = 0,
     .tcp_timeout = 1000,
-    .mtu_size = 1024
-};
+    .mtu_size = 1024};
 
 nts_context_t nts_ctx = NULL;
 
@@ -43,6 +41,7 @@ static int trim(char s[])
             break;
         s[n + 1] = '\0';
     }
+
     return n;
 }
 
@@ -55,10 +54,11 @@ static void parse_nt_host(char *nt_host)
     pch = strtok(nt_host, " ,");
     while (pch != NULL)
     {
-        addr_item = (nt_host_entry_t)calloc(1, sizeof(struct nt_host_entry));
+        addr_item = (nt_host_entry_t)
+            calloc(1, sizeof(struct nt_host_entry));
         if (!addr_item)
         {
-            DEBUG("allocate memory for nt_host_entry failed");
+            ERR("allocate memory for nt_host_entry failed");
         }
         addr_item->ipaddrlen = strlen(pch);
         memcpy(addr_item->ipaddr, pch, strlen(pch));
@@ -195,11 +195,11 @@ void free_conf()
 
     TAILQ_FOREACH(item, &nt_host_head, entries)
     {
-        if (item) {
+        if (item)
+        {
             free(item);
         }
     }
-
 }
 
 void print_conf()

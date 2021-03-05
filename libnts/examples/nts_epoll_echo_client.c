@@ -28,11 +28,13 @@
 
 #define MSG "Hello, NTSocks!"
 
-int make_socket_non_blocking(int sockfd) {
+int make_socket_non_blocking(int sockfd)
+{
     int flags, s;
     // get current flags
     flags = fcntl(sockfd, F_GETFL, 0);
-    if (flags == -1) {
+    if (flags == -1)
+    {
         perror("get sockfd status");
         return -1;
     }
@@ -41,7 +43,8 @@ int make_socket_non_blocking(int sockfd) {
 
     // set flags for sockfd
     s = fcntl(sockfd, F_SETFL, flags);
-    if (s == -1) {
+    if (s == -1)
+    {
         perror("set sockfd status");
         return -1;
     }
@@ -49,19 +52,23 @@ int make_socket_non_blocking(int sockfd) {
     return 0;
 }
 
+int main(int argc, char *argv[])
+{
 
-int main(int argc, char * argv[]) { 
-
-    if (argc != 3) {
+    if (argc != 3)
+    {
         fprintf(stdout, "Usage:\n");
-        fprintf(stdout, "  %s <host> <port>    connect to echo server at <host>:<port>\n", argv[0]);
+        fprintf(stdout, "  %s <host> <port>    \
+connect to echo server at <host>:<port>\n",
+                argv[0]);
         fprintf(stdout, "\n");
         exit(EXIT_FAILURE);
     }
 
     int client_fd;
     client_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (client_fd < 0) {
+    if (client_fd < 0)
+    {
         perror("socket");
         return 1;
     }
@@ -74,21 +81,25 @@ int main(int argc, char * argv[]) {
     server_addr.sin_port = htons(server_port);
     inet_pton(AF_INET, argv[1], &server_addr.sin_addr);
 
-    rc = connect(client_fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
-    if (rc < 0) {
+    rc = connect(client_fd,
+                 (struct sockaddr *)&server_addr, sizeof(server_addr));
+    if (rc < 0)
+    {
         perror("connect");
         return 2;
     }
 
     rc = make_socket_non_blocking(client_fd);
-    if (rc == -1){
+    if (rc == -1)
+    {
         perror("make_socket_non_blocking");
         return 3;
     }
 
     // epoll enable
     int epoll_fd = epoll_create(EPOLL_SIZE);
-     if (epoll_fd < 0) {
+    if (epoll_fd < 0)
+    {
         perror("epoll_create");
         return 4;
     }
@@ -98,40 +109,50 @@ int main(int argc, char * argv[]) {
     ev.data.fd = client_fd;
 
     rc = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &ev);
-    if (rc < 0) {
+    if (rc < 0)
+    {
         perror("epoll_ctl");
         return 5;
     }
 
     size_t sent_bytes;
     sent_bytes = write(client_fd, MSG, strlen(MSG));
-    if (sent_bytes <= 0) {
+    if (sent_bytes <= 0)
+    {
         perror("write");
         return 6;
     }
 
-    for( ; ; ) {
+    for (;;)
+    {
         int wait_cnt;
         wait_cnt = epoll_wait(epoll_fd, events, EPOLL_SIZE, -1);
-        if (wait_cnt == -1) {
+        if (wait_cnt == -1)
+        {
             perror("epoll_wait");
             exit(EXIT_FAILURE);
-        }        
+        }
 
         for (int i = 0; i < wait_cnt; i++)
         {
-            if ((events[i].events & EPOLLIN) && events[i].data.fd == client_fd) {
-                
+            if ((events[i].events & EPOLLIN) &&
+                events[i].data.fd == client_fd)
+            {
+
                 char buf[BUF_LEN] = {0};
                 int recv_bytes;
                 recv_bytes = read(client_fd, buf, BUF_LEN);
-                if (recv_bytes > 0) {
+                if (recv_bytes > 0)
+                {
                     sent_bytes = write(client_fd, MSG, strlen(MSG));
-                    if (sent_bytes <= 0) {
+                    if (sent_bytes <= 0)
+                    {
                         perror("write");
                         exit(EXIT_FAILURE);
                     }
-                } else {
+                }
+                else
+                {
                     perror("read");
                     close(client_fd);
 
@@ -141,10 +162,8 @@ int main(int argc, char * argv[]) {
 
                     exit(EXIT_FAILURE);
                 }
-
             }
         }
-
     }
 
     close(client_fd);

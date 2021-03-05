@@ -11,7 +11,8 @@
 #include "ntm_msg.h"
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 #define NTM_MAX_BUFS 8 // define NTM_MAX_BUFS as a power of 2 (65536 in our case)
@@ -22,20 +23,18 @@ extern "C" {
 #define NTM_SEM_SPOOL_SIGNAL_NAME "/ntm-sem-spool-signal"
 #define NTM_SHM_NAME "/ntm-shm-ring"
 
+    typedef struct _ntm_shmring ntm_shmring_t;
+    typedef ntm_shmring_t *ntm_shmring_handle_t;
 
-typedef struct _ntm_shmring ntm_shmring_t;
-typedef ntm_shmring_t* ntm_shmring_handle_t;
+    ntm_shmring_handle_t ntm_shmring_init(char *shm_addr, size_t addrlen);
 
+    ntm_shmring_handle_t ntm_get_shmring(char *shm_addr, size_t addrlen);
 
-ntm_shmring_handle_t ntm_shmring_init(char *shm_addr, size_t addrlen);
+    bool ntm_shmring_push(ntm_shmring_handle_t self, ntm_msg *element);
 
-ntm_shmring_handle_t ntm_get_shmring(char *shm_addr, size_t addrlen);
+    bool ntm_shmring_pop(ntm_shmring_handle_t self, ntm_msg *element);
 
-bool ntm_shmring_push(ntm_shmring_handle_t self, ntm_msg *element);
-
-bool ntm_shmring_pop(ntm_shmring_handle_t self, ntm_msg *element);
-
-void ntm_shmring_free(ntm_shmring_handle_t self, int unlink);
+    void ntm_shmring_free(ntm_shmring_handle_t self, int unlink);
 
 #ifdef __cplusplus
 };

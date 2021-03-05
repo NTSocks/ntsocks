@@ -117,7 +117,7 @@ int load_conf(const char *fname)
 
 		if (strcmp(_paramk, "") == 0 || strcmp(_paramv, "") == 0)
 			continue;
-			
+
 		DEBUG("ntb monitor configuration %s=%s", _paramk, _paramv);
 		if (strcmp(_paramk, "listen_ip") == 0)
 		{

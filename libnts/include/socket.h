@@ -15,15 +15,11 @@
 #include <stdlib.h>
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-
-extern int print_socket();
-
-extern int test_ntm_shm();
-
-extern void test_nts_shm();
+    extern int print_socket();
 
 #ifdef __cplusplus
 };

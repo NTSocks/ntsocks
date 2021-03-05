@@ -64,14 +64,15 @@ int metric = 1;
  * 2. local_ring中cus_ptr表示本地消费指针，pd_ptr表示对端生产指针
  * 3. local_ring中cus_ptr表示对端消费指针，pd_ptr表示本地生产指针
  * 4. local_ring中cus_ptr和pd_ptr均表示对端
- * 5. local_ring中cus_ptr表示本地消费指针，remote_ring中pd_ptr表示对端生产指针，本地留出32 bits同步远程消费指针
+ * 5. local_ring中cus_ptr表示本地消费指针，remote_ring中
+ *      pd_ptr表示对端生产指针，本地留出32 bits同步远程消费指针
  */
 int ring_type = 1;
 
 struct ntb_link *raw_ntb_start(uint16_t dev_id);
 static bool check_ntb_link_status(uint16_t dev_id);
 static int find_raw_ntb_device(void);
-int static lcore_ntb_daemon(void*);
+int static lcore_ntb_daemon(void *);
 static void parse_args(int argc, char *argv[]);
 static void usage(void);
 static void latency_report_perf(size_t *start_tsc, size_t *end_tsc);
@@ -181,7 +182,10 @@ void ntb_tput_rw(struct ntb_link *link, bool flag)
 
                 elapse_time = (double)(timer_tsc - old_timer_tsc) / rte_get_timer_hz();
 
-                printf("[remote write] ring_type = %d, elapse_time = %.2lf, loop counter = %ld ; TPUT (ops/s) = %.2lf \n", ring_type, elapse_time, counter - old_counter, (double)(counter - old_counter) / elapse_time);
+                printf("[remote write] ring_type = %d, \
+elapse_time = %.2lf, loop counter = %ld ; TPUT (ops/s) = %.2lf \n",
+                       ring_type, elapse_time, counter - old_counter,
+                       (double)(counter - old_counter) / elapse_time);
 
                 old_timer_tsc = timer_tsc;
                 old_counter = counter;
@@ -200,18 +204,23 @@ void ntb_tput_rw(struct ntb_link *link, bool flag)
         free(out_item->data);
         free(out_item);
 
-        printf("[remote write] ring_type = %d, send buff = %d, total elapse_time = %.2lf, loop counter = %ld ; TPUT (ops/s) = %.2lf \n", ring_type, payload_size, elapse_time, counter, (double)counter / elapse_time);
+        printf("[remote write] ring_type = %d, \
+send buff = %d, total elapse_time = %.2lf, loop counter = %ld ; TPUT (ops/s) = %.2lf \n",
+               ring_type, payload_size, elapse_time,
+               counter, (double)counter / elapse_time);
 
         break;
     }
 
     case NTB_TOPO_B2B_DSD:
     {
-        struct ring_item *out_item = (struct ring_item *)malloc(sizeof(struct ring_item));
+        struct ring_item *out_item =
+            (struct ring_item *)malloc(sizeof(struct ring_item));
         out_item->data = (char *)malloc(payload_size);
         memset(out_item->data, '\0', payload_size);
 
-        struct ring_item *in_item = (struct ring_item *)malloc(sizeof(struct ring_item));
+        struct ring_item *in_item =
+            (struct ring_item *)malloc(sizeof(struct ring_item));
         in_item->data = "b\0";
         in_item->len = 1;
 
@@ -260,13 +269,13 @@ void ntb_lat_rw(struct ntb_link *link)
 
     case NTB_TOPO_B2B_USD:
     {
-        // printf("I am NTB_TOPO_B2B_USD measuring ntb latency\n");
         size_t *start_tsc, *end_tsc;
 
         start_tsc = (size_t *)malloc(sizeof(size_t) * num_req);
         end_tsc = (size_t *)malloc(sizeof(size_t) * num_req);
 
-        struct ring_item *item = (struct ring_item *)malloc(sizeof(struct ring_item));
+        struct ring_item *item =
+            (struct ring_item *)malloc(sizeof(struct ring_item));
         item->len = payload_size;
 
         int ret = 1;
@@ -275,7 +284,8 @@ void ntb_lat_rw(struct ntb_link *link)
         msg[payload_size - 1] = '\0';
         item->data = msg;
 
-        struct ring_item *ack_item = (struct ring_item *)malloc(sizeof(struct ring_item));
+        struct ring_item *ack_item =
+            (struct ring_item *)malloc(sizeof(struct ring_item));
         ack_item->data = (char *)malloc(payload_size);
 
         for (size_t i = 0; i < num_req; ++i)
@@ -324,12 +334,12 @@ void ntb_lat_rw(struct ntb_link *link)
 
     case NTB_TOPO_B2B_DSD:
     {
-        // printf("I am NTB_TOPO_B2B_DSD measuring ntb latency\n");
-
-        struct ring_item *item = (struct ring_item *)malloc(sizeof(struct ring_item));
+        struct ring_item *item =
+            (struct ring_item *)malloc(sizeof(struct ring_item));
         item->data = (char *)malloc(payload_size);
 
-        struct ring_item *ack_item = (struct ring_item *)malloc(sizeof(struct ring_item));
+        struct ring_item *ack_item =
+            (struct ring_item *)malloc(sizeof(struct ring_item));
         ack_item->len = payload_size;
 
         char msg[payload_size];
@@ -455,7 +465,10 @@ void ntb_bw_rw(struct ntb_link *link)
             {
                 run_times++;
                 elapse_time = (double)(timer_tsc - old_timer_tsc) / rte_get_timer_hz();
-                printf("[remote write] elapse_time = %.2lf, loop counter = %ld ; BW (Gbits/s) = %.2lf \n", elapse_time, counter - old_counter, (double)(counter - old_counter) / (elapse_time * 128 * 1024 * 1024) * payload_size);
+                printf("[remote write] elapse_time = %.2lf, \
+loop counter = %ld ; BW (Gbits/s) = %.2lf \n",
+                       elapse_time, counter - old_counter,
+                       (double)(counter - old_counter) / (elapse_time * 128 * 1024 * 1024) * payload_size);
 
                 old_timer_tsc = timer_tsc;
                 old_counter = counter;
@@ -466,7 +479,10 @@ void ntb_bw_rw(struct ntb_link *link)
         }
 
         elapse_time = (double)timer_tsc / rte_get_timer_hz();
-        printf("[remote write] send buff = %d, total elapse_time = %.2lf, loop counter = %ld ; BW (Gbits/s) = %.2lf \n", payload_size, elapse_time, counter, (double)counter / (elapse_time * 128 * 1024 * 1024) * payload_size);
+        printf("[remote write] send buff = %d, \
+total elapse_time = %.2lf, loop counter = %ld ; BW (Gbits/s) = %.2lf \n",
+               payload_size, elapse_time, counter,
+               (double)counter / (elapse_time * 128 * 1024 * 1024) * payload_size);
 
         link->remote_ptr[0] = END_FLAG;
         break;
@@ -487,7 +503,7 @@ void ntb_close(struct ntb_link *link, uint16_t dev_id)
     rte_rawdev_close(dev_id);
 }
 
-int lcore_ntb_daemon(void* arg)
+int lcore_ntb_daemon(void *arg)
 {
     uint16_t dev_id = find_raw_ntb_device();
     if (!check_ntb_link_status(dev_id))
@@ -498,7 +514,8 @@ int lcore_ntb_daemon(void* arg)
         rte_exit(EXIT_FAILURE, "invalid device.");
 
     printf("local ntb addr = %p, len = %lu, remote ntb addr = %p, len = %lu\n",
-           link->local_ptr, link->hw->mz[0]->len, link->remote_ptr, link->hw->pci_dev->mem_resource[2].len);
+           link->local_ptr, link->hw->mz[0]->len,
+           link->remote_ptr, link->hw->pci_dev->mem_resource[2].len);
 
     uint16_t reg_val;
     int ret = rte_pci_read_config(link->hw->pci_dev, &reg_val,
@@ -511,7 +528,8 @@ int lcore_ntb_daemon(void* arg)
     {
         link->hw->link_speed = NTB_LNK_STA_SPEED(reg_val);
         link->hw->link_width = NTB_LNK_STA_WIDTH(reg_val);
-        printf("link_speed == %d,link_width == %d \n", link->hw->link_speed, link->hw->link_width);
+        printf("link_speed == %d,link_width == %d \n",
+               link->hw->link_speed, link->hw->link_width);
     }
 
     // 留出128位防止数据被覆盖，导致对端没来得及接收数据
@@ -528,7 +546,8 @@ int lcore_ntb_daemon(void* arg)
     DEBUG("start exchange msg...");
     ntb_connect(link);
     cur_tsc = rte_rdtsc();
-    printf("ntb connect time is %f us\n", (double)(cur_tsc - prev_tsc) / rte_get_tsc_hz() * US_PER_S);
+    printf("ntb connect time is %f us\n",
+           (double)(cur_tsc - prev_tsc) / rte_get_tsc_hz() * US_PER_S);
 
     switch (metric)
     {
@@ -555,7 +574,9 @@ int find_raw_ntb_device(void)
     char raw_ntb_name[8] = "raw_ntb";
     for (int i = 0; i < RTE_RAWDEV_MAX_DEVS; ++i)
     {
-        if (rte_rawdevs[i].driver_name && strncmp(rte_rawdevs[i].driver_name, raw_ntb_name, strlen(raw_ntb_name)) == 0 &&
+        if (rte_rawdevs[i].driver_name &&
+            strncmp(rte_rawdevs[i].driver_name,
+                    raw_ntb_name, strlen(raw_ntb_name)) == 0 &&
             rte_rawdevs[i].attached == 1)
             DEBUG("find ntb device, device id = %d", i);
         return i;
@@ -580,7 +601,8 @@ bool check_ntb_link_status(uint16_t dev_id)
         }
         rte_delay_ms(100);
     }
-    rte_rawdev_get_attr(dev_id, NTB_LINK_STATUS_NAME, &ntb_link_status);
+    rte_rawdev_get_attr(dev_id,
+                        NTB_LINK_STATUS_NAME, &ntb_link_status);
     if (ntb_link_status == 0)
     {
         printf("Expire 100s. Link is not up. Please restart app.\n");
@@ -591,7 +613,8 @@ bool check_ntb_link_status(uint16_t dev_id)
 
 struct ntb_link *raw_ntb_start(uint16_t dev_id)
 {
-    struct ntb_link *link = (struct ntb_link *)malloc(sizeof(struct ntb_link));
+    struct ntb_link *link =
+        (struct ntb_link *)malloc(sizeof(struct ntb_link));
     DEBUG("start ntb device, device id = %d", dev_id);
 
     struct rte_rawdev *dev = &rte_rawdevs[dev_id];
@@ -609,11 +632,13 @@ struct ntb_link *raw_ntb_start(uint16_t dev_id)
         dev->started = 1;
 
     link->cur_local_ptr = link->local_ptr = (uint8_t *)link->hw->mz[0]->addr;
-    link->cur_remote_ptr = link->remote_ptr = (uint8_t *)link->hw->pci_dev->mem_resource[2].addr;
+    link->cur_remote_ptr = link->remote_ptr =
+        (uint8_t *)link->hw->pci_dev->mem_resource[2].addr;
 
     link->local_cus_ptr = link->remote_pd_ptr = 0;
 
-    DEBUG("ntb device has started, link->local_ptr=%p, link->remote_ptr=%p", link->local_ptr, link->remote_ptr);
+    DEBUG("ntb device has started, link->local_ptr=%p, link->remote_ptr=%p",
+          link->local_ptr, link->remote_ptr);
 
     return link;
 }
@@ -624,7 +649,8 @@ void usage(void)
     fprintf(stdout, " -s <size>      payload size(default %d)\n", 16);
     fprintf(stdout, " -n <requests>  the number of request(default %d)\n", 10000);
     fprintf(stdout, " -m <metric>    the method of measuring raw ntb\n");
-    fprintf(stdout, "                    1 - tput(remote write), 2 - lat(remote write), 3 - bw(remote write)\n");
+    fprintf(stdout, "                    1 - tput(remote \
+write), 2 - lat(remote write), 3 - bw(remote write)\n");
     fprintf(stdout, " -r <ring_type> the ring type of raw ntb\n");
     fprintf(stdout, "                    1 - local cus ptr and local pd ptr\n");
     fprintf(stdout, "                    2 - local cus ptr and remote pd ptr\n");
@@ -741,7 +767,10 @@ void latency_report_perf(size_t *start_tsc, size_t *end_tsc)
     idx_99_9 = floor(num_req * 0.999);
     idx_99_99 = floor(num_req * 0.9999);
     fprintf(stdout, "@MEASUREMENT(requests = %lu, payload size = %d):\n", num_req, payload_size);
-    fprintf(stdout, "AVERAGE = %.2f us\n50 TAIL = %.2f us\n99 TAIL = %.2f us\n99.9 TAIL = %.2f us\n99.99 TAIL = %.2f us\n", sum / num_req, lat[idx_m], lat[idx_99], lat[idx_99_9], lat[idx_99_99]);
+    fprintf(stdout, "AVERAGE = %.2f us\n50 TAIL \
+= %.2f us\n99 TAIL = %.2f us\n99.9 TAIL = %.2f us\n99.99 TAIL = %.2f us\n",
+            sum / num_req, lat[idx_m],
+            lat[idx_99], lat[idx_99_9], lat[idx_99_99]);
     free(lat);
 }
 
@@ -755,7 +784,8 @@ int main(int argc, char *argv[])
     argv += ret;
 
     parse_args(argc, argv);
-    printf("num_req=%lu, payload_size=%d, metric=%d\n", num_req, payload_size, metric);
+    printf("num_req=%lu, payload_size=%d, metric=%d\n",
+           num_req, payload_size, metric);
     if (rte_eal_process_type() == RTE_PROC_PRIMARY)
     {
         rte_eal_mp_remote_launch(lcore_ntb_daemon, NULL, CALL_MASTER);

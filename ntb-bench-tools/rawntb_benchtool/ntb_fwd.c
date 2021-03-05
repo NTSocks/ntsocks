@@ -225,26 +225,13 @@ void *ntb_tput_rw(void *argv)
 
             if (stop)
                 goto STOP_TPUT_RW;
-            // timer_tsc += (cur_tsc - prev_tsc);
-            // if (unlikely(timer_tsc >= run_times * rte_get_timer_hz())){
-            //     run_times++;
-
-            //     elapse_time = (double)(timer_tsc - old_timer_tsc) / rte_get_timer_hz();
-            //     printf("[thread-%d remote write] elapse_time = %.2lf, loop counter = %ld, TPUT (req/s) = %.2lf \n", targv->sublink_idx, elapse_time, counter - old_counter, (double)(counter - old_counter) / elapse_time);
-
-            //     old_timer_tsc = timer_tsc;
-            //     old_counter = counter;
-
-            //     if (run_times > RUN_TIME){
-            //         break;
-            //     }
-            // }
         }
 
-    // elapse_time = (double)timer_tsc / rte_get_timer_hz();
-    // printf("[thread-%d remote write] send buff = %d, total elapse_time = %.2lf, loop counter = %ld, TPUT (req/s) = %.2lf \n", targv->sublink_idx, payload_size, elapse_time, counter, (double)counter / elapse_time);
     STOP_TPUT_RW:
-        printf("[thread-%d remote write] send buff = %d, total elapse_time = %d, loop counter = %ld, TPUT (req/s) = %.2lf \n", targv->sublink_idx, payload_size, RUN_TIME, counter, (double)counter / RUN_TIME);
+        printf("[thread-%d remote write] \
+send buff = %d, total elapse_time = %d, loop counter = %ld, TPUT (req/s) = %.2lf \n",
+               targv->sublink_idx, payload_size,
+               RUN_TIME, counter, (double)counter / RUN_TIME);
         result_tput[targv->sublink_idx] = (double)counter / RUN_TIME;
         sublink->sub_remote_ptr[1] = end;
         break;
@@ -263,7 +250,8 @@ void *ntb_tput_rw(void *argv)
         while (1)
         {
             // recv msg
-            while (sublink->sub_local_ptr[0] != start || sublink->sub_local_ptr[payload_size - 1] != start)
+            while (sublink->sub_local_ptr[0] != start ||
+                   sublink->sub_local_ptr[payload_size - 1] != start)
                 if (sublink->sub_local_ptr[1] != end)
                     sched_yield();
                 else
@@ -333,26 +321,13 @@ void *ntb_tput_rr(void *argv)
 
             if (stop)
                 goto STOP_TPUT_RR;
-            // timer_tsc += (cur_tsc - prev_tsc);
-
-            // if (unlikely(timer_tsc >= run_times * rte_get_timer_hz())){
-            //     run_times++;
-
-            //     elapse_time = (double)(timer_tsc - old_timer_tsc) / rte_get_timer_hz();
-            //     printf("[thread-%d remote read] elapse_time = %.2lf, loop counter = %ld, TPUT (req/s) = %.2lf \n", targv->sublink_idx, elapse_time, counter - old_counter, (double)(counter - old_counter) / elapse_time);
-
-            //     old_timer_tsc = timer_tsc;
-            //     old_counter = counter;
-
-            //     if (run_times > RUN_TIME)
-            //         break;
-            // }
         }
 
-    // elapse_time = (double)timer_tsc / rte_get_timer_hz();
-    // printf("[thread-%d remote read] send buff = %d, total elapse_time = %.2lf, loop counter = %ld, TPUT (req/s) = %.2lf \n", targv->sublink_idx, payload_size, elapse_time, counter, (double)counter / elapse_time);
     STOP_TPUT_RR:
-        printf("[thread-%d remote read] send buff = %d, total elapse_time = %d, loop counter = %ld, TPUT (req/s) = %.2lf \n", targv->sublink_idx, payload_size, RUN_TIME, counter, (double)counter / RUN_TIME);
+        printf("[thread-%d remote read] \
+send buff = %d, total elapse_time = %d, loop counter = %ld, TPUT (req/s) = %.2lf \n",
+               targv->sublink_idx, payload_size,
+               RUN_TIME, counter, (double)counter / RUN_TIME);
         result_tput[targv->sublink_idx] = (double)counter / RUN_TIME;
         sublink->sub_local_ptr[0] = end;
         break;
@@ -417,33 +392,18 @@ void *ntb_lat_rw(void *argv)
             start_tsc[i] = rte_rdtsc();
             // rte_io_rmb();
             rte_memcpy((void *)rp, str, payload_size);
-            // printf("1111---%u, %c-%c\n", i, msg[0], msg[payload_size - 1]);
-            // rte_io_rmb();
+
             while (msg[0] != end || msg[payload_size - 1] != end)
                 sched_yield();
-            // ss[4*i+2] = msg[0];
-            // ss[4*i+3] = msg[payload_size - 1];
-            // while (msg[payload_size - 1] != end) sched_yield();
-            // printf("4444---%u, %c-%c\n", i, msg[0], msg[payload_size - 1]);
-            // rte_io_rmb();
+
             msg[0] = start;
             msg[payload_size - 1] = start;
-            // rte_io_rmb();
-            // ss[4*i] = msg[0];
-            // ss[4*i+1] = msg[payload_size - 1];
-            // printf("2222---%u, %c-%c\n", i, msg[0], msg[payload_size - 1]);
-            // while (msg[0] != start || msg[payload_size - 1] != start) {
-            //     printf("xxx---%u, %c-%c-%c-%c-%c-%c\n", i, msg[0], msg[payload_size - 1],ss[4*i+2],ss[4*i+3], ss[4*i], ss[4*i+1]);
-            //     sched_yield();
-            // }
-            // printf("3333---%u, %c-%c\n", i, msg[0], msg[payload_size - 1]);
+
             end_tsc[i] = rte_rdtsc();
         }
 
         latency_report_perf(start_tsc, end_tsc, targv->sublink_idx);
-        // for (size_t i = 0; i < num_req; ++i){
-        //     printf("%c%c%c%c\n", ss[4*i], ss[4*i+1], ss[4*i+2], ss[4*i+3]);
-        // }
+
         free(start_tsc);
         free(end_tsc);
 
@@ -454,7 +414,6 @@ void *ntb_lat_rw(void *argv)
 
     case NTB_TOPO_B2B_DSD:
     {
-        // printf("I am NTB_TOPO_B2B_DSD measuring ntb latency\n");
         volatile char *str = (volatile char *)sublink->sub_local_ptr;
         memset((void *)str, 'a', payload_size);
 
@@ -469,28 +428,16 @@ void *ntb_lat_rw(void *argv)
         // char ss[4*num_req];
         for (size_t i = 0; i < num_req; ++i)
         {
-            // recv msg
-            // ss[4*i] = str[0];
-            // ss[4*i+1] = str[payload_size - 1];
-            // rte_io_rmb();
+
             while (str[0] != start || str[payload_size - 1] != start)
                 sched_yield();
-            // printf("%u --- %c\n", i, str[payload_size - 1]);
-            // printf("1111---%u, %c-%c\n", i, str[0], str[payload_size - 1]);
+
             str[0] = end;
             str[payload_size - 1] = end;
-            // rte_io_rmb();
-            // ss[4*i+2] = str[0];
-            // ss[4*i+3] = str[payload_size - 1];
-            // printf("2222---%u, %c-%c\n", i, str[0], str[payload_size - 1]);
-            // while (str[0] != end || str[payload_size - 1] != end) sched_yield();
-            // printf("3333---%u, %c-%c\n", i, str[0], str[payload_size - 1]);
+
             rte_memcpy((void *)rp, ack, payload_size);
-            // rte_io_rmb();
         }
-        // for (size_t i = 0; i < num_req; ++i){
-        //     printf("%c%c%c%c\n", ss[4*i], ss[4*i+1], ss[4*i+2], ss[4*i+3]);
-        // }
+
         while (str[1] != end)
             sched_yield();
 
@@ -661,10 +608,14 @@ void report_result_tput(void)
     }
 
     printf("\n=================== FINAL RESULT ===================\n");
-    printf("\nMIN TPUT = %.2f req/s\t\t MIN BW = %.2f Gb/s\n", ret[0], ret[0] / 1024 / 1024 / 128 * payload_size);
-    printf("AVERAGE TPUT = %.2f req/s \t\t AVERAGE BW = %.2f Gb/s\n", ret[1] / thrds, ret[1] / thrds / 1024 / 1024 / 128 * payload_size);
-    printf("MAX TPUT = %.2f req/s \t\t MAX BW = %.2f Gb/s\n", ret[2], ret[2] / 1024 / 1024 / 128 * payload_size);
-    printf("TOTAL TPUT = %.2f req/s \t\t TOTAL BW = %.2f Gb/s\n", ret[1], ret[1] / 1024 / 1024 / 128 * payload_size);
+    printf("\nMIN TPUT = %.2f req/s\t\t MIN BW = %.2f Gb/s\n",
+           ret[0], ret[0] / 1024 / 1024 / 128 * payload_size);
+    printf("AVERAGE TPUT = %.2f req/s \t\t AVERAGE BW = %.2f Gb/s\n",
+           ret[1] / thrds, ret[1] / thrds / 1024 / 1024 / 128 * payload_size);
+    printf("MAX TPUT = %.2f req/s \t\t MAX BW = %.2f Gb/s\n",
+           ret[2], ret[2] / 1024 / 1024 / 128 * payload_size);
+    printf("TOTAL TPUT = %.2f req/s \t\t TOTAL BW = %.2f Gb/s\n",
+           ret[1], ret[1] / 1024 / 1024 / 128 * payload_size);
 
     free(result_tput);
 }
@@ -681,7 +632,12 @@ static int lcore_ntb_daemon(void)
     if (link->hw == NULL)
         rte_exit(EXIT_FAILURE, "invalid device.");
 
-    printf("mem addr == %ld, len == %ld, local ntb addr = %p, len = %lu, remote ntb addr = %p, len = %lu\n", link->hw->pci_dev->mem_resource[2].phys_addr, link->hw->pci_dev->mem_resource[2].len, link->local_ptr, link->hw->mz[0]->len, link->remote_ptr, link->hw->pci_dev->mem_resource[2].len);
+    printf("mem addr == %ld, len == %ld, \
+local ntb addr = %p, len = %lu, remote ntb addr = %p, len = %lu\n",
+           link->hw->pci_dev->mem_resource[2].phys_addr,
+           link->hw->pci_dev->mem_resource[2].len, link->local_ptr,
+           link->hw->mz[0]->len, link->remote_ptr,
+           link->hw->pci_dev->mem_resource[2].len);
 
     uint16_t reg_val;
     int ret = rte_pci_read_config(link->hw->pci_dev, &reg_val,
@@ -694,7 +650,8 @@ static int lcore_ntb_daemon(void)
     {
         link->hw->link_speed = NTB_LNK_STA_SPEED(reg_val);
         link->hw->link_width = NTB_LNK_STA_WIDTH(reg_val);
-        printf("link_speed == %d,link_width == %d \n", link->hw->link_speed, link->hw->link_width);
+        printf("link_speed == %d,link_width == %d \n",
+               link->hw->link_speed, link->hw->link_width);
     }
     DEBUG("start exchange msg...");
     ntb_connect(link);
@@ -802,7 +759,10 @@ int find_raw_ntb_device(void)
     char raw_ntb_name[8] = "raw_ntb";
     for (int i = 0; i < RTE_RAWDEV_MAX_DEVS; ++i)
     {
-        if (rte_rawdevs[i].driver_name && strncmp(rte_rawdevs[i].driver_name, raw_ntb_name, strlen(raw_ntb_name)) == 0 && rte_rawdevs[i].attached == 1)
+        if (rte_rawdevs[i].driver_name &&
+            strncmp(rte_rawdevs[i].driver_name,
+                    raw_ntb_name, strlen(raw_ntb_name)) == 0 &&
+            rte_rawdevs[i].attached == 1)
         {
             DEBUG("find ntb device, device id = %d", i);
             return i;
@@ -838,7 +798,8 @@ struct ntb_link *raw_ntb_start(uint16_t dev_id)
     link->cur_local_ptr = link->local_ptr + 128;
     link->cur_remote_ptr = link->remote_ptr + 128;
 
-    int align_cache_line = ((payload_size + CACHE_LINE_SIZE - 1) / CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
+    int align_cache_line =
+        ((payload_size + CACHE_LINE_SIZE - 1) / CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
 
     // create sublink
     link->sublink = (struct ntb_sublink **)calloc(thrds, sizeof(struct ntb_sublink *));
@@ -847,7 +808,7 @@ struct ntb_link *raw_ntb_start(uint16_t dev_id)
         link->sublink[i] = (struct ntb_sublink *)calloc(1, sizeof(struct ntb_sublink));
         link->sublink[i]->sub_local_ptr = link->cur_local_ptr;
         link->sublink[i]->sub_remote_ptr = link->cur_remote_ptr;
-        // printf("sublink[%d]->sub_local_ptr = %p, sublink[%d]->sub_remote_ptr = %p\n", i, link->cur_local_ptr, i, link->cur_remote_ptr);
+
         link->cur_local_ptr += align_cache_line;
         link->cur_remote_ptr += align_cache_line;
     }
@@ -977,7 +938,10 @@ void latency_report_perf(size_t *start_tsc, size_t *end_tsc, int thrd_id)
     idx_99_9 = floor(num_req * 0.999);
     idx_99_99 = floor(num_req * 0.9999);
     printf("@MEASUREMENT(requests = %lu, payload size = %d, threadID = %d):\n", num_req, payload_size, thrd_id);
-    printf("AVERAGE = %.2f us\n50 TAIL = %.2f us\n99 TAIL = %.2f us\n99.9 TAIL = %.2f us\n99.99 TAIL = %.2f us\n", sum / num_req, lat[idx_m], lat[idx_99], lat[idx_99_9], lat[idx_99_99]);
+    printf("AVERAGE = %.2f us\n50 TAIL = %.2f us\n99 TAIL = \
+%.2f us\n99.9 TAIL = %.2f us\n99.99 TAIL = %.2f us\n",
+           sum / num_req, lat[idx_m], lat[idx_99],
+           lat[idx_99_9], lat[idx_99_99]);
 
     result_lat[thrd_id][0] = sum / num_req;
     result_lat[thrd_id][1] = lat[idx_m];
@@ -1010,7 +974,8 @@ int main(int argc, char *argv[])
     parse_args(argc, argv);
 
     lcore_function_t *func = (lcore_function_t *)lcore_ntb_daemon;
-    printf("num_req=%lu, payload_size=%d, metric=%d\n", num_req, payload_size, metric);
+    printf("num_req=%lu, payload_size=%d, metric=%d\n",
+           num_req, payload_size, metric);
     if (rte_eal_process_type() == RTE_PROC_PRIMARY)
     {
         rte_eal_mp_remote_launch(func, NULL, CALL_MASTER);

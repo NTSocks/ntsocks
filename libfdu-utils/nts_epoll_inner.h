@@ -14,7 +14,8 @@
 #include "nts_epoll.h"
 #include "epoll_event_queue.h"
 
-typedef struct _nts_epoll_stat {
+typedef struct _nts_epoll_stat
+{
 	uint64_t calls;
 	uint64_t waits;
 	uint64_t wakes;
@@ -25,8 +26,8 @@ typedef struct _nts_epoll_stat {
 	uint64_t handled;
 } nts_epoll_stat;
 
-
-typedef enum {
+typedef enum
+{
 	USR_EVENT_QUEUE = 0,
 	USR_SHADOW_EVENT_QUEUE = 1,
 	NTS_EVENT_QUEUE = 2
@@ -46,7 +47,8 @@ typedef enum {
 // 	int num_events;
 // } nts_event_queue;
 
-typedef struct _nts_epoll {
+typedef struct _nts_epoll
+{
 	nts_event_queue_t usr_queue;
 	epoll_event_queue_t usr_queue_ctx;
 
@@ -54,16 +56,17 @@ typedef struct _nts_epoll {
 	nts_epoll_stat stat;
 
 	sem_t *mutex_sem;
-    sem_t *full_sem;
-    sem_t *empty_sem;
+	sem_t *full_sem;
+	sem_t *empty_sem;
 
 	// pthread_cond_t epoll_cond;
 	// pthread_mutex_t epoll_lock;
 } nts_epoll;
-typedef struct _nts_epoll * nts_epoll_t;
+typedef struct _nts_epoll *nts_epoll_t;
 
-// int nts_epoll_add_event(nts_epoll *ep, int queue_type, struct nt_socket *socket, uint32_t event);
+// int nts_epoll_add_event(nts_epoll *ep,
+//		int queue_type, struct nt_socket *socket, uint32_t event);
 int nts_close_epoll_socket(int epid);
 int nts_epoll_flush_events(uint32_t cur_ts);
 
-#endif  //!__NTS_EPOLL_INNER__H__
+#endif //!__NTS_EPOLL_INNER__H__

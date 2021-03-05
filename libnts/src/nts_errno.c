@@ -10,7 +10,7 @@
 
 #include "nts_errno.h"
 
-static const char* faults[] = {
+static const char *faults[] = {
     [nts_EPERM] = "Operation not permitted",
     [nts_ENOENT] = "No such file or directory",
     [nts_ESRCH] = "No such process",
@@ -82,7 +82,7 @@ static const char* faults[] = {
     [nts_ETOOMANYREFS] = "Too many references: can't splice",
     [nts_ETIMEDOUT] = "Operation timed out",
     [nts_ECONNREFUSED] = "Connection refused",
-    
+
     [nts_ELOOP] = "Too many levels of symbolic links",
     [nts_ENAMETOOLONG] = "File name too long",
 
@@ -95,7 +95,7 @@ static const char* faults[] = {
     [nts_EPROCLIM] = "Too many processes",
     [nts_EUSERS] = "Too many users",
     [nts_EDQUOT] = "Disc quota exceeded",
-   
+
     [nts_ESTALE] = "Stale NFS file handle",
     [nts_EREMOTE] = "Too many levels of remote in path",
     [nts_EBADRPC] = "RPC struct is bad",
@@ -103,10 +103,10 @@ static const char* faults[] = {
     [nts_EPROGUNAVAIL] = "RPC prog. not avail",
     [nts_EPROGMISMATCH] = "Program version wrong",
     [nts_EPROCUNAVAIL] = "Bad procedure for program",
-    
+
     [nts_ENOLCK] = "No locks available",
     [nts_ENOSYS] = "Function not implemented",
-    
+
     [nts_EFTYPE] = "Inappropriate file type or format",
     [nts_EAUTH] = "Authentication error",
     [nts_ENEEDAUTH] = "Need authenticator",
@@ -118,20 +118,21 @@ static const char* faults[] = {
     [nts_ENOATTR] = "Attribute not found",
 
     [nts_EDOOFUS] = "Programming error",
-   
+
     [nts_EBADMSG] = "Bad message",
     [nts_EMULTIHOP] = "Multihop attempted",
     [nts_ENOLINK] = "Link has been severed",
     [nts_EPROTO] = "Protocol error",
-    
+
     [nts_ENOTCAPABLE] = "Capabilities insufficient",
     [nts_ECAPMODE] = "Not permitted in capability mode",
     [nts_ENOTRECOVERABLE] = "State not recoverable",
-    [nts_EOWNERDEAD] = "Previous owner died"
-};
+    [nts_EOWNERDEAD] = "Previous owner died"};
 
-const char* errmsg(int errno){
-    if(errno < 0) errno = -errno;
+const char *errmsg(int errno)
+{
+    if (errno < 0)
+        errno = -errno;
     if (errno < nts_EPERM || errno > nts_EOWNERDEAD)
     {
         return "Unknown error code";

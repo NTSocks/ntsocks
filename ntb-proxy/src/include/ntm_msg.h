@@ -44,7 +44,8 @@ typedef struct {
     char msg[16];
 } __attribute__((packed)) ntp_ntm_msg;
 
-void ntp_ntm_msgcopy(ntp_ntm_msg *src_msg, ntp_ntm_msg *target_msg);
+void ntp_ntm_msgcopy(
+        ntp_ntm_msg *src_msg, ntp_ntm_msg *target_msg);
 
 typedef struct {
     uint64_t src_ip;
@@ -58,7 +59,8 @@ typedef struct {
     char msg[16];           //It can be any value, it doesn't matter
 }__attribute__((packed)) ntm_ntp_msg;
 
-void ntm_ntp_msgcopy(ntm_ntp_msg *src_msg, ntm_ntp_msg *target_msg);
+void ntm_ntp_msgcopy(
+        ntm_ntp_msg *src_msg, ntm_ntp_msg *target_msg);
 
 #ifdef __cplusplus
 };

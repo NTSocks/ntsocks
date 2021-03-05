@@ -55,7 +55,8 @@ int main(int argc, char *argv[])
      */
     if (numa_node_type == 0)
     {
-        last_core = cpu_cores - 2; // The number of cores of the machine is always even， eg, 24,64
+        // The number of cores of the machine is always even， eg, 24,64
+        last_core = cpu_cores - 2;
     }
     else if (numa_node_type == 1)
     {
@@ -98,17 +99,20 @@ int main(int argc, char *argv[])
             perror("connect failed");
             exit(EXIT_FAILURE);
         }
-        else if (pthread_create(&serv_thread[i], NULL, handle_connection, (void *)&conns[i]) < 0)
+        else if (pthread_create(&serv_thread[i],
+                                NULL, handle_connection, (void *)&conns[i]) < 0)
         {
             perror("Error: create pthread");
         }
         usleep(1000);
     }
 
-    // When test in throughput case, create a thread to monitor the amount of requests transferred per second
+    // When test in throughput case, create a thread to
+    //  monitor the amount of requests transferred per second
     if (run_latency == 2 || run_latency == 3)
     {
-        pthread_create(&monitor_thead, NULL, monitor_throughput, (void *)&run_latency);
+        pthread_create(&monitor_thead, NULL,
+                       monitor_throughput, (void *)&run_latency);
     }
 
     for (int i = 0; i < thrds; ++i)
@@ -144,7 +148,9 @@ int connect_setup(int port)
         perror("server is NULL");
         exit(EXIT_FAILURE);
     }
-    bcopy((char *)server->h_addr, (char *)&server_addr.sin_addr.s_addr, server->h_length);
+
+    bcopy((char *)server->h_addr,
+          (char *)&server_addr.sin_addr.s_addr, server->h_length);
     if (connect(socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
     {
         perror("connect failed");
@@ -161,11 +167,13 @@ void *handle_connection(void *ptr)
 
     struct timeval curr_time;
     gettimeofday(&curr_time, NULL);
-    printf("waiting for transfer data on %d, time is %ld.%ld\n", sockfd, curr_time.tv_sec, curr_time.tv_usec);
+    printf("waiting for transfer data on %d, time is %ld.%ld\n",
+           sockfd, curr_time.tv_sec, curr_time.tv_usec);
 
     pin_1thread_to_1core(ctx->cpumask);
     gettimeofday(&curr_time, NULL);
-    printf("start transfer data, time is %ld.%ld\n", curr_time.tv_sec, curr_time.tv_usec);
+    printf("start transfer data, time is %ld.%ld\n",
+           curr_time.tv_sec, curr_time.tv_usec);
     if (run_latency == 0)
     {
         if (with_ack)
@@ -195,8 +203,10 @@ void *handle_connection(void *ptr)
 
 void *monitor_throughput(void *ptr)
 {
-    int *ways = (int *)ptr;                                    // test throughput in request num limit or time limit;
-    double throughput[MAX_NUM_THREADS][MAX_TIME_IN_BANDWIDTH]; //  requests transferred per second per thread
+    // test throughput in request num limit or time limit;
+    int *ways = (int *)ptr;
+    // requests transferred per second per thread
+    double throughput[MAX_NUM_THREADS][MAX_TIME_IN_BANDWIDTH];
     int seconds = 0;
     int real = 0;                       // The number of non-zero elements in the throughput array
     double *totalthroughput_eachsecond; // requests transmitted by all threads in every second
@@ -215,7 +225,8 @@ void *monitor_throughput(void *ptr)
                 throughput[threadId][seconds] = 1.0 * read_persecond[threadId];
                 if (DEBUG)
                 {
-                    printf("thread %d throughput is %.0lf reqs/sec \n", threadId, throughput[threadId][seconds]);
+                    printf("thread %d throughput is %.0lf reqs/sec \n",
+                           threadId, throughput[threadId][seconds]);
                 }
                 read_persecond[threadId] = 0;
             }
@@ -234,7 +245,8 @@ void *monitor_throughput(void *ptr)
                 throughput[threadId][seconds] = 1.0 * read_persecond[threadId];
                 if (DEBUG)
                 {
-                    printf("thread %d throughput is %.0lf reqs/sec \n", threadId, throughput[threadId][seconds]);
+                    printf("thread %d throughput is %.0lf reqs/sec \n",
+                           threadId, throughput[threadId][seconds]);
                 }
                 read_persecond[threadId] = 0;
             }
@@ -267,11 +279,13 @@ void *monitor_throughput(void *ptr)
         {
             if (to_file)
             {
-                fprintf(fp, "in second %d, throughput is %.0lf reqs/sec\n", i, totalthroughput_eachsecond[i]);
+                fprintf(fp, "in second %d, throughput is %.0lf reqs/sec\n",
+                        i, totalthroughput_eachsecond[i]);
             }
             else
             {
-                printf("in second %d, throughput is %.0lf reqs/sec\n", i, totalthroughput_eachsecond[i]);
+                printf("in second %d, throughput is %.0lf reqs/sec\n",
+                       i, totalthroughput_eachsecond[i]);
             }
         }
         if (totalthroughput_eachsecond[i] != 0)
@@ -414,6 +428,8 @@ void latency_read_with_ack(int sockfd)
         {
             n = (n - read(sockfd, msg, n));
         }
+        //printf("msg = %s\n", msg);
+        memcpy(ack, msg, payload_size);
         ret = write(sockfd, ack, payload_size);
         if (ret != payload_size)
         {
@@ -440,7 +456,10 @@ void usage(char *program)
     printf(" -l <metric>    0 - lat, 1 - bw, 2 - tput in req_num limit, 3 - tput in time limit\n");
     printf(" -h             display the help information\n");
     printf(" -d <duration>        time to measure bandwidth\n");
-    printf(" -m <numa node type>       Set the way to bind core,0 - get core from 0,2,4,6,8.... 1 - get core from 16-31,48-63. 2 -get core from 0-15,32-47.(default %d)\n", numa_node_type);
+    printf(" -m <numa node type>       Set the way to bind core,0 \
+- get core from 0,2,4,6,8.... 1 - get core from 16-31,48-63. \
+2 -get core from 0-15,32-47.(default %d)\n",
+           numa_node_type);
 }
 
 // parsing command line parameters
@@ -585,7 +604,8 @@ void parse_args(int argc, char *argv[])
             if (i + 1 < argc)
             {
                 run_latency = atoi(argv[i + 1]);
-                if (run_latency != 0 && run_latency != 1 && run_latency != 2 && run_latency != 3)
+                if (run_latency != 0 && run_latency != 1 &&
+                    run_latency != 2 && run_latency != 3)
                 {
                     printf("invalid metric\n");
                     exit(EXIT_FAILURE);
@@ -619,7 +639,8 @@ void parse_args(int argc, char *argv[])
             if (i + 1 < argc)
             {
                 numa_node_type = atoi(argv[i + 1]);
-                if (numa_node_type != 0 && numa_node_type != 1 && numa_node_type != 2)
+                if (numa_node_type != 0 &&
+                    numa_node_type != 1 && numa_node_type != 2)
                 {
                     printf("invalid num_node type, must be 0 or 1\n");
                     exit(EXIT_FAILURE);

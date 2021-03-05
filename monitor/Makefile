@@ -2,9 +2,9 @@ CROSS =
 CC = $(CROSS)gcc
 CXX = $(CROSS)g++
 DEBUG = -g -O2
-CFLAGS = $(DEBUG) -Wall -std=c11 -c -D_BSD_SOURCE -DHAVE_GCC_C11_ATOMICS
-TARGET_CFLAGS = $(DEBUG) -Wall -std=c11 -D_BSD_SOURCE -DHAVE_GCC_C11_ATOMICS
-TEST_TARGET_CPPFLAGS = $(DEBUG) -std=c++11 -Wall -D_BSD_SOURCE -DHAVE_GCC_C11_ATOMICS 
+CFLAGS = $(DEBUG) -Wall -std=c11 -c -D_DEFAULT_SOURCE -DHAVE_GCC_C11_ATOMICS
+TARGET_CFLAGS = $(DEBUG) -Wall -std=c11 -D_DEFAULT_SOURCE -DHAVE_GCC_C11_ATOMICS
+TEST_TARGET_CPPFLAGS = $(DEBUG) -std=c++11 -Wall -D_DEFAULT_SOURCE -DHAVE_GCC_C11_ATOMICS 
 #-DENABLE_DEBUG
 CPPFLAGS = -std=c++11 -Wall
 RM = rm -rf
@@ -33,8 +33,7 @@ TEST_TARGET = run_test
 
 #main.o: main.c constant.h ntb-monitor.h shared_memory.h log.h
 #			$(CC) $(CFLAGS) $< -o $@ $(INCLUDE_PATH)
-SRC_LIST = src/shared_memory.c 	\
-		   src/ntm_shmring.c  	\
+SRC_LIST = src/ntm_shmring.c  	\
 		   src/ntm_shm.c      	\
 		   src/nts_shmring.c	\
 		   src/nts_shm.c		\

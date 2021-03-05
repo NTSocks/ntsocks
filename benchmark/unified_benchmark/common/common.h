@@ -14,7 +14,8 @@
 #include <math.h>
 #include <sys/time.h>
 #include <sched.h>
-#include <errno.h>  // to show error code at Nread in server.c and Nwrite int client.c respectively
+#include <errno.h>  // to show error code at Nread in server.c 
+                    //  and Nwrite int client.c respectively
 #include <unistd.h> // to get number of cpu core
 #define DEFAULT_SERVER_ADDR "10.176.22.210"
 #define DEFAULT_PORT 9091
@@ -50,7 +51,8 @@ void pin_1thread_to_1core(int core_id);
  * 
  * @param lastcore the last cpu core used.
  * @param cpucores the total cores in the machine
- * @param inc_or_dec 0, allocate from small to large.  1, allocate from large to small.
+ * @param inc_or_dec 0, allocate from small to large.  
+ *                      1, allocate from large to small.
  * @return int   the ID of the cpu core
  */
 int get_core_id(int *last_core, int cpucores, int inc_or_dec);

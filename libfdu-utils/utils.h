@@ -21,7 +21,8 @@
 #include <netinet/in.h>
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 #define UUID_LEN 36
@@ -30,32 +31,35 @@ extern "C" {
 #define UNLIKELY(x) __builtin_expect(!!(x), 0)
 
 //MEMORY read & write barrier
-#define __MEM_BARRIER \
-    __asm__ __volatile__("mfence":::"memory")
+#define __MEM_BARRIER                \
+    __asm__ __volatile__("mfence" :: \
+                             : "memory")
 //memory read barrier
-#define __READ_BARRIER__ \
-    __asm__ __volatile__("lfence":::"memory")
+#define __READ_BARRIER__             \
+    __asm__ __volatile__("lfence" :: \
+                             : "memory")
 //memory write barrier
-#define __WRITE_BARRIER__ \
-    __asm__ __volatile__("sfence":::"memory")
+#define __WRITE_BARRIER__            \
+    __asm__ __volatile__("sfence" :: \
+                             : "memory")
 
 #define SUCCESS 0
 #define FAILED -1
 
-
 #define NEW(type) (type *)malloc(sizeof(type))
 #define APPLY(task, ...) task(__VA_ARGS__)
 #define ABS(n) n > 0 ? n : -n
-#define RANGE(min, max, number) number < min ? min : number > max ? max : number
-#define EQUAL(a, b) a == b ? 0 : a < b ? -1 : 1
+#define RANGE(min, max, number) number<min ? min : number> max ? max : number
+#define EQUAL(a, b) a == b ? 0 : a < b ? -1 \
+                                       : 1
 #define log printf
 
-// uuid
-char * createUUID();
+    // uuid
+    char *createUUID();
 
-char * generate_uuid();
+    char *generate_uuid();
 
-int parse_sockaddr_port(struct sockaddr_in* saddr);
+    int parse_sockaddr_port(struct sockaddr_in *saddr);
 
 #ifdef __cplusplus
 };

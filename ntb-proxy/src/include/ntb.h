@@ -110,6 +110,7 @@ enum ntb_spad_idx {
  * @peer_db_set: Set doorbell bit to generate peer interrupt for that bit.
  * @vector_bind: Bind vector source [intr] to msix vector [msix].
  */
+struct rte_rawdev;
 struct ntb_dev_ops {
 	int (*ntb_dev_init)(struct rte_rawdev *dev);
 	void *(*get_peer_mw_addr)(struct rte_rawdev *dev, int mw_idx);

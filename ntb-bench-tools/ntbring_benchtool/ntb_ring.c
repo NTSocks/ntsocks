@@ -6,28 +6,35 @@
 
 DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
 
-bool out_of_memory(uint8_t *ptr, int num_of_ele, int size_of_ele, uint8_t *base_ptr)
+bool out_of_memory(uint8_t *ptr, int num_of_ele,
+                   int size_of_ele, uint8_t *base_ptr)
 {
     assert(ptr);
     assert(num_of_ele > 0);
     assert(size_of_ele > 0);
     assert(base_ptr);
 
-    if (ptr + HEADER_OF_RING + num_of_ele * (size_of_ele + HEADER_OF_ELE) > base_ptr + NTB_MAX_BUF)
+    if (ptr + HEADER_OF_RING +
+            num_of_ele * (size_of_ele + HEADER_OF_ELE) >
+        base_ptr + NTB_MAX_BUF)
         return true;
 
     return false;
 }
 
-static struct ntb_ring *ring_create(uint8_t *ptr, int num_of_ele, int size_of_ele, enum NTB_RING_TYPE ring_type, uint8_t *base_ptr)
+static struct ntb_ring *
+ring_create(uint8_t *ptr, int num_of_ele, int size_of_ele,
+            enum NTB_RING_TYPE ring_type, uint8_t *base_ptr)
 {
     assert(ptr);
     assert(num_of_ele > 0);
     assert(size_of_ele > 0);
     assert(base_ptr);
 
-    DEBUG("ring create begin, ptr=%p, num_of_ele=%d, size_of_ele=%d", ptr, num_of_ele, size_of_ele);
-    struct ntb_ring *ring = (struct ntb_ring *)malloc(sizeof(struct ntb_ring));
+    DEBUG("ring create begin, ptr=%p, num_of_ele=%d, size_of_ele=%d",
+          ptr, num_of_ele, size_of_ele);
+    struct ntb_ring *ring =
+        (struct ntb_ring *)malloc(sizeof(struct ntb_ring));
 
     ring->num_of_ele = num_of_ele;
     ring->size_of_ele = size_of_ele;
@@ -45,19 +52,25 @@ static struct ntb_ring *ring_create(uint8_t *ptr, int num_of_ele, int size_of_el
     return ring;
 }
 
-void ring_init(struct ntb_link *link, int num_of_ele, int size_of_ele, enum NTB_RING_TYPE ring_type)
+void ring_init(struct ntb_link *link, int num_of_ele,
+               int size_of_ele, enum NTB_RING_TYPE ring_type)
 {
     assert(link);
     assert(num_of_ele > 0);
     assert(size_of_ele > 0);
 
-    DEBUG("ring init begin. num_of_ele=%d, size_of_ele=%d", num_of_ele, size_of_ele);
+    DEBUG("ring init begin. num_of_ele=%d, size_of_ele=%d",
+          num_of_ele, size_of_ele);
 
-    link->local_ring = ring_create(link->cur_local_ptr, num_of_ele, size_of_ele, ring_type, link->local_ptr);
-    link->cur_local_ptr = link->local_ring->buf + num_of_ele * (HEADER_OF_ELE + size_of_ele);
+    link->local_ring = ring_create(link->cur_local_ptr, num_of_ele,
+                                   size_of_ele, ring_type, link->local_ptr);
+    link->cur_local_ptr = link->local_ring->buf +
+                          num_of_ele * (HEADER_OF_ELE + size_of_ele);
 
-    link->remote_ring = ring_create(link->cur_remote_ptr, num_of_ele, size_of_ele, ring_type, link->remote_ptr);
-    link->cur_remote_ptr = link->remote_ring->buf + num_of_ele * (HEADER_OF_ELE + size_of_ele);
+    link->remote_ring = ring_create(link->cur_remote_ptr, num_of_ele,
+                                    size_of_ele, ring_type, link->remote_ptr);
+    link->cur_remote_ptr = link->remote_ring->buf +
+                           num_of_ele * (HEADER_OF_ELE + size_of_ele);
 
     switch (ring_type)
     {
@@ -121,20 +134,25 @@ int ring_enqueue_1(struct ntb_link *link, struct ring_item *in_item)
 
     if (in_item->len <= 0 || in_item->len > link->remote_ring->size_of_ele)
     {
-        ERR("ring_enqueue, length of in_item[%ld] > size of ring's element[%d]", in_item->len, link->remote_ring->size_of_ele);
+        ERR("ring_enqueue, length of in_item[%ld] > size of ring's element[%d]",
+            in_item->len, link->remote_ring->size_of_ele);
         return -1;
     }
 
-    uint64_t next_idx = (link->remote_pd_ptr + 1) % link->remote_ring->num_of_ele;
+    uint64_t next_idx = (link->remote_pd_ptr + 1) %
+                        link->remote_ring->num_of_ele;
     uint64_t cus_ptr = link->remote_ring->ring->cus_ptr;
     if (next_idx == cus_ptr)
     {
-        INFO("ring_enqueue, remote ring is full. link->remote_ring->ring->cus_ptr=%lu, link->remote_pd_ptr=%lu", link->remote_ring->ring->cus_ptr, link->remote_pd_ptr);
+        INFO("ring_enqueue, remote ring is full. \
+link->remote_ring->ring->cus_ptr=%lu, link->remote_pd_ptr=%lu",
+             link->remote_ring->ring->cus_ptr, link->remote_pd_ptr);
         return 1;
     }
 
     // remote write写入数据到对端
-    uint8_t *ptr = link->remote_ring->buf + link->remote_pd_ptr * (link->remote_ring->size_of_ele + HEADER_OF_ELE);
+    uint8_t *ptr = link->remote_ring->buf +
+                   link->remote_pd_ptr * (link->remote_ring->size_of_ele + HEADER_OF_ELE);
 
     // 先写data, 再写len. 保证读取len之前data写进去了
     rte_memcpy(ptr, in_item->data, in_item->len);
@@ -165,7 +183,8 @@ int ring_enqueue_2(struct ntb_link *link, struct ring_item *in_item)
 
     if (in_item->len <= 0 || in_item->len > link->remote_ring->size_of_ele)
     {
-        ERR("ring_enqueue, length of in_item[%ld] > size of ring's element[%d]", in_item->len, link->remote_ring->size_of_ele);
+        ERR("ring_enqueue, length of in_item[%ld] > size of ring's element[%d]",
+            in_item->len, link->remote_ring->size_of_ele);
         return -1;
     }
 
@@ -174,12 +193,16 @@ int ring_enqueue_2(struct ntb_link *link, struct ring_item *in_item)
 
     if (next_idx == link->remote_ring->ring->cus_ptr)
     {
-        INFO("ring_enqueue, remote ring is full. local_ring->ring->cus_ptr=%lu, link->local_ring->ring->pd_ptr=%lu, remote_ring->ring->cus_ptr=%lu, remote_ring->ring->pd_ptr=%lu",
-             link->local_ring->ring->cus_ptr, link->local_ring->ring->pd_ptr, link->remote_ring->ring->cus_ptr, link->remote_ring->ring->pd_ptr);
+        INFO("ring_enqueue, remote ring is full. \
+local_ring->ring->cus_ptr=%lu, link->local_ring->ring->pd_ptr=%lu, \
+remote_ring->ring->cus_ptr=%lu, remote_ring->ring->pd_ptr=%lu",
+             link->local_ring->ring->cus_ptr, link->local_ring->ring->pd_ptr,
+             link->remote_ring->ring->cus_ptr, link->remote_ring->ring->pd_ptr);
         return 1;
     }
 
-    uint8_t *ptr = link->remote_ring->buf + pd_ptr * (link->remote_ring->size_of_ele + HEADER_OF_ELE);
+    uint8_t *ptr = link->remote_ring->buf +
+                   pd_ptr * (link->remote_ring->size_of_ele + HEADER_OF_ELE);
 
     rte_memcpy(ptr, in_item->data, in_item->len);
     *((uint64_t *)(ptr + link->remote_ring->size_of_ele)) = in_item->len;
@@ -203,20 +226,25 @@ int ring_enqueue_3(struct ntb_link *link, struct ring_item *in_item)
      * 3. 更新remote_pd_ptr和remote ring的pd ptr
      */
 
-    if (in_item->len <= 0 || in_item->len > link->remote_ring->size_of_ele)
+    if (in_item->len <= 0 ||
+        in_item->len > link->remote_ring->size_of_ele)
     {
-        ERR("ring_enqueue, length of in_item[%ld] > size of ring's element[%d]", in_item->len, link->remote_ring->size_of_ele);
+        ERR("ring_enqueue, length of in_item[%ld] > size of ring's element[%d]",
+            in_item->len, link->remote_ring->size_of_ele);
         return -1;
     }
 
     uint64_t next_idx = (link->remote_pd_ptr + 1) % link->remote_ring->num_of_ele;
     if (next_idx == link->local_ring->ring->cus_ptr)
     {
-        INFO("ring_enqueue, remote ring is full. local_ring->ring->cus_ptr=%lu, link->remote_pd_ptr=%lu", link->local_ring->ring->cus_ptr, link->remote_pd_ptr);
+        INFO("ring_enqueue, remote ring is full. \
+local_ring->ring->cus_ptr=%lu, link->remote_pd_ptr=%lu",
+             link->local_ring->ring->cus_ptr, link->remote_pd_ptr);
         return 1;
     }
 
-    uint8_t *ptr = link->remote_ring->buf + link->remote_pd_ptr * (link->remote_ring->size_of_ele + HEADER_OF_ELE);
+    uint8_t *ptr = link->remote_ring->buf +
+                   link->remote_pd_ptr * (link->remote_ring->size_of_ele + HEADER_OF_ELE);
 
     rte_memcpy(ptr, in_item->data, in_item->len);
     *((uint64_t *)(ptr + link->remote_ring->size_of_ele)) = in_item->len;
@@ -249,7 +277,8 @@ int ring_enqueue_4(struct ntb_link *link, struct ring_item *in_item)
 
     if (in_item->len <= 0 || in_item->len > local_ring->size_of_ele)
     {
-        ERR("ring_enqueue, length of in_item[%ld] > size of ring's element[%d]", in_item->len, local_ring->size_of_ele);
+        ERR("ring_enqueue, length of in_item[%ld] > size of ring's element[%d]",
+            in_item->len, local_ring->size_of_ele);
         return -1;
     }
 
@@ -257,12 +286,15 @@ int ring_enqueue_4(struct ntb_link *link, struct ring_item *in_item)
     uint64_t next_idx = (pd_ptr + 1) % link->remote_ring->num_of_ele;
     if (next_idx == local_ring->ring->cus_ptr)
     {
-        INFO("ring_enqueue, remote ring is full. local_ring->ring->cus_ptr=%lu, local_ring->ring->pd_ptr=%lu", local_ring->ring->cus_ptr, local_ring->ring->pd_ptr);
+        INFO("ring_enqueue, remote ring is full. \
+local_ring->ring->cus_ptr=%lu, local_ring->ring->pd_ptr=%lu",
+             local_ring->ring->cus_ptr, local_ring->ring->pd_ptr);
         return 1;
     }
 
     // remote write写入数据到对端
-    uint8_t *ptr = link->remote_ring->buf + pd_ptr * (link->remote_ring->size_of_ele + HEADER_OF_ELE);
+    uint8_t *ptr = link->remote_ring->buf +
+                   pd_ptr * (link->remote_ring->size_of_ele + HEADER_OF_ELE);
 
     rte_memcpy(ptr, in_item->data, in_item->len);
     *((uint64_t *)(ptr + link->remote_ring->size_of_ele)) = in_item->len;
@@ -287,18 +319,24 @@ int ring_dequeue_1(struct ntb_link *link, struct ring_item *out_item)
     uint64_t pd_ptr = link->local_ring->ring->pd_ptr;
     if (cus_ptr == pd_ptr)
     {
-        INFO("ring_dequeue, local ring is empty. link->local_ring->ring->cus_ptr=%lu, link->local_ring->ring->pd_ptr=%lu", link->local_ring->ring->cus_ptr, link->local_ring->ring->pd_ptr);
+        INFO("ring_dequeue, local ring is empty. \
+link->local_ring->ring->cus_ptr=%lu, link->local_ring->ring->pd_ptr=%lu",
+             link->local_ring->ring->cus_ptr, link->local_ring->ring->pd_ptr);
         return 1;
     }
 
     uint64_t next_idx = (cus_ptr + 1) % link->local_ring->num_of_ele;
 
-    uint8_t *ptr = link->local_ring->buf + cus_ptr * (HEADER_OF_ELE + link->local_ring->size_of_ele);
+    uint8_t *ptr = link->local_ring->buf +
+                   cus_ptr * (HEADER_OF_ELE + link->local_ring->size_of_ele);
 
     out_item->len = *((uint64_t *)(ptr + link->local_ring->size_of_ele));
-    if (out_item->len <= 0 || out_item->len > link->local_ring->size_of_ele)
+    if (out_item->len <= 0 ||
+        out_item->len > link->local_ring->size_of_ele)
     {
-        INFO("ring_dequeue, out_item->len=%lu, *((uint64_t*)(ptr + link->local_ring->size_of_ele))=%lu", out_item->len, *((uint64_t *)(ptr + link->local_ring->size_of_ele)));
+        INFO("ring_dequeue, out_item->len=%lu, \
+*((uint64_t*)(ptr + link->local_ring->size_of_ele))=%lu",
+             out_item->len, *((uint64_t *)(ptr + link->local_ring->size_of_ele)));
         return -1;
     }
     rte_memcpy(out_item->data, ptr, out_item->len);
@@ -329,11 +367,16 @@ int ring_dequeue_2(struct ntb_link *link, struct ring_item *out_item)
 
     uint64_t next_idx = (link->local_ring->ring->cus_ptr + 1) % link->local_ring->num_of_ele;
 
-    uint8_t *ptr = link->local_ring->buf + link->local_ring->ring->cus_ptr * (HEADER_OF_ELE + link->local_ring->size_of_ele);
+    uint8_t *ptr = link->local_ring->buf +
+                   link->local_ring->ring->cus_ptr * (HEADER_OF_ELE +
+                                                      link->local_ring->size_of_ele);
     out_item->len = *((uint64_t *)(ptr + link->local_ring->size_of_ele));
-    if (out_item->len <= 0 || out_item->len > link->local_ring->size_of_ele)
+    if (out_item->len <= 0 ||
+        out_item->len > link->local_ring->size_of_ele)
     {
-        INFO("ring_dequeue, out_item->len=%lu, *((uint64_t*)(ptr + link->local_ring->size_of_ele))=%lu", out_item->len, *((uint64_t *)(ptr + link->local_ring->size_of_ele)));
+        INFO("ring_dequeue, out_item->len=%lu, \
+*((uint64_t*)(ptr + link->local_ring->size_of_ele))=%lu",
+             out_item->len, *((uint64_t *)(ptr + link->local_ring->size_of_ele)));
         return -1;
     }
     rte_memcpy(out_item->data, ptr, out_item->len);
@@ -358,17 +401,23 @@ int ring_dequeue_3(struct ntb_link *link, struct ring_item *out_item)
 
     if (link->local_cus_ptr == link->local_ring->ring->pd_ptr)
     {
-        INFO("ring_dequeue, local ring is empty. link->local_cus_ptr=%lu, link->local_ring->ring->pd_ptr=%lu", link->local_cus_ptr, link->local_ring->ring->pd_ptr);
+        INFO("ring_dequeue, local ring is empty. \
+link->local_cus_ptr=%lu, link->local_ring->ring->pd_ptr=%lu",
+             link->local_cus_ptr, link->local_ring->ring->pd_ptr);
         return 1;
     }
 
     uint64_t next_idx = (link->local_cus_ptr + 1) % link->local_ring->num_of_ele;
-    uint8_t *ptr = link->local_ring->buf + link->local_cus_ptr * (HEADER_OF_ELE + link->local_ring->size_of_ele);
+    uint8_t *ptr = link->local_ring->buf +
+                   link->local_cus_ptr * (HEADER_OF_ELE +
+                                          link->local_ring->size_of_ele);
 
     out_item->len = *((uint64_t *)(ptr + link->local_ring->size_of_ele));
     if (out_item->len <= 0 || out_item->len > link->local_ring->size_of_ele)
     {
-        INFO("ring_dequeue, out_item->len=%lu, *((uint64_t*)(ptr + link->local_ring->size_of_ele))=%lu", out_item->len, *((uint64_t *)(ptr + link->local_ring->size_of_ele)));
+        INFO("ring_dequeue, out_item->len=%lu, \
+*((uint64_t*)(ptr + link->local_ring->size_of_ele))=%lu",
+             out_item->len, *((uint64_t *)(ptr + link->local_ring->size_of_ele)));
         return -1;
     }
     rte_memcpy(out_item->data, ptr, out_item->len);
@@ -399,18 +448,23 @@ int ring_dequeue_4(struct ntb_link *link, struct ring_item *out_item)
 
     if (link->local_cus_ptr == remote_ring->ring->pd_ptr)
     {
-        INFO("ring_dequeue, local ring is empty. link->local_cus_ptr=%lu, link->local_ring->ring->pd_ptr=%lu, remote_ring->ring->pd_ptr=%lu",
+        INFO("ring_dequeue, local ring is empty. \
+link->local_cus_ptr=%lu, link->local_ring->ring->pd_ptr=%lu, remote_ring->ring->pd_ptr=%lu",
              link->local_cus_ptr, link->local_ring->ring->pd_ptr, remote_ring->ring->pd_ptr);
         return 1;
     }
 
     uint64_t next_idx = (link->local_cus_ptr + 1) % link->local_ring->num_of_ele;
-    uint8_t *ptr = link->local_ring->buf + link->local_cus_ptr * (HEADER_OF_ELE + remote_ring->size_of_ele);
+    uint8_t *ptr = link->local_ring->buf +
+                   link->local_cus_ptr * (HEADER_OF_ELE +
+                                          remote_ring->size_of_ele);
 
     out_item->len = *((uint64_t *)(ptr + link->local_ring->size_of_ele));
     if (out_item->len <= 0 || out_item->len > link->local_ring->size_of_ele)
     {
-        INFO("ring_dequeue, out_item->len=%lu, *((uint64_t*)(ptr + link->local_ring->size_of_ele))=%lu", out_item->len, *((uint64_t *)(ptr + link->local_ring->size_of_ele)));
+        INFO("ring_dequeue, out_item->len=%lu, \
+*((uint64_t*)(ptr + link->local_ring->size_of_ele))=%lu",
+             out_item->len, *((uint64_t *)(ptr + link->local_ring->size_of_ele)));
         return -1;
     }
 

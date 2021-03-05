@@ -14,7 +14,8 @@
 #include <stdint.h>
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 #define NTM_LISTEN_IP "0.0.0.0"
@@ -22,30 +23,31 @@ extern "C" {
 
 #define CONFIG_FILE "/etc/ntp.cfg"
 
-struct ntp_config
-{
-    int sublink_data_ring_size;
-    int sublink_ctrl_ring_size;
-    int nts_buff_size;
-    int bulk_size;
-    uint16_t num_partition;
-    uint16_t ntb_packetbits_size;   // if value is 7, it means the packet size of NTB data ringbuffer is 1 << 7 (128)
-    uint16_t ctrl_packet_size;  // default 16B
-    uint64_t data_ringbuffer_size;  // default 8MB, expected 128MB 
-    uint64_t ctrl_ringbuffer_size;  // default 256B, expected 1MB
-    uint16_t data_packet_size;  // default 1 KB
-    uint16_t datapacket_payload_size;   // = data_packet_size - DATA_PACKET_HEADER_SIZE
-};
+    struct ntp_config
+    {
+        int sublink_data_ring_size;
+        int sublink_ctrl_ring_size;
+        int nts_buff_size;
+        int bulk_size;
 
-extern struct ntp_config NTP_CONFIG;
+        uint16_t num_partition;
+        uint16_t ntb_packetbits_size;  // if value is 7, it means
+                                       //  the packet size of NTB data ringbuffer is 1 << 7 (128)
+        uint16_t ctrl_packet_size;     // default 16B
+        uint64_t data_ringbuffer_size; // default 8MB, expected 128MB
+        uint64_t ctrl_ringbuffer_size; // default 256B, expected 1MB
 
-/* load configuration from specified configuration file name */
-int load_conf(const char *fname);
+        uint16_t data_packet_size;        // default 1 KB
+        uint16_t datapacket_payload_size; // = data_packet_size - DATA_PACKET_HEADER_SIZE
+    };
 
-void free_conf();
+    extern struct ntp_config NTP_CONFIG;
 
-/* print setted configuration */
-void print_conf(void);
+    /* load configuration from specified configuration file name */
+    int load_conf(const char *fname);
+
+    /* print setted configuration */
+    void print_conf(void);
 
 #ifdef __cplusplus
 };

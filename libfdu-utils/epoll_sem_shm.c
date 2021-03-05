@@ -4,17 +4,18 @@
 #include "utils.h"
 #include "nt_log.h"
 
-#ifdef  ENABLE_DEBUG
+#ifdef ENABLE_DEBUG
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
-#else  
+#else
 DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
-#endif  //ENABLE_DEBUG
+#endif //ENABLE_DEBUG
 
 epoll_sem_shm_ctx_t epoll_sem_shm()
 {
     epoll_sem_shm_ctx_t ctx;
 
-    ctx = (epoll_sem_shm_ctx_t)calloc(1, sizeof(struct _epoll_sem_shm_ctx));
+    ctx = (epoll_sem_shm_ctx_t)
+        calloc(1, sizeof(struct _epoll_sem_shm_ctx));
     if (UNLIKELY(!ctx))
     {
         ERR("malloc epoll_sem_shm_ctx_t failed.");
@@ -25,7 +26,8 @@ epoll_sem_shm_ctx_t epoll_sem_shm()
     return ctx;
 }
 
-int epoll_sem_shm_accept(epoll_sem_shm_ctx_t shm_ctx, char *shm_addr, size_t addrlen)
+int epoll_sem_shm_accept(
+    epoll_sem_shm_ctx_t shm_ctx, char *shm_addr, size_t addrlen)
 {
     assert(shm_ctx);
     assert(addrlen > 0);
@@ -38,8 +40,9 @@ int epoll_sem_shm_accept(epoll_sem_shm_ctx_t shm_ctx, char *shm_addr, size_t add
     memset(shm_ctx->shm_addr, 0, addrlen);
     shm_ctx->addrlen = addrlen;
     memcpy(shm_ctx->shm_addr, shm_addr, addrlen);
-    shm_ctx->handle = sem_shmring_create(shm_ctx->shm_addr,
-                                         shm_ctx->addrlen, EPOLL_MSG_SIZE, DEFAULT_MAX_NUM_MSG);
+    shm_ctx->handle =
+        sem_shmring_create(shm_ctx->shm_addr,
+                           shm_ctx->addrlen, EPOLL_MSG_SIZE, DEFAULT_MAX_NUM_MSG);
     if (UNLIKELY(!shm_ctx->handle))
     {
         ERR("epoll_sem_shm_accept() failed.");
@@ -49,10 +52,12 @@ int epoll_sem_shm_accept(epoll_sem_shm_ctx_t shm_ctx, char *shm_addr, size_t add
 
     shm_ctx->stat = SEM_SHMRING_READY;
     DEBUG("epoll_sem_shm_accept() success.");
+
     return 0;
 }
 
-int epoll_sem_shm_connect(epoll_sem_shm_ctx_t shm_ctx, char *shm_addr, size_t addrlen)
+int epoll_sem_shm_connect(
+    epoll_sem_shm_ctx_t shm_ctx, char *shm_addr, size_t addrlen)
 {
     assert(shm_ctx);
     assert(addrlen > 0);
@@ -60,13 +65,17 @@ int epoll_sem_shm_connect(epoll_sem_shm_ctx_t shm_ctx, char *shm_addr, size_t ad
 
     shm_ctx->shm_addr = (char *)malloc(addrlen);
     if (UNLIKELY(!shm_ctx->shm_addr))
+    {
         return -1;
+    }
 
     memset(shm_ctx->shm_addr, 0, addrlen);
     shm_ctx->addrlen = addrlen;
     memcpy(shm_ctx->shm_addr, shm_addr, addrlen);
-    shm_ctx->handle = sem_shmring_init(shm_ctx->shm_addr,
-                                       shm_ctx->addrlen, EPOLL_MSG_SIZE, DEFAULT_MAX_NUM_MSG);
+
+    shm_ctx->handle =
+        sem_shmring_init(shm_ctx->shm_addr,
+                         shm_ctx->addrlen, EPOLL_MSG_SIZE, DEFAULT_MAX_NUM_MSG);
     if (UNLIKELY(!shm_ctx->handle))
     {
         ERR("epoll_sem_shm_accept() failed.");
@@ -76,16 +85,19 @@ int epoll_sem_shm_connect(epoll_sem_shm_ctx_t shm_ctx, char *shm_addr, size_t ad
 
     shm_ctx->stat = SEM_SHMRING_READY;
     DEBUG("epoll_sem_shm_accept() success.");
+
     return 0;
 }
 
-int epoll_sem_shm_send(epoll_sem_shm_ctx_t shm_ctx, epoll_msg *msg)
+int epoll_sem_shm_send(
+    epoll_sem_shm_ctx_t shm_ctx, epoll_msg *msg)
 {
     assert(shm_ctx);
     assert(msg);
 
     int rc;
-    rc = sem_shmring_push(shm_ctx->handle, (char *)msg, EPOLL_MSG_SIZE);
+    rc = sem_shmring_push(
+        shm_ctx->handle, (char *)msg, EPOLL_MSG_SIZE);
     if (UNLIKELY(rc == -1))
     {
         ERR("epoll_sem_shm_send() failed and maybe sem_shmring is full.");
@@ -95,13 +107,15 @@ int epoll_sem_shm_send(epoll_sem_shm_ctx_t shm_ctx, epoll_msg *msg)
     return 0;
 }
 
-int epoll_sem_shm_recv(epoll_sem_shm_ctx_t shm_ctx, epoll_msg *recv_msg)
+int epoll_sem_shm_recv(
+    epoll_sem_shm_ctx_t shm_ctx, epoll_msg *recv_msg)
 {
     assert(shm_ctx);
     assert(recv_msg);
 
     int rc;
-    rc = sem_shmring_pop(shm_ctx->handle, (char *)recv_msg, EPOLL_MSG_SIZE);
+    rc = sem_shmring_pop(
+        shm_ctx->handle, (char *)recv_msg, EPOLL_MSG_SIZE);
     if (UNLIKELY(rc == -1))
     {
         ERR("epoll_sem_shm_recv() failed and maybe sem_shmring is empty.");
@@ -111,7 +125,8 @@ int epoll_sem_shm_recv(epoll_sem_shm_ctx_t shm_ctx, epoll_msg *recv_msg)
     return 0;
 }
 
-int epoll_sem_shm_close(epoll_sem_shm_ctx_t shm_ctx, bool is_slave)
+int epoll_sem_shm_close(
+    epoll_sem_shm_ctx_t shm_ctx, bool is_slave)
 {
     assert(shm_ctx);
 

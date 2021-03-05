@@ -30,9 +30,11 @@ typedef struct _ntm_ntp_shmring ntm_ntp_shmring_t;
 typedef ntm_ntp_shmring_t* ntm_ntp_shmring_handle_t;
 
 
-ntm_ntp_shmring_handle_t ntm_ntp_shmring_init(char *shm_addr, size_t addrlen);
+ntm_ntp_shmring_handle_t 
+ntm_ntp_shmring_init(char *shm_addr, size_t addrlen);
 
-ntm_ntp_shmring_handle_t ntm_ntp_get_shmring(char *shm_addr, size_t addrlen);
+ntm_ntp_shmring_handle_t 
+ntm_ntp_get_shmring(char *shm_addr, size_t addrlen);
 
 bool ntm_ntp_shmring_push(ntm_ntp_shmring_handle_t self, ntm_ntp_msg *element);
 

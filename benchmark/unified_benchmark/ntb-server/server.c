@@ -43,10 +43,11 @@ void *monitor_bandwidth_update();
 void throughput_read_with_ack(struct conn_ctx *ctx);
 void throughput_read_with_ack_in_time(struct conn_ctx *ctx);
 
-uint64_t Now64() {
+uint64_t Now64()
+{
     struct timespec tv;
     int res = clock_gettime(CLOCK_REALTIME, &tv);
-    return (uint64_t) tv.tv_sec * 1000000llu + (uint64_t) tv.tv_nsec / 1000;
+    return (uint64_t)tv.tv_sec * 1000000llu + (uint64_t)tv.tv_nsec / 1000;
 }
 
 int main(int argc, char *argv[])
@@ -66,13 +67,17 @@ int main(int argc, char *argv[])
     parse_args(argc, argv);
 
     /** 
-     * numa_node_type is 0: the even-numbered core is the numa0 node, and the odd-numbered core is the numa1 node. The network card is in the numa0 node, and we start the allocation from core 0.
+     * numa_node_type is 0: the even-numbered core is the numa0 node, 
+     *  and the odd-numbered core is the numa1 node. 
+     *  The network card is in the numa0 node, 
+     *  and we start the allocation from core 0.
      * numa_node_type is 1:  get core from 16-31,48-63
      * numa_node_type is 2:  get core from 0-15,32-47
      */
     if (numa_node_type == 0)
     {
-        last_core = 0; // The number of cores of the machine is always even， eg, 24,64
+        // The number of cores of the machine is always even， eg, 24,64
+        last_core = 0;
     }
     else if (numa_node_type == 1)
     {
@@ -135,14 +140,16 @@ int main(int argc, char *argv[])
             close(listen_fd);
             exit(EXIT_FAILURE);
         }
-        else if (pthread_create(&serv_thread[i], NULL, handle_connection, (void *)&conns[i]) < 0)
+        else if (pthread_create(&serv_thread[i],
+                                NULL, handle_connection, (void *)&conns[i]) < 0)
         {
             close(listen_fd);
             perror("Error: create pthread");
         }
     }
 
-    // When test in bandwidth case, create a thread to monitor the amount of data transferred per second
+    // When test in bandwidth case, create a thread to
+    //  monitor the amount of data transferred per second
     if (run_latency == 1)
     {
         time_in_seconds += 2; // The server runs for two more seconds
@@ -153,7 +160,9 @@ int main(int argc, char *argv[])
     sleep(1); // wait 1s
     waiting_transfer_data = false;
 
-    // If we test throughput in time limit case, the server will block at read message from client when the client has reached the test time.
+    // If we test throughput in time limit case,
+    //  the server will block at read message from client
+    //  when the client has reached the test time.
     // So we need to exit the program at server after reached the test time.
     if (run_latency == 3)
     {
@@ -162,13 +171,15 @@ int main(int argc, char *argv[])
     }
     else
     {
-        // For other test case, we need to wait for all worker threads to finish
+        // For other test case, we need to wait
+        //  for all worker threads to finish
         for (int i = 0; i < thrds; ++i)
         {
             pthread_join(serv_thread[i], NULL);
         }
 
-        // When we test in bandwidth case, we need to wait for monitor_thead to finish
+        // When we test in bandwidth case,
+        //  we need to wait for monitor_thead to finish
         if (run_latency == 1)
             pthread_join(monitor_thead, NULL);
     }
@@ -249,7 +260,8 @@ void latency_write(int sockfd, size_t *start_cycles, size_t *end_cycles)
 }
 
 // measure latency with reading ack after writing message
-void latency_write_with_ack(int sockfd, size_t *start_cycles, size_t *end_cycles)
+void latency_write_with_ack(int sockfd,
+                            size_t *start_cycles, size_t *end_cycles)
 {
     char msg[payload_size];
     char ack[payload_size];
@@ -271,7 +283,6 @@ void latency_write_with_ack(int sockfd, size_t *start_cycles, size_t *end_cycles
         {
             n = (n - read(sockfd, ack, n));
         }
-        // printf("[sockid = %d] --------recv %d bytes msg: [%s]-------\n", sockfd, payload_size, ack);
         end_cycles[i] = get_cycles();
     }
 }
@@ -301,7 +312,8 @@ int Nread(int fd, char *buf, size_t count)
 
 void *monitor_bandwidth_update()
 {
-    double bandwidth[MAX_NUM_THREADS][MAX_TIME_IN_BANDWIDTH]; //  Data(Gbytes) transferred per second per thread
+    //  Data(Gbytes) transferred per second per thread
+    double bandwidth[MAX_NUM_THREADS][MAX_TIME_IN_BANDWIDTH];
     int seconds = 0;
     int real = 0;                      // The number of non-zero elements in the bandwidth array
     double *totalbandwidth_eachsecond; // requests transmitted by all threads in every second
@@ -311,16 +323,17 @@ void *monitor_bandwidth_update()
     // int step_size = 4;
     tmpcal_ptr = time(NULL) + time_in_seconds;
 
-
     uint64_t start_time, end_time;
     long long bytes_cnt_start[MAX_NUM_THREADS];
     long long bytes_cnt_end[MAX_NUM_THREADS];
 
     printf("begin measure bandwidth\n");
-    while (time(NULL) < tmpcal_ptr) {
+    while (time(NULL) < tmpcal_ptr)
+    {
         // first time to record real-time BW
         start_time = Now64();
-        for (int thr_id = 0; thr_id < thrds; thr_id++) {
+        for (int thr_id = 0; thr_id < thrds; thr_id++)
+        {
             bytes_cnt_start[thr_id] = read_persecond[thr_id];
         }
 
@@ -328,26 +341,34 @@ void *monitor_bandwidth_update()
 
         // second time to record real-time BW
         end_time = Now64();
-        for (int thr_id = 0; thr_id < thrds; thr_id++) {
+        for (int thr_id = 0; thr_id < thrds; thr_id++)
+        {
             bytes_cnt_end[thr_id] = read_persecond[thr_id];
         }
 
-        if (seconds < MAX_TIME_IN_BANDWIDTH) {
+        if (seconds < MAX_TIME_IN_BANDWIDTH)
+        {
             // caculate BW
-            for(int thr_id = 0; thr_id < thrds; thr_id++) {
-                bandwidth[thr_id][seconds] = 1.0 * (bytes_cnt_end[thr_id] - bytes_cnt_start[thr_id]) * 1000000 * 8 / (end_time - start_time) / 1024 / 1024 / 1024;
+            for (int thr_id = 0; thr_id < thrds; thr_id++)
+            {
+                bandwidth[thr_id][seconds] =
+                    1.0 * (bytes_cnt_end[thr_id] - bytes_cnt_start[thr_id]) * 1000000 * 8 /
+                    (end_time - start_time) / 1024 / 1024 / 1024;
                 if (DEBUG)
                 {
-                    printf("thread %d bandwidth is %lf Gbits/sec, time diff is %ld\n", thr_id, bandwidth[thr_id][seconds], end_time - start_time);
+                    printf("thread %d bandwidth is %lf Gbits/sec, time diff is %ld\n",
+                           thr_id, bandwidth[thr_id][seconds], end_time - start_time);
                 }
             }
         }
-        
+
         seconds++;
     }
 
     // if seconds > MAX_TIME_IN_BANDWIDTH, use MAX_TIME_IN_BANDWIDTH
-    seconds = seconds < MAX_TIME_IN_BANDWIDTH ? seconds : MAX_TIME_IN_BANDWIDTH;
+    seconds = seconds < MAX_TIME_IN_BANDWIDTH
+                  ? seconds
+                  : MAX_TIME_IN_BANDWIDTH;
 
     // Count the amount of data transferred by all threads per second
     totalbandwidth_eachsecond = (double *)malloc(seconds * sizeof(double));
@@ -370,11 +391,13 @@ void *monitor_bandwidth_update()
         {
             if (to_file)
             {
-                fprintf(fp, "in second %d, bandwidth is %lf Gbits/sec\n", i, totalbandwidth_eachsecond[i]);
+                fprintf(fp, "in second %d, bandwidth is %lf Gbits/sec\n",
+                        i, totalbandwidth_eachsecond[i]);
             }
             else
             {
-                printf("in second %d, bandwidth is %lf Gbits/sec\n", i, totalbandwidth_eachsecond[i]);
+                printf("in second %d, bandwidth is %lf Gbits/sec\n",
+                       i, totalbandwidth_eachsecond[i]);
             }
         }
         if (totalbandwidth_eachsecond[i] != 0)
@@ -386,15 +409,19 @@ void *monitor_bandwidth_update()
     if (to_file)
     {
         fprintf(fp, "average bandwidth is %lf Gbits/sec\n", allbandwidth / real);
-        fprintf(fp, "medium bandwidth is %lf Gbits/sec\n", totalbandwidth_eachsecond[seconds / 2]);
-        fprintf(fp, "max bandwidth is %lf Gbits/sec\n", totalbandwidth_eachsecond[seconds - 1]);
+        fprintf(fp, "medium bandwidth is %lf Gbits/sec\n",
+                totalbandwidth_eachsecond[seconds / 2]);
+        fprintf(fp, "max bandwidth is %lf Gbits/sec\n",
+                totalbandwidth_eachsecond[seconds - 1]);
         fclose(fp);
     }
     else
     {
         printf("average bandwidth is %lf Gbits/sec\n", allbandwidth / real);
-        printf("medium bandwidth is %lf Gbits/sec\n", totalbandwidth_eachsecond[seconds / 2]);
-        printf("max bandwidth is %lf Gbits/sec\n", totalbandwidth_eachsecond[seconds - 1]);
+        printf("medium bandwidth is %lf Gbits/sec\n",
+               totalbandwidth_eachsecond[seconds / 2]);
+        printf("max bandwidth is %lf Gbits/sec\n",
+               totalbandwidth_eachsecond[seconds - 1]);
     }
     free(totalbandwidth_eachsecond);
     exit(1);
@@ -403,11 +430,14 @@ void *monitor_bandwidth_update()
 
 void *monitor_bandwidth()
 {
-    double bandwidth[MAX_NUM_THREADS][MAX_TIME_IN_BANDWIDTH]; //  Data(Gbytes) transferred per second per thread
+    //  Data(Gbytes) transferred per second per thread
+    double bandwidth[MAX_NUM_THREADS][MAX_TIME_IN_BANDWIDTH];
     int seconds = 0;
-    int real = 0;                      // The number of non-zero elements in the bandwidth array
-    double *totalbandwidth_eachsecond; // requests transmitted by all threads in every second
-    double allbandwidth = 0;           // All data(Gbytes) transferred
+    // The number of non-zero elements in the bandwidth array
+    int real = 0;
+    // requests transmitted by all threads in every second
+    double *totalbandwidth_eachsecond;
+    double allbandwidth = 0; // All data(Gbytes) transferred
     FILE *fp;
     long long temp[MAX_NUM_THREADS];
     time_t tmpcal_ptr;
@@ -439,7 +469,8 @@ void *monitor_bandwidth()
             bandwidth[threadId][seconds] = 1.0 * temp[threadId] / 1024 / 1024 / 1024 / (time_diff);
             if (DEBUG)
             {
-                printf("thread %d bandwidth is %lf Gbits/sec, time diff is %lf\n", threadId, bandwidth[threadId][seconds] * 8, time_diff);
+                printf("thread %d bandwidth is %lf Gbits/sec, time diff is %lf\n",
+                       threadId, bandwidth[threadId][seconds] * 8, time_diff);
             }
             // read_persecond[threadId] = 0;
         }
@@ -468,11 +499,13 @@ void *monitor_bandwidth()
         {
             if (to_file)
             {
-                fprintf(fp, "in second %d, bandwidth is %lf Gbits/sec\n", i, totalbandwidth_eachsecond[i] * 8);
+                fprintf(fp, "in second %d, bandwidth is %lf Gbits/sec\n",
+                        i, totalbandwidth_eachsecond[i] * 8);
             }
             else
             {
-                printf("in second %d, bandwidth is %lf Gbits/sec\n", i, totalbandwidth_eachsecond[i] * 8);
+                printf("in second %d, bandwidth is %lf Gbits/sec\n",
+                       i, totalbandwidth_eachsecond[i] * 8);
             }
         }
         if (totalbandwidth_eachsecond[i] != 0)
@@ -484,15 +517,19 @@ void *monitor_bandwidth()
     if (to_file)
     {
         fprintf(fp, "average bandwidth is %lf Gbits/sec\n", allbandwidth / real * 8);
-        fprintf(fp, "medium bandwidth is %lf Gbits/sec\n", totalbandwidth_eachsecond[seconds / 2] * 8);
-        fprintf(fp, "max bandwidth is %lf Gbits/sec\n", totalbandwidth_eachsecond[seconds - 1] * 8);
+        fprintf(fp, "medium bandwidth is %lf Gbits/sec\n",
+                totalbandwidth_eachsecond[seconds / 2] * 8);
+        fprintf(fp, "max bandwidth is %lf Gbits/sec\n",
+                totalbandwidth_eachsecond[seconds - 1] * 8);
         fclose(fp);
     }
     else
     {
         printf("average bandwidth is %lf Gbits/sec\n", allbandwidth / real * 8);
-        printf("medium bandwidth is %lf Gbits/sec\n", totalbandwidth_eachsecond[seconds / 2] * 8);
-        printf("max bandwidth is %lf Gbits/sec\n", totalbandwidth_eachsecond[seconds - 1] * 8);
+        printf("medium bandwidth is %lf Gbits/sec\n",
+               totalbandwidth_eachsecond[seconds / 2] * 8);
+        printf("max bandwidth is %lf Gbits/sec\n",
+               totalbandwidth_eachsecond[seconds - 1] * 8);
     }
     free(totalbandwidth_eachsecond);
     exit(1);
@@ -533,6 +570,7 @@ void throughput_read_with_ack(struct conn_ctx *ctx)
         }
     }
 }
+
 void throughput_read_with_ack_in_time(struct conn_ctx *ctx)
 {
     char msg[payload_size];
@@ -556,7 +594,8 @@ void throughput_read_with_ack_in_time(struct conn_ctx *ctx)
 }
 
 // print latency performance data
-void latency_report_perf(size_t *start_cycles, size_t *end_cycles, int sockfd)
+void latency_report_perf(size_t *start_cycles,
+                         size_t *end_cycles, int sockfd)
 {
     double *lat = (double *)malloc(num_req * sizeof(double));
     double cpu_mhz = get_cpu_mhz();
@@ -576,12 +615,14 @@ void latency_report_perf(size_t *start_cycles, size_t *end_cycles, int sockfd)
 
     printf("@MEASUREMENT(requests = %d, payload size = %d, sockfd = %d):\n\
 MEDIAN = %.2f us\n50 TAIL = %.2f us\n99 TAIL = %.2f us\n99.9 TAIL = %.2f us\n99.99 TAIL = %.2f us\n",
-           num_req, payload_size, sockfd, sum / num_req, lat[idx_m], lat[idx_99], lat[idx_99_9], lat[idx_99_99]);
+           num_req, payload_size, sockfd, sum / num_req, lat[idx_m],
+           lat[idx_99], lat[idx_99_9], lat[idx_99_99]);
 
     free(lat);
 }
 
-void latency_report_perf_to_file(size_t *start_cycles, size_t *end_cycles, int sockfd)
+void latency_report_perf_to_file(
+    size_t *start_cycles, size_t *end_cycles, int sockfd)
 {
 
     double *lat = (double *)malloc(num_req * sizeof(double));
@@ -607,7 +648,8 @@ void latency_report_perf_to_file(size_t *start_cycles, size_t *end_cycles, int s
 
     fprintf(ctx->file, "@MEASUREMENT(requests = %d, payload size = %d, sockfd = %d):\n\
 MEDIAN = %.2f us\n50 TAIL = %.2f us\n99 TAIL = %.2f us\n99.9 TAIL = %.2f us\n99.99 TAIL = %.2f us\n",
-            num_req, payload_size, sockfd, sum / num_req, lat[idx_m], lat[idx_99], lat[idx_99_9], lat[idx_99_99]);
+            num_req, payload_size, sockfd, sum / num_req,
+            lat[idx_m], lat[idx_99], lat[idx_99_9], lat[idx_99_99]);
 
     log_destroy(ctx);
 
@@ -646,7 +688,10 @@ void usage(char *program)
     printf(" -l             run the lantency benchmark\n");
     printf(" -h             display the help information\n");
     printf(" -d <duration>        time to measure bandwidth\n");
-    printf(" -m <numa node type>       Set the way to bind core,0 - get core from 0,2,4,6,8.... 1 - get core from 16-31,48-63. 2 -get core from 0-15,32-47.(default %d)\n", numa_node_type);
+    printf(" -m <numa node type>       Set the way to bind core, \
+0 - get core from 0,2,4,6,8.... 1 - get core from 16-31,48-63. \
+2 -get core from 0-15,32-47.(default %d)\n",
+           numa_node_type);
 }
 
 // parsing command line parameters
@@ -806,7 +851,8 @@ void parse_args(int argc, char *argv[])
             if (i + 1 < argc)
             {
                 run_latency = atoi(argv[i + 1]);
-                if (run_latency != 0 && run_latency != 1 && run_latency != 2 && run_latency != 3)
+                if (run_latency != 0 && run_latency != 1 &&
+                    run_latency != 2 && run_latency != 3)
                 {
                     printf("invalid metric\n");
                     exit(EXIT_FAILURE);
@@ -825,7 +871,8 @@ void parse_args(int argc, char *argv[])
             if (i + 1 < argc)
             {
                 numa_node_type = atoi(argv[i + 1]);
-                if (numa_node_type != 0 && numa_node_type != 1 && numa_node_type != 2)
+                if (numa_node_type != 0 &&
+                    numa_node_type != 1 && numa_node_type != 2)
                 {
                     printf("invalid num_node type, must be 0 or 1\n");
                     exit(EXIT_FAILURE);

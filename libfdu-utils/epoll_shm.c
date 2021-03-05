@@ -8,17 +8,18 @@
 #include "utils.h"
 #include "nt_log.h"
 
-#ifdef  ENABLE_DEBUG
+#ifdef ENABLE_DEBUG
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
-#else  
+#else
 DEBUG_SET_LEVEL(DEBUG_LEVEL_ERR);
-#endif  //ENABLE_DEBUG
+#endif //ENABLE_DEBUG
 
 epoll_shm_context_t epoll_shm()
 {
     epoll_shm_context_t ctx;
 
-    ctx = (epoll_shm_context_t)malloc(sizeof(struct _epoll_shm_context));
+    ctx = (epoll_shm_context_t)
+        malloc(sizeof(struct _epoll_shm_context));
     if (ctx)
     {
         DEBUG("epoll_shm() pass");
@@ -29,7 +30,8 @@ epoll_shm_context_t epoll_shm()
     return NULL;
 }
 
-int epoll_shm_accept(epoll_shm_context_t shm_ctx, char *shm_addr, size_t addrlen)
+int epoll_shm_accept(
+    epoll_shm_context_t shm_ctx, char *shm_addr, size_t addrlen)
 {
     assert(shm_ctx);
     assert(addrlen > 0);
@@ -42,8 +44,9 @@ int epoll_shm_accept(epoll_shm_context_t shm_ctx, char *shm_addr, size_t addrlen
     memset(shm_ctx->shm_addr, 0, addrlen);
     shm_ctx->addrlen = addrlen;
     memcpy(shm_ctx->shm_addr, shm_addr, addrlen);
-    shm_ctx->handle = shmring_create(shm_ctx->shm_addr,
-                                     shm_ctx->addrlen, EPOLL_MSG_SIZE, DEFAULT_MAX_NUM_MSG);
+    shm_ctx->handle =
+        shmring_create(shm_ctx->shm_addr,
+                       shm_ctx->addrlen, EPOLL_MSG_SIZE, DEFAULT_MAX_NUM_MSG);
     if (!shm_ctx->handle)
     {
         ERR("epoll_shm_accept() failed.");
@@ -57,19 +60,25 @@ int epoll_shm_accept(epoll_shm_context_t shm_ctx, char *shm_addr, size_t addrlen
     return 0;
 }
 
-int epoll_shm_connect(epoll_shm_context_t shm_ctx, char *shm_addr, size_t addrlen)
+int epoll_shm_connect(
+    epoll_shm_context_t shm_ctx, char *shm_addr, size_t addrlen)
 {
     assert(shm_ctx);
     assert(addrlen > 0);
 
     shm_ctx->shm_addr = (char *)malloc(addrlen);
     if (shm_ctx->shm_addr == NULL)
+    {
         return -1;
+    }
 
     memset(shm_ctx->shm_addr, 0, addrlen);
     shm_ctx->addrlen = addrlen;
     memcpy(shm_ctx->shm_addr, shm_addr, addrlen);
-    shm_ctx->handle = shmring_init(shm_ctx->shm_addr, shm_ctx->addrlen, EPOLL_MSG_SIZE, DEFAULT_MAX_NUM_MSG);
+
+    shm_ctx->handle =
+        shmring_init(shm_ctx->shm_addr,
+                     shm_ctx->addrlen, EPOLL_MSG_SIZE, DEFAULT_MAX_NUM_MSG);
     if (!shm_ctx->handle)
     {
         ERR("epoll_shm_connect() failed.");
@@ -83,31 +92,36 @@ int epoll_shm_connect(epoll_shm_context_t shm_ctx, char *shm_addr, size_t addrle
     return 0;
 }
 
-int epoll_shm_send(epoll_shm_context_t shm_ctx, epoll_msg *msg)
+int epoll_shm_send(
+    epoll_shm_context_t shm_ctx, epoll_msg *msg)
 {
     assert(shm_ctx);
     assert(msg);
 
     bool retval;
-    retval = shmring_push(shm_ctx->handle, (char *)msg, EPOLL_MSG_SIZE);
+    retval = shmring_push(
+        shm_ctx->handle, (char *)msg, EPOLL_MSG_SIZE);
     while (!retval)
     {
         sched_yield();
         INFO("shmring_push() failed and maybe shmring is full.");
-        retval = shmring_push(shm_ctx->handle, (char *)msg, EPOLL_MSG_SIZE);
+        retval = shmring_push(
+            shm_ctx->handle, (char *)msg, EPOLL_MSG_SIZE);
     }
 
     DEBUG("epoll_shm_send() success");
     return retval ? 0 : -1;
 }
 
-int epoll_shm_recv(epoll_shm_context_t shm_ctx, epoll_msg *recv_msg)
+int epoll_shm_recv(
+    epoll_shm_context_t shm_ctx, epoll_msg *recv_msg)
 {
     assert(shm_ctx);
     assert(recv_msg);
 
     bool retval;
-    retval = shmring_pop(shm_ctx->handle, (char *)recv_msg, EPOLL_MSG_SIZE);
+    retval = shmring_pop(
+        shm_ctx->handle, (char *)recv_msg, EPOLL_MSG_SIZE);
     int retry_cnt = 1;
     while (!retval)
     {
@@ -118,14 +132,16 @@ int epoll_shm_recv(epoll_shm_context_t shm_ctx, epoll_msg *recv_msg)
         }
 
         sched_yield();
-        retval = shmring_pop(shm_ctx->handle, (char *)recv_msg, EPOLL_MSG_SIZE);
+        retval = shmring_pop(
+            shm_ctx->handle, (char *)recv_msg, EPOLL_MSG_SIZE);
         retry_cnt++;
     }
 
     return 0;
 }
 
-int epoll_shm_close(epoll_shm_context_t shm_ctx, bool is_slave)
+int epoll_shm_close(
+    epoll_shm_context_t shm_ctx, bool is_slave)
 {
     assert(shm_ctx);
 
@@ -145,10 +161,12 @@ int epoll_shm_close(epoll_shm_context_t shm_ctx, bool is_slave)
     DEBUG("epoll_shm_close() pass");
     return 0;
 }
+
 int epoll_shm_master_close(epoll_shm_context_t shm_ctx)
 {
     return epoll_shm_close(shm_ctx, false);
 }
+
 int epoll_shm_slave_close(epoll_shm_context_t shm_ctx)
 {
     return epoll_shm_close(shm_ctx, true);
