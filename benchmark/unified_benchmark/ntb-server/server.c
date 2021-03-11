@@ -607,16 +607,16 @@ void latency_report_perf(size_t *start_cycles,
         sum += lat[i];
     }
     qsort(lat, num_req, sizeof(lat[0]), cmp);
-    size_t idx_m, idx_99, idx_99_9, idx_99_99;
-    idx_m = floor(num_req * 0.5);
+    size_t idx_50, idx_90, idx_99, idx_99_9;
+    idx_50 = floor(num_req * 0.5);
+    idx_90 = floor(num_req * 0.9);
     idx_99 = floor(num_req * 0.99);
     idx_99_9 = floor(num_req * 0.999);
-    idx_99_99 = floor(num_req * 0.9999);
 
     printf("@MEASUREMENT(requests = %d, payload size = %d, sockfd = %d):\n\
-MEDIAN = %.2f us\n50 TAIL = %.2f us\n99 TAIL = %.2f us\n99.9 TAIL = %.2f us\n99.99 TAIL = %.2f us\n",
-           num_req, payload_size, sockfd, sum / num_req, lat[idx_m],
-           lat[idx_99], lat[idx_99_9], lat[idx_99_99]);
+AVERAGE = %.2f us\n50 TAIL = %.2f us\n90 TAIL = %.2f us\n99 TAIL = %.2f us\n99.9 TAIL = %.2f us\n",
+           num_req, payload_size, sockfd, sum / num_req, lat[idx_50],
+           lat[idx_90], lat[idx_99], lat[idx_99_9]);
 
     free(lat);
 }
@@ -635,11 +635,11 @@ void latency_report_perf_to_file(
         sum += lat[i];
     }
     qsort(lat, num_req, sizeof(lat[0]), cmp);
-    size_t idx_m, idx_99, idx_99_9, idx_99_99;
-    idx_m = floor(num_req * 0.5);
+    size_t idx_50, idx_90, idx_99, idx_99_9;
+    idx_50 = floor(num_req * 0.5);
+    idx_90 = floor(num_req * 0.9);
     idx_99 = floor(num_req * 0.99);
     idx_99_9 = floor(num_req * 0.999);
-    idx_99_99 = floor(num_req * 0.9999);
 
     // Lock
     pthread_mutex_lock(&mutex);
@@ -647,9 +647,9 @@ void latency_report_perf_to_file(
     log_ctx_t ctx = log_init(file_path, strlen(file_path));
 
     fprintf(ctx->file, "@MEASUREMENT(requests = %d, payload size = %d, sockfd = %d):\n\
-MEDIAN = %.2f us\n50 TAIL = %.2f us\n99 TAIL = %.2f us\n99.9 TAIL = %.2f us\n99.99 TAIL = %.2f us\n",
-            num_req, payload_size, sockfd, sum / num_req,
-            lat[idx_m], lat[idx_99], lat[idx_99_9], lat[idx_99_99]);
+AVERAGE = %.2f us\n50 TAIL = %.2f us\n90 TAIL = %.2f us\n99 TAIL = %.2f us\n99.9 TAIL = %.2f us\n",
+            num_req, payload_size, sockfd, sum / num_req, lat[idx_50],
+            lat[idx_90], lat[idx_99], lat[idx_99_9]);
 
     log_destroy(ctx);
 
