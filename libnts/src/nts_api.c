@@ -978,8 +978,7 @@ int nts_close(int sockid)
 	Remove(nts_ctx->nt_sock_map, &sockid);
 
 	int retval;
-	if (nt_sock_ctx->socket->socktype != NT_SOCK_LISTENER 
-			&& nt_sock_ctx->socket->state != ESTABLISHED)
+	if (nt_sock_ctx->socket->socktype != NT_SOCK_LISTENER && nt_sock_ctx->socket->state != ESTABLISHED)
 	{
 		DEBUG("free UNESTABLISHED client nt_socket");
 		nt_sock_ctx->socket->state = CLOSED;
@@ -1362,8 +1361,6 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes)
 				// free ntpacket into shm mempool
 				ntp_shm_ntpacket_free(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
 
-				DEBUG("bytes_read =%d, bytes_left = %d, data=%s",
-					  bytes_read, bytes_left, ptr);
 				break;
 			}
 			else
