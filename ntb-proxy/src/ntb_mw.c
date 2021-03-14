@@ -580,11 +580,11 @@ ntb_mem_formatting(
 
         ntb_link->partitions[i].data_link->local_ring =
             ntb_ring_create((uint8_t *)data_local_ptr + 8,
-                            NTP_CONFIG.data_ringbuffer_size, 
+                            NTP_CONFIG.data_ringbuffer_size,
                             1 << NTP_CONFIG.ntb_packetbits_size);
         ntb_link->partitions[i].data_link->remote_ring =
             ntb_ring_create((uint8_t *)data_remote_ptr + 8,
-                            NTP_CONFIG.data_ringbuffer_size, 
+                            NTP_CONFIG.data_ringbuffer_size,
                             1 << NTP_CONFIG.ntb_packetbits_size);
 
         data_local_ptr = data_local_ptr + NTP_CONFIG.data_ringbuffer_size + 8;
@@ -597,11 +597,12 @@ ntb_mem_formatting(
 
 struct ntb_link_custom *ntb_start(uint16_t dev_id)
 {
-    struct rte_rawdev *dev;
-
-    dev = &rte_rawdevs[dev_id];
-
-    NTP_CONFIG.data_packet_size = 1 << NTP_CONFIG.ntb_packetbits_size;
+    int retval;
+    retval = rte_rawdev_start(dev_id);
+    if (retval != 0)
+    {
+        return NULL;
+    }
 
     struct ntb_link_custom *ntb_link = malloc(sizeof(*ntb_link));
     if (UNLIKELY(!ntb_link))
@@ -609,27 +610,18 @@ struct ntb_link_custom *ntb_start(uint16_t dev_id)
         return NULL;
     }
 
+    struct rte_rawdev *dev;
+    dev = &rte_rawdevs[dev_id];
+
+    ntb_link->dev_id = dev_id;
     ntb_link->dev = dev;
     ntb_link->hw = dev->dev_private;
+
     ntb_link->ctrl_link = malloc(sizeof(struct ntb_ctrl_link));
     if (UNLIKELY(!ntb_link->ctrl_link))
     {
         free(ntb_link);
         return NULL;
-    }
-
-    if (dev->started != 0)
-    {
-        DEBUG("Device with dev_id=%d already started",
-              dev_id);
-        return NULL;
-    }
-
-    int diag = (*dev->dev_ops->dev_start)(dev);
-
-    if (diag == 0)
-    {
-        dev->started = 1;
     }
 
     // init the ntb_link partitions
@@ -837,13 +829,22 @@ FAIL:
         free(ntb_link->partitions);
         ntb_link->partitions = NULL;
     }
+
+    if (ntb_link->dev)
+    {
+        /* Stop traffic and Close port. */
+        rte_rawdev_stop(ntb_link->dev_id);
+        rte_rawdev_close(ntb_link->dev_id);
+    }
+
     free(ntb_link);
     ntb_link = NULL;
 
     return NULL;
 }
 
-void ntb_destroy(struct ntb_link_custom *ntb_link)
+void ntb_destroy(struct ntb_link_custom *ntb_link,
+                 struct ntp_lcore_conf *lcore_conf)
 {
     if (!ntb_link)
         return;
@@ -854,6 +855,25 @@ void ntb_destroy(struct ntb_link_custom *ntb_link)
     printf("\n***************** NTP Exit... *****************\n");
 
     ntb_link->is_stop = true;
+
+    struct ntp_lcore_conf *conf;
+	uint32_t lcore_id;
+
+    /* Stop transmission first. */
+    RTE_LCORE_FOREACH_SLAVE(lcore_id)
+	{
+        conf = &lcore_conf[lcore_id];
+
+		if (!conf->is_enabled)
+			continue;
+
+		if (conf->stopped)
+			continue;
+
+		conf->stopped = 1;
+    }
+    printf("\nWaiting for lcores to finish...\n");
+	rte_eal_mp_wait_lcore();
 
     // wait or join for ntb_link->ntm_ntp_listener
     pthread_join(ntb_link->ntm_ntp_listener, NULL);
@@ -912,9 +932,9 @@ void ntb_destroy(struct ntb_link_custom *ntb_link)
         epoll_ctx = NULL;
     }
     freeHashMapIterator(&iter);
-    Clear(epoll_ctx->ep_conn_map);
-    free(epoll_ctx->ep_conn_map);
-    epoll_ctx->ep_conn_map = NULL;
+    Clear(ntb_link->epoll_ctx_map);
+    free(ntb_link->epoll_ctx_map);
+    ntb_link->epoll_ctx_map = NULL;
 
     // free send/receive epoll context resources
     if (ntb_link->ntp_ep_recv_ctx)
@@ -1080,9 +1100,17 @@ void ntb_destroy(struct ntb_link_custom *ntb_link)
     free(ntb_link->port2conn);
     ntb_link->port2conn = NULL;
 
+    uint16_t dev_id = ntb_link->dev_id;
+
     // free ntb_link
     free(ntb_link);
     ntb_link = NULL;
 
+    /* Stop traffic and Close port. */
+    printf("\nStop traffic and Close port...\n");
+	rte_rawdev_stop(dev_id);
+	rte_rawdev_close(dev_id);
+
     DEBUG("ntb_destroy success");
+    printf("\n***************** NTP Exit Completely *****************\n");
 }

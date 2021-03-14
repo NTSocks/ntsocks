@@ -38,9 +38,10 @@ int ntp_send_buff_data(struct ntb_data_link *data_link,
                        ntb_partition_t partition,
                        ntp_shm_context_t ring, ntb_conn *conn);
 
-int ntp_receive_data_to_buff(struct ntb_data_link *data_link,
-                             struct ntb_link_custom *ntb_link,
-                             ntb_partition_t partition);
+int ntp_recv_data_to_buf(struct ntb_data_link *data_link,
+                            struct ntb_link_custom *ntb_link,
+                            ntb_partition_t partition, 
+                            struct ntp_lcore_conf * conf);
 
 int ntp_ctrl_msg_receive(struct ntb_link_custom *ntb_link);
 

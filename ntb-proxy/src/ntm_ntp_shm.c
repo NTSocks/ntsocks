@@ -100,7 +100,6 @@ int ntm_ntp_shm_close(ntm_ntp_shm_context_t shm_ctx)
 
 	ntm_ntp_shmring_free(shm_ctx->ntm_ntpring_handle, 1);
 	shm_ctx->shm_stat = NTS_SHM_UNLINK;
-	free(shm_ctx->ntm_ntpring_handle);
 
 	DEBUG("ntm_ntp_shm_close pass");
 	return 0;
@@ -112,7 +111,6 @@ int ntm_ntp_shm_ntm_close(ntm_ntp_shm_context_t shm_ctx)
 
 	ntm_ntp_shmring_free(shm_ctx->ntm_ntpring_handle, 0);
 	shm_ctx->shm_stat = NTS_SHM_CLOSE;
-	free(shm_ctx->ntm_ntpring_handle);
 
 	DEBUG("ntm_ntp_shm_ntm_close pass");
 	return 0;

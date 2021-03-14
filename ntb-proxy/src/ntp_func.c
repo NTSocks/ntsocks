@@ -327,10 +327,16 @@ int ntp_send_buff_data(struct ntb_data_link *data_link,
     return recv_cnt;
 }
 
-int ntp_receive_data_to_buff(struct ntb_data_link *data_link,
-                             struct ntb_link_custom *ntb_link,
-                             ntb_partition_t partition)
+int ntp_recv_data_to_buf(struct ntb_data_link *data_link,
+                            struct ntb_link_custom *ntb_link,
+                            ntb_partition_t partition, 
+                            struct ntp_lcore_conf * conf)
 {
+    assert(data_link);
+    assert(ntb_link);
+    assert(partition);
+    assert(conf);
+
     // local NTB-based data ringbuffer
     struct ntb_ring_buffer *recv_dataring = data_link->local_ring;
     volatile ntpacket_t msg, fin_msg;
@@ -347,12 +353,22 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link,
     int i, count;
     uint64_t next_index, fin_index, temp_index;
     int rc;
+    uint64_t loop_cnt = 0;
 
     while (!ntb_link->is_stop)
     {
         packet_ptr = (void *)(recv_dataring->start_addr +
                               (recv_dataring->cur_index << NTP_CONFIG.ntb_packetbits_size));
         rc = parse_ntpacket(packet_ptr, &msg);
+
+        loop_cnt++;
+        if (loop_cnt % 100000 == 0)
+        {
+            if (conf->stopped)
+                break;
+
+            loop_cnt = 0;
+        }
 
         // if no msg,continue
         if (rc == -1 || (msg && msg->header.msg_len == 0))
