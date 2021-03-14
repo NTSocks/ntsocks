@@ -11,7 +11,7 @@
 #include <signal.h>
 #include <string.h>
 #include <getopt.h>
-
+#include <sys/types.h>
 #include <errno.h>
 
 #include <rte_io.h>
@@ -204,23 +204,42 @@ ntm_ntp_receive_thread(__attribute__((unused)) void *arg)
 	return NULL;
 }
 
-void ntp_on_exit(void)
+// for quit signal
+static volatile bool s_signal_quit = false;
+static volatile int s_signum = -1;
+
+static void before_exit(void)
 {
-	INFO("destroy ntp resource when on exit.");
-	ntb_destroy(ntb_link);
+	INFO("destroy all ntm resources when on exit.");
+	if (!s_signal_quit) 
+	{
+		s_signal_quit = true;
+		ntb_destroy(ntb_link);
+
+		if (s_signum != -1)
+		{
+			kill(getpid(), s_signum);
+		}
+	}
 }
 
-void signal_crash_handler(int sig)
+static void crash_handler(int signum)
 {
-	INFO("destroy ntp resource when on crash.");
+	printf("\n[Crash]: Signal %d received, preparing to exit...\n", signum);
+	s_signum = signum;
 	exit(-1);
 }
 
-void signal_exit_handler(int sig)
+static void signal_exit_handler(int signum)
 {
-	INFO("destroy ntp resource when normally exit.");
+	if (signum == SIGINT || signum == SIGTERM) 
+	{
+		printf("\nSignal %d received, preparing to exit...\n", signum);
+		s_signum = signum;
+	}
 	exit(0);
 }
+
 
 static void *
 ntp_epoll_listen_thread(__attribute__((unused)) void *arg)
@@ -282,14 +301,14 @@ int main(int argc, char **argv)
 	}
 
 	// register exit event processing
-	atexit(ntp_on_exit);
+	atexit(before_exit);
 	signal(SIGTERM, signal_exit_handler);
 	signal(SIGINT, signal_exit_handler);
 
-	signal(SIGBUS, signal_crash_handler);  // 总线错误
-	signal(SIGSEGV, signal_crash_handler); // SIGSEGV，非法内存访问
-	signal(SIGFPE, signal_crash_handler);  // SIGFPE，数学相关的异常，如被0除，浮点溢出，等等
-	signal(SIGABRT, signal_crash_handler); // SIGABRT，由调用abort函数产生，进程非正常退出
+	signal(SIGBUS, crash_handler);  // 总线错误
+	signal(SIGSEGV, crash_handler); // SIGSEGV，非法内存访问
+	signal(SIGFPE, crash_handler);  // SIGFPE，数学相关的异常，如被0除，浮点溢出，等等
+	signal(SIGABRT, crash_handler); // SIGABRT，由调用abort函数产生，进程非正常退出
 
 	dev_id = i;
 
@@ -313,24 +332,29 @@ int main(int argc, char **argv)
 		NTP_CONFIG.data_packet_size - NTPACKET_HEADER_LEN;
 
 	ntb_link = ntb_start(dev_id);
+	if (!ntb_link) 
+	{
+		fprintf(stderr, "\n*********** NTB Link start failed ***********\n");
+		rte_exit(EXIT_FAILURE, "NTB Link start failed.\n");
+	}
 
 	DEBUG("mem addr == %ld ,len == %ld",
 		  ntb_link->hw->pci_dev->mem_resource[2].phys_addr,
 		  ntb_link->hw->pci_dev->mem_resource[2].len);
 
-	uint16_t reg_val;
 	if (ntb_link->hw == NULL)
 	{
 		ERR("Invalid device.");
-		return -1;
+		rte_exit(EXIT_FAILURE, "Invalid NTB device.\n");
 	}
 
+	uint16_t reg_val;
 	ret = rte_pci_read_config(ntb_link->hw->pci_dev, &reg_val,
 							  sizeof(reg_val), XEON_LINK_STATUS_OFFSET);
 	if (ret < 0)
 	{
-		ERR("Unable to get link status.");
-		return -1;
+		ERR("Unable to get NTB link status.");
+        rte_exit(EXIT_FAILURE, "Unable to get NTB link status.\n");
 	}
 
 	ntb_link->hw->link_status = NTB_LNK_STA_ACTIVE(reg_val);

@@ -848,6 +848,11 @@ void ntb_destroy(struct ntb_link_custom *ntb_link)
     if (!ntb_link)
         return;
 
+    if (ntb_link->is_stop)
+        return;
+
+    printf("\n***************** NTP Exit... *****************\n");
+
     ntb_link->is_stop = true;
 
     // wait or join for ntb_link->ntm_ntp_listener
