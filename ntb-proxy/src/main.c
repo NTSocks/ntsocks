@@ -255,17 +255,14 @@ ntp_epoll_listen_thread(__attribute__((unused)) void *arg)
 	while (!ntb_link->is_stop)
 	{
 		rc = epoll_sem_shm_recv(ep_recv_ctx, &req_msg);
-		if (LIKELY(rc == 0))
+		if (UNLIKELY(rc != 0 || ntb_link->is_stop))
 		{
-			DEBUG("receive one epoll_msg from ntm");
-			rc = ntp_handle_epoll_msg(ntb_link, &req_msg);
-
-			if (rc != 0)
-			{
-				break;
-			}
+			break;
 		}
-		else
+		
+		DEBUG("receive one epoll_msg from ntm");
+		rc = ntp_handle_epoll_msg(ntb_link, &req_msg);
+		if (rc != 0)
 		{
 			break;
 		}
@@ -301,6 +298,7 @@ int main(int argc, char **argv)
 	}
 
 	// register exit event processing
+	s_signal_quit = false;
 	atexit(before_exit);
 	signal(SIGTERM, signal_exit_handler);
 	signal(SIGINT, signal_exit_handler);

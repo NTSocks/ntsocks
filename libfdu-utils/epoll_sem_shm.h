@@ -40,6 +40,8 @@ extern "C"
         int epoll_sem_shm_recv(
             epoll_sem_shm_ctx_t shm_ctx, epoll_msg *recv_msg);
 
+        int epoll_sem_try_exit(epoll_sem_shm_ctx_t shm_ctx);
+
         int epoll_sem_shm_close(
             epoll_sem_shm_ctx_t shm_ctx, bool is_slave);
         int epoll_sem_shm_master_close(

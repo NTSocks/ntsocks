@@ -125,6 +125,25 @@ int epoll_sem_shm_recv(
     return 0;
 }
 
+int epoll_sem_try_exit(epoll_sem_shm_ctx_t shm_ctx)
+{
+    assert(shm_ctx);
+
+    epoll_msg msg;
+    msg.id = 1;
+    msg.msg_type = EPOLL_MSG_CLOSE;
+    int rc;
+    rc = sem_shmring_push(
+        shm_ctx->handle, (char *)&msg, EPOLL_MSG_SIZE);
+    if (UNLIKELY(rc == -1))
+    {
+        ERR("epoll_sem_shm_send() failed and maybe sem_shmring is full.");
+        return -1;
+    }
+
+    return 0;
+}
+
 int epoll_sem_shm_close(
     epoll_sem_shm_ctx_t shm_ctx, bool is_slave)
 {

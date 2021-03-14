@@ -860,6 +860,9 @@ void ntb_destroy(struct ntb_link_custom *ntb_link)
 
     pthread_join(ntb_link->ntm_ntp_listener, NULL);
     pthread_join(ntb_link->ctrl_recv_thr, NULL);
+
+    // required by epoll daemon thread
+    epoll_sem_try_exit(ntb_link->ntp_ep_recv_ctx);
     pthread_join(ntb_link->epoll_listen_thr, NULL);
 
     // free epoll-related resources
