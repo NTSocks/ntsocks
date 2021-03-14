@@ -56,14 +56,6 @@ int ntm_init(const char *config_file)
 {
 
 	/**
-	 * register signal callback functions
-	 */
-	// signal(SIGINT, ntm_destroy);
-	// signal(SIGKILL, ntm_destroy);
-	// signal(SIGSEGV, ntm_destroy);
-	// signal(SIGTERM, ntm_destroy);
-
-	/**
 	 * read conf file and init ntm params
 	 */
 	DEBUG("load the ntm config file");
@@ -305,7 +297,7 @@ void ntm_destroy()
 		return;
 	}
 
-	DEBUG("nt_destroy ready...");
+	printf("\n ******************* NTM Exit... *******************\n");
 	bool ret;
 	void *status;
 
@@ -351,15 +343,6 @@ void ntm_destroy()
 		shutdown(ntm_conn->client_sock->socket_fd, SHUT_RDWR);
 		pthread_join(ntm_conn->recv_thr, &status);
 
-		if (ntm_conn->client_sock)
-		{
-			ntm_free(ntm_conn->client_sock);
-		}
-		if (ntm_conn)
-		{
-			free(ntm_conn);
-			ntm_conn = NULL;
-		}
 	}
 	freeHashMapIterator(&iter);
 	Clear(ntm_mgr->ntm_conn_ctx->conn_map);
@@ -1177,7 +1160,7 @@ handle_stop_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg)
 
 	// wait a while and destroy local ntm_conn
 	usleep(1000);
-	ntm_close_socket(ntm_conn->client_sock);
+	ntm_free(ntm_conn->client_sock);
 
 	DEBUG("handle_stop_msg success");
 
@@ -1200,7 +1183,7 @@ handle_stop_confirm_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg)
 	ntm_conn->running_signal = false;
 
 	usleep(1000);
-	ntm_close_socket(ntm_conn->client_sock);
+	ntm_free(ntm_conn->client_sock);
 
 	DEBUG("handle_stop_confirm_msg success");
 }
@@ -1245,11 +1228,18 @@ void *ntm_sock_listen_thread(void *args)
 		{
 			if (!ntm_conn_ctx->running_signal)
 			{
-				ntm_close_socket(client_sock);
+				ntm_free(client_sock);
 				break;
 			}
 			continue;
 		}
+
+		if (!ntm_conn_ctx->running_signal) 
+        {
+			printf("\nRecv exit signal, exit...\n");
+			ntm_free(client_sock);
+			break;
+        }
 
 		// start async recv thread to receive messages
 		ntm_conn_t client_conn = (ntm_conn_t)calloc(1, sizeof(struct ntm_conn));
@@ -1297,15 +1287,19 @@ void *ntm_sock_recv_thread(void *args)
 		ntm_sock_msg incoming_msg;
 		retval = ntm_recv_tcp_msg(
 			ntm_conn->client_sock, (char *)&incoming_msg, sizeof(incoming_msg));
-		if (!retval == 0 && !ntm_conn->running_signal)
+		if (retval <= 0 || !ntm_conn->running_signal)
 		{
+			if (ntm_conn->running_signal && retval < 0 &&
+				((errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN)))
+			{
+				continue;
+			} 
+
 			break;
 		}
-		if (!ntm_conn->running_signal)
-		{
-			break;
-		}
-		DEBUG("recv a message");
+
+		DEBUG("recv a message with sockfd = %d", ntm_conn->client_sock->socket_fd);
+
 		retval = ntm_sock_handle_msg(ntm_conn, incoming_msg);
 		if (retval == -1)
 		{
@@ -1314,7 +1308,6 @@ void *ntm_sock_recv_thread(void *args)
 		}
 	}
 
-	Remove(ntm_mgr->ntm_conn_ctx->conn_map, ntm_conn->ip);
 	if (ntm_conn->client_sock)
 	{
 		ntm_free(ntm_conn->client_sock);
@@ -1730,8 +1723,6 @@ for response to NT_ERR_REQUIRE_CLOSED_OR_BOUND_FIRST");
 			client_sock, NTM_LISTEN_PORT, nts_shm_conn->ip);
 		if (retval)
 		{
-			ntm_close_socket(client_sock);
-
 			response_msg.retval = -1;
 			response_msg.nt_errno = NT_ERR_REMOTE_NTM_NOT_FOUND;
 			retval = nts_shm_send(
@@ -2907,18 +2898,15 @@ void *nts_shm_recv_thread(void *args)
 	{
 		int retval;
 		retval = ntm_shm_recv(nts_ctx->shm_recv_ctx, &recv_msg);
-		if (nts_ctx->shm_recv_signal == 0)
-			break;
-		if (retval == 0)
-		{
-			DEBUG("receive a message");
-			nts_shm_handle_msg(ntm_mgr, recv_msg);
-		}
-		else
+		if (retval != 0 || nts_ctx->shm_recv_signal == 0) 
 		{
 			ERR("failed to receive a message");
+			printf("\nshm_recv_signal is 0 and exit...\n");
 			break;
 		}
+
+		DEBUG("receive a message");
+		nts_shm_handle_msg(ntm_mgr, recv_msg);
 	}
 
 	DEBUG("nts_shm_recv_thread end!");

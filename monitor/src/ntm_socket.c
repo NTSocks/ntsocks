@@ -181,9 +181,5 @@ int ntm_close_socket(ntm_socket_t ntsock)
         close(ntsock->socket_fd);
     }
 
-    // if(ntsock) {
-    //     free(ntsock);
-    // }
-
     return 0;
 }
