@@ -201,9 +201,9 @@ shm_mp_init(size_t block_len,
         mp_handler->shm_mp->free_header_idx = -1;
         mp_handler->shm_mp->free_tail_idx = -1;
         mp_handler->shm_mp->used_header_idx = -1;
-        DEBUG("mp_handler->shm_mp: column=%d, total_count=%d, used_count=%d, block_len=%d \n",
+        DEBUG("mp_handler->shm_mp: column=%d, total_count=%d, block_len=%d \n",
               mp_handler->shm_mp->column, mp_handler->shm_mp->total_count,
-              mp_handler->shm_mp->used_count, mp_handler->shm_mp->block_len);
+              mp_handler->shm_mp->block_len);
 
         shm_mempool_node *curr_node = NULL;
         shm_mempool_node *new_node = NULL;
@@ -330,24 +330,12 @@ shm_mp_malloc(shm_mp_handler_t mp_handler, size_t size)
     assert(mp_handler);
     DEBUG("shm_mp_malloc start.");
 
-    DEBUG("mp_handler->shm_mp: column=%d, total_count=%d, used_count=%d, block_len=%d \n",
+    DEBUG("mp_handler->shm_mp: column=%d, total_count=%d, block_len=%d \n",
           mp_handler->shm_mp->column, mp_handler->shm_mp->total_count,
-          mp_handler->shm_mp->used_count, mp_handler->shm_mp->block_len);
+          mp_handler->shm_mp->block_len);
 
-    int ret;
-
-    ret = sem_wait(mp_handler->sem_mutex);
-    if (UNLIKELY(ret == -1))
-    {
-        perror("sem_wait: sem_mutex");
-        return NULL;
-    }
-
-    shm_mempool_node *node = NULL;
-
+    shm_mempool_node *node;
     size = mp_handler->shm_mp->block_len;
-
-    // print all node_idx and next_idx
 
     int node_idx = mp_handler->shm_mp->free_header_idx;
     if (UNLIKELY(node_idx == -1))
@@ -356,36 +344,24 @@ shm_mp_malloc(shm_mp_handler_t mp_handler, size_t size)
             mp_handler->shm_mp->free_header_idx,
             mp_handler->shm_mp->free_tail_idx);
         shm_mp_runtime_print(mp_handler);
-        ret = sem_post(mp_handler->sem_mutex);
         return NULL;
     }
 
     node = &mp_handler->shm_mp_nodes[node_idx];
     DEBUG("node->node_idx=%d, node_idx=%d", node->node_idx, node_idx);
     mp_handler->shm_mp->free_header_idx = node->next_node_idx;
+    __WRITE_BARRIER__;
 
     if (node->next_node_idx == -1)
     {
         printf("mp_handler->shm_mp->free_header_idx == -1, node_idx=%d\n", node->node_idx);
     }
-    mp_handler->shm_mp->used_count++;
 
     // TODO:
-
     // node->next_node_idx = mp_handler->shm_mp->used_header_idx;
     // mp_handler->shm_mp->used_header_idx = node->node_idx;
 
-    ret = sem_post(mp_handler->sem_mutex);
-    if (UNLIKELY(ret == -1))
-    {
-        perror("sem_post: sem_mutex");
-        return NULL;
-    }
-
     DEBUG("shm_mp_malloc success\n");
-    DEBUG("mp_handler->shm_mp: column=%d, total_count=%d, used_count=%d, block_len=%d \n",
-          mp_handler->shm_mp->column, mp_handler->shm_mp->total_count,
-          mp_handler->shm_mp->used_count, mp_handler->shm_mp->block_len);
 
     return node;
 }
@@ -450,21 +426,11 @@ int shm_mp_free(
     assert(node);
 
     DEBUG("shm_mp_free start.");
-    DEBUG("mp_handler->shm_mp: column=%d, total_count=%d, used_count=%d, block_len=%d \n",
+    DEBUG("mp_handler->shm_mp: column=%d, total_count=%d, block_len=%d \n",
           mp_handler->shm_mp->column,
           mp_handler->shm_mp->total_count,
-          mp_handler->shm_mp->used_count,
           mp_handler->shm_mp->block_len);
 
-    int ret;
-    ret = sem_wait(mp_handler->sem_mutex);
-    if (ret == -1)
-    {
-        perror("sem_wait: sem_mutex");
-        return -1;
-    }
-
-    DEBUG("free shm mempool nodes start.\n");
     // TODO:
     if (mp_handler->shm_mp->free_tail_idx != -1)
     {
@@ -481,8 +447,7 @@ int shm_mp_free(
             .next_node_idx = node->node_idx;
 
         mp_handler->shm_mp->free_tail_idx = node->node_idx;
-
-        mp_handler->shm_mp->used_count--;
+        __WRITE_BARRIER__;
     }
     else
     {
@@ -495,14 +460,7 @@ int shm_mp_free(
         node->next_node_idx = -1;
         mp_handler->shm_mp->free_tail_idx = node->node_idx;
         mp_handler->shm_mp->free_header_idx = node->node_idx;
-        mp_handler->shm_mp->used_count--;
-    }
-
-    ret = sem_post(mp_handler->sem_mutex);
-    if (ret == -1)
-    {
-        perror("sem_post: sem_mutex");
-        return -1;
+        __WRITE_BARRIER__;
     }
 
     INFO("shm_mp_free success.\n");
@@ -515,10 +473,9 @@ int shm_mp_destroy(
 {
     assert(mp_handler);
     DEBUG("shm_mp_destroy start.\n");
-    DEBUG("mp_handler->shm_mp: column=%d, total_count=%d, used_count=%d, block_len=%d \n",
+    DEBUG("mp_handler->shm_mp: column=%d, total_count=%d, block_len=%d \n",
           mp_handler->shm_mp->column,
           mp_handler->shm_mp->total_count,
-          mp_handler->shm_mp->used_count,
           mp_handler->shm_mp->block_len);
 
     int block_count = 0;
@@ -600,10 +557,9 @@ int shm_mp_destroy(
 
 int shm_mp_runtime_print(shm_mp_handler_t mp_handler)
 {
-    DEBUG("mp_handler->shm_mp: column=%d, total_count=%d, used_count=%d, block_len=%d \n",
+    DEBUG("mp_handler->shm_mp: column=%d, total_count=%d, block_len=%d \n",
           mp_handler->shm_mp->column,
           mp_handler->shm_mp->total_count,
-          mp_handler->shm_mp->used_count,
           mp_handler->shm_mp->block_len);
 
     if (mp_handler == NULL || mp_handler->shm_mp == NULL)
@@ -613,11 +569,9 @@ int shm_mp_runtime_print(shm_mp_handler_t mp_handler)
     }
 
     printf("\n*********************** memory pool runtime report start************************\n");
-    printf("pool no[%d] blocksize[%d] \
-blockTotalCount[%d] usedBlock[%d] used percentage[%d%%]\n",
+    printf("pool no[%d] blocksize[%d] blockTotalCount[%d]\n",
            mp_handler->shm_mp->column, mp_handler->shm_mp->block_len,
-           mp_handler->shm_mp->total_count, mp_handler->shm_mp->used_count,
-           mp_handler->shm_mp->used_count * 100 / mp_handler->shm_mp->total_count);
+           mp_handler->shm_mp->total_count);
 
     printf("*********************** memory pool runtime report end**************************\n");
 
