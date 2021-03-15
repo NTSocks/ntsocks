@@ -102,6 +102,8 @@ ntb_send_thread(__attribute__((unused)) void *arg)
 	uint64_t counter = 0;
 	uint64_t loop_cnt = 0;
 
+	memset(partition->data_link->remote_ring->start_addr, 0, NTP_CONFIG.data_ringbuffer_size);
+
 	while (!ntb_link->is_stop)
 	{
 		curr_node = pre_node->next_node;

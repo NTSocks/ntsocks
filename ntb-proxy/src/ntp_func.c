@@ -355,6 +355,8 @@ int ntp_recv_data_to_buf(struct ntb_data_link *data_link,
     int rc;
     uint64_t loop_cnt = 0;
 
+    memset(recv_dataring->start_addr, 0, NTP_CONFIG.data_ringbuffer_size);
+
     while (!ntb_link->is_stop)
     {
         packet_ptr = (void *)(recv_dataring->start_addr +
