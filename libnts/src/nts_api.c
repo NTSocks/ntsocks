@@ -1356,7 +1356,6 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes)
 				if (is_cached)
 				{
 					// if the payload is copied from ntp_buf
-					memset(nt_sock_ctx->ntp_buf, 0, nt_sock_ctx->ntp_buflen);
 					nt_sock_ctx->ntp_buflen = 0;
 				}
 
@@ -1410,7 +1409,6 @@ and buf_avail_bytes < bytes_left with bytes_read=%d",
 				if (is_cached)
 				{
 					// if the payload is copied from ntp_buf
-					memset(nt_sock_ctx->ntp_buf, 0, nt_sock_ctx->ntp_buflen);
 					nt_sock_ctx->ntp_buflen = 0;
 				}
 

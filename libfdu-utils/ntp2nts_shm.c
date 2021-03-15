@@ -597,7 +597,5 @@ void ntp_shm_ntpacket_free(
         shm_mp_free(shm_ctx->mp_handler, tmp_node);
     }
 
-    memset((void *)&(*buf)->header,
-           0, sizeof(struct ntpacket_header));
     *buf = NULL;
 }

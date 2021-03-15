@@ -248,7 +248,6 @@ bool shmring_push(
         return false;
     }
 
-    memset(self->data[w_idx], 0, self->ele_size);
     memcpy(self->data[w_idx], element, ele_len);
 
     nt_atomic_store64_explicit(&self->queue->write_idx,
@@ -275,7 +274,6 @@ bool shmring_pop(shmring_handle_t self,
 
     ele_len = UNLIKELY(ele_len > self->ele_size) ? self->ele_size : ele_len;
 
-    memset(element, 0, ele_len);
     memcpy(element, self->data[r_idx], ele_len);
 
     nt_atomic_store64_explicit(&self->queue->read_idx,
@@ -326,7 +324,6 @@ bool shmring_push_bulk(shmring_handle_t self,
     {
         for (size_t i = 0; i < count; i++)
         {
-            memset(self->data[w_idx + i], 0, self->ele_size);
             memcpy(self->data[w_idx + i], elements[i], ele_lens[i]);
         }
     }
@@ -336,13 +333,11 @@ bool shmring_push_bulk(shmring_handle_t self,
 
         for (i = 0; i < self->capacity - w_idx; i++)
         {
-            memset(self->data[w_idx + i], 0, self->ele_size);
             memcpy(self->data[w_idx + i], elements[i], ele_lens[i]);
         }
 
         for (j = 0; j < w_next_idx; j++, i++)
         {
-            memset(self->data[j], 0, self->ele_size);
             memcpy(self->data[j], elements[i], ele_lens[i]);
         }
     }
@@ -383,7 +378,6 @@ size_t shmring_pop_bulk(shmring_handle_t self,
 
         for (size_t i = 0; i < pop_cnt; i++)
         {
-            memset(elements[i], 0, max_lens[i]);
             memcpy(elements[i],
                    self->data[self->queue->read_idx + i], max_lens[i]);
         }
@@ -402,7 +396,6 @@ size_t shmring_pop_bulk(shmring_handle_t self,
         {
             for (i = 0; i < pop_cnt; i++)
             {
-                memset(elements[i], 0, max_lens[i]);
                 memcpy(elements[i],
                        self->data[self->queue->read_idx + i], max_lens[i]);
             }
@@ -414,7 +407,6 @@ size_t shmring_pop_bulk(shmring_handle_t self,
 
             for (; curr_read_idx < self->capacity; i++, curr_read_idx++)
             {
-                memset(elements[i], 0, max_lens[i]);
                 memcpy(elements[i],
                        self->data[curr_read_idx], max_lens[i]);
             }
@@ -422,7 +414,6 @@ size_t shmring_pop_bulk(shmring_handle_t self,
             for (curr_read_idx = 0;
                  curr_read_idx < r_next_idx; curr_read_idx++, i++)
             {
-                memset(elements[i], 0, max_lens[i]);
                 memcpy(elements[i],
                        self->data[curr_read_idx], max_lens[i]);
             }
@@ -454,7 +445,6 @@ bool shmring_front(
         return false;
     }
 
-    memset(element, 0, ele_len);
     memcpy(element, self->data[r_idx], ele_len);
 
     return true;
