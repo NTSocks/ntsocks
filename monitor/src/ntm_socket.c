@@ -42,7 +42,6 @@ ntm_socket_t ntm_client_create(int fd)
     ntsock = (ntm_socket_t)calloc(1, sizeof(struct ntm_socket));
     if (!ntsock)
     {
-        perror("malloc");
         printf("failed to allocate nt_socket.\n");
         return NULL;
     }

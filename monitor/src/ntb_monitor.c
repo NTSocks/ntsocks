@@ -327,32 +327,34 @@ void ntm_destroy()
 	 * between local and remote ntb-monitor
 	 */
 	HashMapIterator iter;
-	ntm_conn_t ntm_conn;
-	iter = createHashMapIterator(ntm_mgr->ntm_conn_ctx->conn_map);
-	while (hasNextHashMapIterator(iter))
+	if (ntm_mgr->ntm_conn_ctx->conn_map) 
 	{
-		DEBUG("iter next");
-		iter = nextHashMapIterator(iter);
-		ntm_conn = (ntm_conn_t)iter->entry->value;
+		ntm_conn_t ntm_conn;
+		iter = createHashMapIterator(ntm_mgr->ntm_conn_ctx->conn_map);
+		while (hasNextHashMapIterator(iter))
+		{
+			iter = nextHashMapIterator(iter);
+			ntm_conn = (ntm_conn_t)iter->entry->value;
 
-		/**
-		 * Disconnect and exit `client_conn->recv_thr` [ntm_sock_recv_thread()]
-		 * 	in 'ntm_mgr->ntm_conn_ctx->conn_map'
-		 */
-		ntm_conn->running_signal = false;
-		shutdown(ntm_conn->client_sock->socket_fd, SHUT_RDWR);
-		pthread_join(ntm_conn->recv_thr, &status);
+			/**
+			 * Disconnect and exit `client_conn->recv_thr` [ntm_sock_recv_thread()]
+			 * 	in 'ntm_mgr->ntm_conn_ctx->conn_map'
+			 */
+			ntm_conn->running_signal = false;
+			shutdown(ntm_conn->client_sock->socket_fd, SHUT_RDWR);
+			pthread_join(ntm_conn->recv_thr, &status);
+		}
 
+		freeHashMapIterator(&iter);
+		Clear(ntm_mgr->ntm_conn_ctx->conn_map);
+		free(ntm_mgr->ntm_conn_ctx->conn_map);
+		ntm_mgr->ntm_conn_ctx->conn_map = NULL;
+		DEBUG("free hashmap for ntm_conn context success");
 	}
-	freeHashMapIterator(&iter);
-	Clear(ntm_mgr->ntm_conn_ctx->conn_map);
-	free(ntm_mgr->ntm_conn_ctx->conn_map);
-	ntm_mgr->ntm_conn_ctx->conn_map = NULL;
-	DEBUG("free hashmap for ntm_conn context success");
+	
 
 	if (ntm_mgr->ntm_conn_ctx->server_sock)
 	{
-		DEBUG("close server_sock");
 		ntm_free(ntm_mgr->ntm_conn_ctx->server_sock);
 	}
 	DEBUG("Destroy ntm listen socket resources success");
@@ -361,81 +363,94 @@ void ntm_destroy()
 	 * Destroy the nt_listener related resources for the ntb-based
 	 * listen socket
 	 */
-	HashMapIterator nt_conn_iter;
-	nt_listener_wrapper_t nt_listener_wrapper;
-	iter = createHashMapIterator(ntm_mgr->nt_listener_ctx->listener_map);
-	while (hasNextHashMapIterator(iter))
+	if (ntm_mgr->nt_listener_ctx->listener_map) 
 	{
-		iter = nextHashMapIterator(iter);
-		nt_listener_wrapper = (nt_listener_wrapper_t)iter->entry->value;
+		HashMapIterator nt_conn_iter;
+		nt_listener_wrapper_t nt_listener_wrapper;
+		iter = createHashMapIterator(ntm_mgr->nt_listener_ctx->listener_map);
 
-		nt_conn_iter = createHashMapIterator(nt_listener_wrapper->accepted_conn_map);
-
-		while (hasNextHashMapIterator(nt_conn_iter))
+		while (hasNextHashMapIterator(iter))
 		{
-			nt_socket_t tmp_socket;
-			nt_conn_iter = nextHashMapIterator(iter);
-			tmp_socket = (nt_socket_t)nt_conn_iter->entry->value;
-			if (tmp_socket)
-			{
-			}
-		}
-		freeHashMapIterator(&nt_conn_iter);
-		Clear(nt_listener_wrapper->accepted_conn_map);
-		nt_listener_wrapper->accepted_conn_map = NULL;
-		free(nt_listener_wrapper->accepted_conn_map);
-		DEBUG("free hash map for \
-client socket connection accepted by the specified nt_listener socket success");
+			iter = nextHashMapIterator(iter);
+			nt_listener_wrapper = (nt_listener_wrapper_t)iter->entry->value;
 
-		// free or unbound nt_listener socket id
-		free_socket(ntm_mgr->nt_sock_ctx,
-					nt_listener_wrapper->listener->sockid, 1);
-		free(nt_listener_wrapper);
+			nt_conn_iter = createHashMapIterator(nt_listener_wrapper->accepted_conn_map);
+
+			while (hasNextHashMapIterator(nt_conn_iter))
+			{
+				nt_socket_t tmp_socket;
+				nt_conn_iter = nextHashMapIterator(nt_conn_iter);
+				tmp_socket = (nt_socket_t)nt_conn_iter->entry->value;
+				if (tmp_socket)
+				{
+				}
+			}
+			freeHashMapIterator(&nt_conn_iter);
+			Clear(nt_listener_wrapper->accepted_conn_map);
+			nt_listener_wrapper->accepted_conn_map = NULL;
+			free(nt_listener_wrapper->accepted_conn_map);
+			DEBUG("free hash map for \
+	client socket connection accepted by the specified nt_listener socket success");
+
+			// free or unbound nt_listener socket id
+			free_socket(ntm_mgr->nt_sock_ctx,
+						nt_listener_wrapper->listener->sockid, 1);
+			free(nt_listener_wrapper);
+		}
+		
+		freeHashMapIterator(&iter);
+		Clear(ntm_mgr->nt_listener_ctx->listener_map);
+		free(ntm_mgr->nt_listener_ctx->listener_map);
+		ntm_mgr->nt_listener_ctx->listener_map = NULL;
+		DEBUG("Destroy the nt_listener related resources success");
 	}
-	freeHashMapIterator(&iter);
-	Clear(ntm_mgr->nt_listener_ctx->listener_map);
-	free(ntm_mgr->nt_listener_ctx->listener_map);
-	ntm_mgr->nt_listener_ctx->listener_map = NULL;
-	DEBUG("Destroy the nt_listener related resources success");
+	
 
 	/**
 	 * Destroy the ntm-nts context resources
 	 */
-	nts_shm_conn_t nts_shm_conn;
-	iter = createHashMapIterator(ntm_mgr->nts_ctx->nts_shm_conn_map);
-	while (hasNextHashMapIterator(iter))
+	if (ntm_mgr->nts_ctx->nts_shm_conn_map)
 	{
-		iter = nextHashMapIterator(iter);
-		nts_shm_conn = (nts_shm_conn_t)iter->entry->value;
+		nts_shm_conn_t nts_shm_conn;
+		iter = createHashMapIterator(ntm_mgr->nts_ctx->nts_shm_conn_map);
 
-		// free or unbound socket id
-		DEBUG("free_socket");
-		free_socket(ntm_mgr->nt_sock_ctx, nts_shm_conn->sockid, 1);
-
-		// free nts_shm_context
-		if (nts_shm_conn->nts_shm_ctx &&
-			nts_shm_conn->nts_shm_ctx->shm_stat == NTS_SHM_READY)
+		while (hasNextHashMapIterator(iter))
 		{
-			DEBUG("nts_shm_conn->nts_shm_ctx close start");
-			nts_shm_ntm_close(nts_shm_conn->nts_shm_ctx);
-			DEBUG("nts_shm_destroy start");
-			nts_shm_destroy(nts_shm_conn->nts_shm_ctx);
+			iter = nextHashMapIterator(iter);
+			nts_shm_conn = (nts_shm_conn_t)iter->entry->value;
+
+			// free or unbound socket id
+			free_socket(ntm_mgr->nt_sock_ctx, nts_shm_conn->sockid, 1);
+
+			// free nts_shm_context
+			if (nts_shm_conn->nts_shm_ctx &&
+				nts_shm_conn->nts_shm_ctx->shm_stat == NTS_SHM_READY)
+			{
+				DEBUG("nts_shm_conn->nts_shm_ctx close start");
+				nts_shm_ntm_close(nts_shm_conn->nts_shm_ctx);
+				DEBUG("nts_shm_destroy start");
+				nts_shm_destroy(nts_shm_conn->nts_shm_ctx);
+			}
+
+			DEBUG("free nts_shm_conn");
+			free(nts_shm_conn);
 		}
 
-		DEBUG("free nts_shm_conn");
-		free(nts_shm_conn);
+		freeHashMapIterator(&iter);
+		Clear(ntm_mgr->nts_ctx->nts_shm_conn_map);
+		free(ntm_mgr->nts_ctx->nts_shm_conn_map);
+		ntm_mgr->nts_ctx->nts_shm_conn_map = NULL;
+		DEBUG("free hash map for nts_shm_conn success");
 	}
-
-	freeHashMapIterator(&iter);
-	Clear(ntm_mgr->nts_ctx->nts_shm_conn_map);
-	free(ntm_mgr->nts_ctx->nts_shm_conn_map);
-	ntm_mgr->nts_ctx->nts_shm_conn_map = NULL;
-	DEBUG("free hash map for nts_shm_conn success");
-
+	
 	// Destroy the port_sock_map hashmap
-	Clear(ntm_mgr->port_sock_map);
-	free(ntm_mgr->port_sock_map);
-	ntm_mgr->port_sock_map = NULL;
+	if (ntm_mgr->port_sock_map)
+	{
+		Clear(ntm_mgr->port_sock_map);
+		free(ntm_mgr->port_sock_map);
+		ntm_mgr->port_sock_map = NULL;
+	}
+	
 
 	/**
 	 * Destroy the ntp-related (ntp <==> ntm) resources/context, including:
@@ -471,13 +486,6 @@ client socket connection accepted by the specified nt_listener socket success");
 	}
 	DEBUG("Destroy the ntm-nts context resources success");
 
-	//	nts_shm_context_t shm_send_ctx;
-	//	shm_send_ctx = ntm_mgr->nts_ctx->shm_send_ctx;
-	//	if (shm_send_ctx && shm_send_ctx->shm_stat == NTS_SHM_READY) {
-	//		nts_shm_ntm_close(shm_send_ctx);
-	//		nts_shm_destroy(shm_send_ctx);
-	//	}
-
 	/**
 	 * Destroy the context structure
 	 */
@@ -510,9 +518,7 @@ client socket connection accepted by the specified nt_listener socket success");
      */
 	free_conf();
 
-	DEBUG("ntm_destroy success");
-
-	exit(0);
+	printf("\n***************** NTM Exit Completely *****************\n");
 }
 
 ntm_manager_t init_ntm_manager()
