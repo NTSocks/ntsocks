@@ -1206,13 +1206,15 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes)
 	DEBUG("nts_read start...");
 	assert(nts_ctx);
 	assert(sockid >= 0);
+	assert(buf);
+	assert(nbytes > 0);
 
-	if (!buf || nbytes <= 0)
-	{
-		ERR("the specified recv buf is NULL or the nbytes is <= 0. ");
-		// set errno
-		goto FAIL;
-	}
+	// if (!buf || nbytes <= 0)
+	// {
+	// 	ERR("the specified recv buf is NULL or the nbytes is <= 0. ");
+	// 	// set errno
+	// 	goto FAIL;
+	// }
 
 	/**
 	 * 1. get/pop `nt_sock_context` from `HashMap nt_sock_map` using sockid.
@@ -1227,7 +1229,7 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes)
 	// 1. get/pop `nt_sock_context` from `HashMap nt_sock_map` using sockid.
 	nt_sock_context_t nt_sock_ctx;
 	nt_sock_ctx = (nt_sock_context_t)Get(nts_ctx->nt_sock_map, &sockid);
-	if (!nt_sock_ctx)
+	if (UNLIKELY(!nt_sock_ctx))
 	{
 		ERR("Non-existing sockid. ");
 		goto FAIL;
@@ -1235,7 +1237,7 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes)
 
 	// 2. check whether the socket state is `ESTABLISHED`,
 	//     if socket state is not `ESTABLISHED`, then set errno & return -1.
-	if (nt_sock_ctx->socket->state != ESTABLISHED)
+	if (UNLIKELY(nt_sock_ctx->socket->state != ESTABLISHED))
 	{
 		ERR("write() require `ESTABLISHED` socket first. ");
 		//set errno
@@ -1255,7 +1257,6 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes)
 		retval = ntp_shm_front(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
 		while (retval == -1)
 		{
-			sched_yield();
 			retval = ntp_shm_front(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
 		}
 		DEBUG("[out] ntp_shm_front end");
@@ -1272,7 +1273,7 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes)
 		//			set socket state to `CLOSED`, destroy local resources,
 		//			nts_shm_close() to unlink nts_shm.
 		// To the end, we determine to use solution 1.
-		if (incoming_data->header.msg_type == NTP_NTS_MSG_FIN)
+		if (UNLIKELY(incoming_data->header.msg_type == NTP_NTS_MSG_FIN))
 		{
 			DEBUG("Detect NTP_NTS_MSG_FIN msg to close ntb connection");
 			handle_ntp_fin_msg(nt_sock_ctx, sockid);
@@ -1308,13 +1309,8 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes)
 	int payload_len;
 	bool is_cached;
 	is_cached = false;
-	if (nt_sock_ctx->ntp_buflen > 0)
-	{
-		payload = nt_sock_ctx->ntp_buf;
-		payload_len = nt_sock_ctx->ntp_buflen;
-		is_cached = true;
-	}
-	else
+
+	if (nt_sock_ctx->ntp_buflen <= 0)
 	{
 		retval = ntp_shm_recv(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
 		if (retval == -1)
@@ -1326,9 +1322,13 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes)
 		payload = incoming_data->payload;
 		payload_len = incoming_data->header.msg_len;
 		DEBUG("[nts_read] payload='%s', payload_len=%d\n", payload, payload_len);
+	} 
+	else
+	{
+		payload = nt_sock_ctx->ntp_buf;
+		payload_len = nt_sock_ctx->ntp_buflen;
+		is_cached = true;
 	}
-
-	shm_mempool_node *tmp_node;
 
 	int bytes_left; // indicate the payload length in each ntp_shm_recv
 	int bytes_read, buf_avail_bytes;
@@ -1353,7 +1353,7 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes)
 				memcpy(ptr + bytes_read, payload, bytes_left);
 				bytes_read += bytes_left;
 
-				if (is_cached)
+				if (UNLIKELY(is_cached))
 				{
 					// if the payload is copied from ntp_buf
 					nt_sock_ctx->ntp_buflen = 0;
@@ -1406,7 +1406,7 @@ and buf_avail_bytes < bytes_left with bytes_read=%d",
 				memcpy(ptr + bytes_read, payload, bytes_left);
 				bytes_read += bytes_left;
 
-				if (is_cached)
+				if (UNLIKELY(is_cached))
 				{
 					// if the payload is copied from ntp_buf
 					nt_sock_ctx->ntp_buflen = 0;
@@ -1442,12 +1442,11 @@ and buf_avail_bytes < bytes_left with bytes_read=%d",
 				retval = ntp_shm_front(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
 				while (retval == -1)
 				{
-					sched_yield();
 					retval = ntp_shm_front(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
 				}
 
 				// judge whether msg_type is NTP_NTS_MSG_FIN or not
-				if (incoming_data->header.msg_type == NTP_NTS_MSG_FIN)
+				if (UNLIKELY(incoming_data->header.msg_type == NTP_NTS_MSG_FIN))
 				{
 
 					handle_ntp_fin_msg(nt_sock_ctx, sockid);
@@ -1455,13 +1454,7 @@ and buf_avail_bytes < bytes_left with bytes_read=%d",
 					goto FAIL;
 				}
 
-				if (nt_sock_ctx->ntp_buflen > 0)
-				{
-					payload = nt_sock_ctx->ntp_buf;
-					payload_len = nt_sock_ctx->ntp_buflen;
-					is_cached = true;
-				}
-				else
+				if (nt_sock_ctx->ntp_buflen <= 0)
 				{
 					retval = ntp_shm_recv(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
 					if (retval == -1)
@@ -1472,6 +1465,12 @@ and buf_avail_bytes < bytes_left with bytes_read=%d",
 
 					payload = incoming_data->payload;
 					payload_len = incoming_data->header.msg_len;
+				}
+				else
+				{
+					payload = nt_sock_ctx->ntp_buf;
+					payload_len = nt_sock_ctx->ntp_buflen;
+					is_cached = true;
 				}
 
 				bytes_left = payload_len;
@@ -1498,11 +1497,16 @@ ssize_t nts_readv(int fd, const struct iovec *iov, int iovcnt)
 ssize_t nts_write(int sockid, const void *buf, size_t nbytes)
 {
 	DEBUG("nts_write start with sockid = %d", sockid);
-	if (!buf || nbytes <= 0)
-	{
-		ERR("the specified send buf is NULL or the nbytes is <= 0. ");
-		return -1;
-	}
+	assert(nts_ctx);
+	assert(sockid >= 0);
+	assert(buf);
+	assert(nbytes > 0);
+
+	// if (!buf || nbytes <= 0)
+	// {
+	// 	ERR("the specified send buf is NULL or the nbytes is <= 0. ");
+	// 	return -1;
+	// }
 
 	/**
 	 * 1. get/pop `nt_sock_context` from `HashMap nt_sock_map` using sockid.
@@ -1517,15 +1521,15 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes)
 	int retval;
 	size_t write_bytes;
 	nt_sock_context_t nt_sock_ctx;
+
 	nt_sock_ctx = (nt_sock_context_t)Get(nts_ctx->nt_sock_map, &sockid);
-	if (!nt_sock_ctx)
+	if (UNLIKELY(!nt_sock_ctx))
 	{
 		ERR("Non-existing sockid");
 		return -1;
-		// goto FAIL;
 	}
 	// check whether the socket state is `ESTABLISHED`.
-	if (nt_sock_ctx->socket->state != ESTABLISHED)
+	if (UNLIKELY(nt_sock_ctx->socket->state != ESTABLISHED))
 	{
 		ERR("write() require `ESTABLISHED` socket first.");
 		goto FAIL;
@@ -1536,11 +1540,7 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes)
 	ntp_msg_t outgoing_msg;
 	retval = ntp_shm_ntpacket_alloc(nt_sock_ctx->ntp_send_ctx,
 									&outgoing_msg, NTS_CONFIG.mtu_size);
-	if (retval == -1)
-	{
-		ERR("ntp_shm_ntpacket_alloc failed");
-		return -1;
-	}
+	assert(retval == 0);
 
 	write_bytes = 0;
 	outgoing_msg->header.msg_type = NTP_NTS_MSG_DATA;
@@ -1553,14 +1553,16 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes)
 	DEBUG("ntp_shm_send NTP_NTS_MSG_DATA msg with msg_len=%d, outgoing_msg.msg='%s'",
 		  outgoing_msg->header.msg_len, outgoing_msg->payload);
 	retval = ntp_shm_send(nt_sock_ctx->ntp_send_ctx, outgoing_msg);
-	if (retval == -1)
-	{
-		ERR("ntp_shm_send NTP_NTS_MSG_DATA failed");
-		write_bytes -= outgoing_msg->header.msg_len;
-		ntp_shm_ntpacket_free(nt_sock_ctx->ntp_send_ctx, &outgoing_msg);
+	assert(retval == 0);
 
-		goto FAIL;
-	}
+	// if (retval == -1)
+	// {
+	// 	ERR("ntp_shm_send NTP_NTS_MSG_DATA failed");
+	// 	write_bytes -= outgoing_msg->header.msg_len;
+	// 	ntp_shm_ntpacket_free(nt_sock_ctx->ntp_send_ctx, &outgoing_msg);
+
+	// 	goto FAIL;
+	// }
 
 	int next_msg_len;
 	while (retval == 0)
@@ -1578,11 +1580,7 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes)
 		/* ready to ntp shm send ntp_msg */
 		retval = ntp_shm_ntpacket_alloc(nt_sock_ctx->ntp_send_ctx,
 										&outgoing_msg, NTS_CONFIG.mtu_size);
-		if (retval == -1)
-		{
-			ERR("ntp_shm_ntpacket_alloc failed");
-			return -1;
-		}
+		assert(retval == 0);
 
 		outgoing_msg->header.msg_type = NTP_NTS_MSG_DATA;
 		outgoing_msg->header.msg_len = next_msg_len;
@@ -1592,29 +1590,31 @@ ssize_t nts_write(int sockid, const void *buf, size_t nbytes)
 		write_bytes += outgoing_msg->header.msg_len;
 
 		retval = ntp_shm_send(nt_sock_ctx->ntp_send_ctx, outgoing_msg);
-		if (retval == -1)
-		{
-			ERR("ntp_shm_send NTP_NTS_MSG_FIN failed");
-			write_bytes -= outgoing_msg->header.msg_len;
-			ntp_shm_ntpacket_free(nt_sock_ctx->ntp_send_ctx, &outgoing_msg);
+		assert(retval == 0);
 
-			goto FAIL;
-		}
+		// if (retval == -1)
+		// {
+		// 	ERR("ntp_shm_send NTP_NTS_MSG_FIN failed");
+		// 	write_bytes -= outgoing_msg->header.msg_len;
+		// 	ntp_shm_ntpacket_free(nt_sock_ctx->ntp_send_ctx, &outgoing_msg);
+
+		// 	goto FAIL;
+		// }
 	}
 
-	if (retval == -1)
+	if (UNLIKELY(retval == -1))
 	{
 		ERR("ntp_shm_send NTP_NTS_MSG_DATA msg failed");
 		if (nt_sock_ctx->socket->state == CLOSED)
 		{
-			nt_sock_ctx->err_no = nts_ENETDOWN;
+			errno = ENETDOWN;
 		}
 		else if (nt_sock_ctx->socket->state == ESTABLISHED)
 		{
 			/**
 			 * TODO: judge whether the ntb send buffer is full or not.
 			 */
-			nt_sock_ctx->err_no = nts_ENOSPC;
+			errno = ENOSPC;
 		}
 		goto FAIL;
 	}

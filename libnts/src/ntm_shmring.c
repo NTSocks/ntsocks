@@ -15,6 +15,7 @@
 
 #include "ntm_shmring.h"
 #include "nt_log.h"
+#include "utils.h"
 
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
