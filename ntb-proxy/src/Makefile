@@ -63,17 +63,17 @@ else
 VPATH += $(SRCDIR)/utils 
 
 CFLAGS += -D_FILE_OFFSET_BITS=64
-CFLAGS += -O2
+CFLAGS += -O2 
 CFLAGS += -D_DEFAULT_SOURCE 
 CFLAGS += -DHAVE_GCC_C11_ATOMICS
 # CFLAGS += $(WERROR_FLAGS)
 CFLAGS += -DALLOW_EXPERIMENTAL_API
 CFLAGS += -pthread  
 CFLAGS += -I$(SRCDIR)/include -I/usr/local/include
+CFLAGS += -DNDEBUG	# disable assert
 #CFLAGS += -DENABLE_DEBUG
 
 LDLIBS += -L/usr/local/lib -lfdu-utils -L$(RTE_SDK)/$(RTE_TARGET)/build/lib -lpthread
-
 
 include $(RTE_SDK)/mk/rte.extapp.mk
 

@@ -43,7 +43,8 @@ lib_libnts_la_CPPFLAGS = -I$(top_srcdir)/include 				\
 						 -I$(top_srcdir)/src/utils/include 		\
 						 -I/usr/local/include 					\
 						 -D_DEFAULT_SOURCE 						\
-						 -DHAVE_GCC_C11_ATOMICS					
+						 -DHAVE_GCC_C11_ATOMICS					\
+						 -DNDEBUG
 #-DENABLE_DEBUG
 
  

@@ -1,5 +1,7 @@
 CC = gcc
-CFLAGS = -c -Wall -pthread -lm -lrt
+
+RELEASE = -DNDEBUG 
+CFLAGS = $(RELEASE) -c -Wall -pthread -lm -lrt 
 LDFLAGS = -pthread -lm -lrt
 TARGETS = client server
 COMMON_DIR = common

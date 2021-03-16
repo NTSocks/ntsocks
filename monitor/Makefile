@@ -1,10 +1,13 @@
 CROSS = 
 CC = $(CROSS)gcc
 CXX = $(CROSS)g++
+
+COMMON_FLAGS = -D_DEFAULT_SOURCE -DHAVE_GCC_C11_ATOMICS
+RELEASE = -DNDEBUG # disable assert
 DEBUG = -g -O2 #-DENABLE_DEBUG
-CFLAGS = $(DEBUG) -Wall -std=c11 -c -D_DEFAULT_SOURCE -DHAVE_GCC_C11_ATOMICS
-TARGET_CFLAGS = $(DEBUG) -Wall -std=c11 -D_DEFAULT_SOURCE -DHAVE_GCC_C11_ATOMICS
-TEST_TARGET_CPPFLAGS = $(DEBUG) -std=c++11 -Wall -D_DEFAULT_SOURCE -DHAVE_GCC_C11_ATOMICS 
+CFLAGS = $(RELEASE) $(DEBUG) -Wall -std=c11 -c $(COMMON_FLAGS)
+TARGET_CFLAGS = $(DEBUG) -Wall -std=c11 $(COMMON_FLAGS)
+TEST_TARGET_CPPFLAGS = $(DEBUG) -std=c++11 -Wall $(COMMON_FLAGS)
 
 CPPFLAGS = -std=c++11 -Wall
 RM = rm -rf
@@ -22,16 +25,12 @@ INCLUDE_PATH = -I./include/ -I./src/include/ -I./src/utils/include -I/usr/local/
 LIB_PATH = -L./lib/ -L/usr/local/lib 
 
 LIBS = -lpthread -lrt -luuid -lfdu-utils
-#LIBS = -ltest
-#LIBS = -libtest.a
 
 VERSION = 1.0.0
 TARGET = bin/ntb-monitor
 TEST_TARGET = run_test
 
 
-#main.o: main.c constant.h ntb-monitor.h shared_memory.h log.h
-#			$(CC) $(CFLAGS) $< -o $@ $(INCLUDE_PATH)
 SRC_LIST = src/ntm_shmring.c  	\
 		   src/ntm_shm.c      	\
 		   src/nts_shmring.c	\
@@ -57,8 +56,5 @@ test: $(TEST_TARGET)
 install:
 		cp ntb-monitor /usr/local/bin/ntb-monitor
 
-
 clean:
 		$(RM) $(TARGET) $(TEST_TARGET) $(OBJS) $(TEST_OBJS)
-			 
-

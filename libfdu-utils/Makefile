@@ -13,8 +13,9 @@ LIB_SRCS=utils.c shm_mempool.c shmring.c hash_map.c \
 
 CC=gcc
 LIBS+= -lpthread -lrt -luuid
+RELEASE= -DNDEBUG # disable assert
 DEBUG = -g -O2 #-DENABLE_DEBUG
-CFLAGS += $(DEBUG) -Wall -std=c11 -D_DEFAULT_SOURCE -DHAVE_GCC_C11_ATOMICS
+CFLAGS += $(RELEASE) $(DEBUG) -Wall -std=c11 -D_DEFAULT_SOURCE -DHAVE_GCC_C11_ATOMICS
 LDFLAGS+= -L$(LIB_PATH) -l$(LIB_NAME)
 
 TARGET=shmring ntp2nts-shm sem_shmring hashmap_main ep_eq_main ep_eqserver ep_eqclient \
