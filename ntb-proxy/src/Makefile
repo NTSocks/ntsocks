@@ -63,7 +63,7 @@ else
 VPATH += $(SRCDIR)/utils 
 
 CFLAGS += -D_FILE_OFFSET_BITS=64
-CFLAGS += -O2 
+CFLAGS += -O3 #-g -fno-omit-frame-pointer
 CFLAGS += -D_DEFAULT_SOURCE 
 CFLAGS += -DHAVE_GCC_C11_ATOMICS
 # CFLAGS += $(WERROR_FLAGS)

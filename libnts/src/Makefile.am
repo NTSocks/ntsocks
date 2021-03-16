@@ -44,8 +44,9 @@ lib_libnts_la_CPPFLAGS = -I$(top_srcdir)/include 				\
 						 -I/usr/local/include 					\
 						 -D_DEFAULT_SOURCE 						\
 						 -DHAVE_GCC_C11_ATOMICS					\
-						 -DNDEBUG
-#-DENABLE_DEBUG
+						 -DNDEBUG								\
+						 -O3 
+#-DENABLE_DEBUG -g -fno-omit-frame-pointer
 
  
 # Specify the Library depencies via `_LIBADD`

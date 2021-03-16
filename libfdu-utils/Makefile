@@ -14,7 +14,7 @@ LIB_SRCS=utils.c shm_mempool.c shmring.c hash_map.c \
 CC=gcc
 LIBS+= -lpthread -lrt -luuid
 RELEASE= -DNDEBUG # disable assert
-DEBUG = -g -O2 #-DENABLE_DEBUG
+DEBUG = -O3 #-g -fno-omit-frame-pointer #-DENABLE_DEBUG
 CFLAGS += $(RELEASE) $(DEBUG) -Wall -std=c11 -D_DEFAULT_SOURCE -DHAVE_GCC_C11_ATOMICS
 LDFLAGS+= -L$(LIB_PATH) -l$(LIB_NAME)
 
