@@ -251,31 +251,22 @@ int ntp_shm_send(
     assert(shm_ctx);
     assert(buf);
 
-    bool ret;
-
     shm_mempool_node *mp_node;
     mp_node = shm_mp_node_by_shmaddr(
         shm_ctx->mp_handler, (char *)buf);
-    if (!mp_node)
-    {
-        ERR("cannot find corresponding \
-shm_mempool_node in shm mempool with ntp_msg shm addr=%p",
-            buf->header);
-        return -1;
-    }
+    assert(mp_node);
 
-    DEBUG("shmring push node_idx=%d", mp_node->node_idx);
+    int ret;
     ret = shmring_push(shm_ctx->ntsring_handle,
                        (char *)&mp_node->node_idx, NODE_IDX_SIZE);
     //TODO: add the timeout limit for retry push times.
-    // int retry_times = 1;
-    while (!ret)
+    // int retry_times = 0;
+    while (ret != SUCCESS)
     {
         // once the retry_times is greater than pre-define 'RETRY_TIMES' (default 5),
         //  indicate current ntp_shm ring is empty and immediately return NULL
         // if(retry_times > RETRY_TIMES)
         //     break;
-        sched_yield();
         INFO("shmring_push failed and maybe shmring is full.");
         ret = shmring_push(shm_ctx->ntsring_handle,
                            (char *)&mp_node->node_idx, NODE_IDX_SIZE);
@@ -283,7 +274,7 @@ shm_mempool_node in shm mempool with ntp_msg shm addr=%p",
     }
 
     DEBUG("ntp_shm_send pass with ret=%d", ret);
-    return ret ? SUCCESS : FAILED;
+    return ret;
 }
 
 int ntp_shm_recv(
@@ -292,13 +283,13 @@ int ntp_shm_recv(
     assert(shm_ctx);
     assert(buf);
 
-    bool ret;
+    int ret;
     int node_idx = -1;
     ret = shmring_pop(
         shm_ctx->ntsring_handle, (char *)&node_idx, NODE_IDX_SIZE);
     //TODO: add the timeout limit for retry pop times.
-    int retry_times = 1;
-    while (!ret)
+    int retry_times = 0;
+    while (ret != SUCCESS)
     {
         // once the retry_times is greater than
         //  pre-define 'RETRY_TIMES' (default 5),
@@ -306,32 +297,19 @@ int ntp_shm_recv(
         //  empty and immediately return NULL
         if (retry_times > RETRY_TIMES)
         {
-            return -1;
+            return FAILED;
         }
 
-        sched_yield();
         ret = shmring_pop(shm_ctx->ntsring_handle,
                           (char *)&node_idx, NODE_IDX_SIZE);
         retry_times++;
     }
 
-    if (ret)
-    {
-        void *ptr =
-            (void *)shm_offset_mem(shm_ctx->mp_handler, node_idx);
-        if (UNLIKELY(!ptr))
-        {
-            ERR("ntp_shm_front failed");
-            return -1;
-        }
-        *buf = (ntp_msg *)ptr;
+    void *ptr = shm_offset_mem(shm_ctx->mp_handler, node_idx);
+    *buf = (ntp_msg *)ptr;
 
-        DEBUG("ntp_shm_recv success");
-        return 0;
-    }
-
-    ERR("ntp_shm_recv failed");
-    return -1;
+    DEBUG("ntp_shm_recv success");
+    return SUCCESS;
 }
 
 /**
@@ -358,19 +336,18 @@ int ntp_shm_send_bulk(
         shm_ctx->node_idxs_cache[i] = (char *)&mp_node->node_idx;
     }
 
-    bool rc;
+    int rc;
     rc = shmring_push_bulk(shm_ctx->ntsring_handle,
                            shm_ctx->node_idxs_cache, shm_ctx->max_lens, bulk_size);
-    while (!rc)
+    while (rc != SUCCESS)
     {
         INFO("shmring_push_bulk failed, retry...");
-        sched_yield();
         rc = shmring_push_bulk(shm_ctx->ntsring_handle,
                                shm_ctx->node_idxs_cache, shm_ctx->max_lens, bulk_size);
     }
 
     DEBUG("ntp_shm_send_bulk success");
-    return rc ? SUCCESS : FAILED;
+    return rc;
 }
 
 /**
@@ -418,19 +395,18 @@ int ntp_shm_send_bulk_idx(
     assert(idx_lens);
     assert(bulk_size > 0);
 
-    bool rc;
+    int rc;
     rc = shmring_push_bulk(shm_ctx->ntsring_handle,
                            node_idxs, idx_lens, bulk_size);
-    while (!rc)
+    while (rc != SUCCESS)
     {
         INFO("ntp_shm_send_bulk_idx failed, retry...");
-        sched_yield();
         rc = shmring_push_bulk(shm_ctx->ntsring_handle,
                                node_idxs, idx_lens, bulk_size);
     }
 
     DEBUG("ntp_shm_send_bulk_idx success");
-    return rc ? SUCCESS : FAILED;
+    return rc;
 }
 
 size_t ntp_shm_recv_bulk_idx(
@@ -455,27 +431,24 @@ int ntp_shm_front(
 {
     assert(shm_ctx);
 
-    bool ret;
+    int ret;
     int node_idx = -1;
     ret = shmring_front(shm_ctx->ntsring_handle,
                         (char *)(int *)&node_idx, NODE_IDX_SIZE);
 
-    if (ret)
+    if (ret == SUCCESS)
     {
-        void *ptr = (void *)
-            shm_offset_mem(shm_ctx->mp_handler, node_idx);
-        if (UNLIKELY(!ptr))
-        {
-            ERR("ntp_shm_front failed");
-            return -1;
-        }
+        void *ptr = shm_offset_mem(shm_ctx->mp_handler, node_idx);
+        assert(ptr);
+
         *buf = (ntp_msg *)ptr;
 
         DEBUG("ntp_shm_front success");
-        return 0;
+        return SUCCESS;
     }
 
-    return -1;
+    ERR("ntp_shm_front failed");
+    return FAILED;
 }
 
 //创建者销毁
@@ -555,47 +528,32 @@ int ntp_shm_ntpacket_alloc(
     ntp_shm_context_t shm_ctx, ntp_msg **buf, size_t mtu_size)
 {
     assert(shm_ctx);
-
-    if (!buf || mtu_size <= 0)
-    {
-        return -1;
-    }
+    assert(buf);
+    assert(mtu_size > 0);
 
     shm_mempool_node *mp_node;
     mp_node = shm_mp_malloc(shm_ctx->mp_handler, mtu_size);
-    if (mp_node == NULL)
-    {
-        ERR("shm_mp_malloc failed with mtu_size = %ld. \n", mtu_size);
-        return -1;
-    }
+    assert(mp_node);
 
-    void *packet_ptr = (void *)
-        shm_offset_mem(shm_ctx->mp_handler, mp_node->node_idx);
-    if (UNLIKELY(!packet_ptr))
-    {
-        ERR("shm_offset_mem failed with node_idx = %ld\n", mp_node->node_idx);
-        return -1;
-    }
+
+    void *packet_ptr = shm_offset_mem(shm_ctx->mp_handler, mp_node->node_idx);
+    assert(packet_ptr);
+    
     *buf = (ntp_msg *)packet_ptr;
 
     DEBUG("ntp_shm_ntpacket_alloc success");
-    return 0;
+    return SUCCESS;
 }
 
 void ntp_shm_ntpacket_free(
     ntp_shm_context_t shm_ctx, ntp_msg **buf)
 {
     assert(shm_ctx);
-
-    if (!(*buf))
-        return;
+    assert(*buf);
 
     shm_mempool_node *tmp_node =
         shm_mp_node_by_shmaddr(shm_ctx->mp_handler, (char *)*buf);
-    if (tmp_node)
-    {
-        shm_mp_free(shm_ctx->mp_handler, tmp_node);
-    }
+    assert(tmp_node);
 
-    *buf = NULL;
+    shm_mp_free(shm_ctx->mp_handler, tmp_node);
 }

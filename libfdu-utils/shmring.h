@@ -26,8 +26,6 @@ extern "C"
                 SHM_UNLINK
         } shm_stat;
 
-        // shmring_handle_t shmring_init(char *shm_addr, size_t addrlen);
-
         shmring_handle_t
         shmring_create(char *shm_addr,
                        size_t addrlen, size_t ele_size, size_t ele_num);
@@ -36,22 +34,20 @@ extern "C"
         shmring_init(char *shm_addr,
                      size_t addrlen, size_t ele_size, size_t ele_num);
 
-        // shmring_handle_t get_shmring(char *shm_addr, size_t addrlen);
-
-        bool shmring_push(
+        int shmring_push(
             shmring_handle_t self, char *element, size_t ele_len);
 
-        bool shmring_pop(
+        int shmring_pop(
             shmring_handle_t self, char *element, size_t ele_len);
 
-        bool shmring_push_bulk(
+        int shmring_push_bulk(
             shmring_handle_t self, char **elements,
             size_t *ele_lens, size_t count);
 
         size_t shmring_pop_bulk(shmring_handle_t self,
                                 char **elements, size_t *max_lens, size_t count);
 
-        bool shmring_front(shmring_handle_t self,
+        int shmring_front(shmring_handle_t self,
                            char *element, size_t ele_len);
 
         void shmring_free(shmring_handle_t self, bool is_unlink);

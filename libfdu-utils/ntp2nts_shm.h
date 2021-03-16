@@ -17,7 +17,7 @@
 #include "ntp2nts_msg.h"
 #include "shm_mempool.h"
 
-#define RETRY_TIMES 100
+#define RETRY_TIMES 1000
 #define NTP_SHMADDR_SIZE 16
 
 #ifdef __cplusplus

@@ -9,6 +9,7 @@
  */
 
 #include "hash_map.h"
+#include <stdint.h>
 
 // 默认哈希函数
 static int defaultHashCode(HashMap hashMap, let key);
@@ -46,6 +47,15 @@ int defaultHashCode(HashMap hashMap, let key)
         h &= ~g;
     }
     return h % hashMap->listSize;
+}
+
+int intHashCode(HashMap hashMap, let key) 
+{
+    uint64_t x = *(uint64_t *) key;
+    x = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
+    x = (x ^ (x >> 27)) * UINT64_C(0x94d049bb133111eb);
+    x = x ^ (x >> 31);
+    return x % hashMap->listSize;
 }
 
 bool defaultEqual(let key1, let key2) 
