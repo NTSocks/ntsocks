@@ -13,6 +13,7 @@
 #include <getopt.h>
 #include <sys/types.h>
 #include <errno.h>
+#include <fcntl.h>
 
 #include <rte_io.h>
 #include <rte_eal.h>
@@ -77,7 +78,8 @@ struct ntb_link_custom *ntb_link;
 // define the CPU cores set for ntb_partitions as an array
 // 1. the array index indicates the ntb_partition id
 // 2. the array value indicates the assigned CPU cores lcore_id;
-static int cpu_cores[8] = {8, 9, 10, 11, 12, 13, 14, 15};
+static int cpu_cores[MAX_NUM_PARTITION * 2] = 
+	{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 32};
 
 static struct ntp_lcore_conf lcore_conf[RTE_MAX_LCORE];
 
@@ -303,6 +305,132 @@ ntp_epoll_listen_thread(__attribute__((unused)) void *arg)
 	return NULL;
 }
 
+
+/* for NTP usage and cmd params parser */
+
+#define OPT_MTU_SIZE "mtu-size"
+#define OPT_NUM_PART "num-partitions"
+#define OPT_BULK_SIZE "bulk-size"
+#define OPT_CONF_FILE "cfg-path"
+
+enum
+{
+	/* long options mapped to a short option */
+	OPT_MTU_SIZE_NUM = 1,
+	OPT_NUM_PART_NUM = 2,
+	OPT_BULK_SIZE_NUM = 3,
+	OPT_CONF_FILE_NUM = 4,
+};
+
+static const char short_options[] = "h";
+
+static const struct option lgopts[] = {
+	{OPT_MTU_SIZE, 2, NULL, OPT_MTU_SIZE_NUM},
+	{OPT_NUM_PART, 2, NULL, OPT_NUM_PART_NUM},
+	{OPT_BULK_SIZE, 2, NULL, OPT_BULK_SIZE_NUM},
+	{OPT_CONF_FILE, 2, NULL, OPT_CONF_FILE_NUM},
+	{0, 0, NULL, 0}
+};
+
+static void
+ntp_usage(const char *prgname)
+{
+	printf("\nUsage: %s [EAL options] -- [options]\n"
+		   "Startup NTP daemon for NTB transport.\n\n"
+		   "\t-h: print usage.\n"
+		   "\t--mtu-size=N: set MTU size as N (8 < N < 65536, default: %d).\n"
+		   "\t--num-partitions=N: set the number of parllel partitions as N"
+		   " (1 <= N <= %d, default: %d).\n"
+		   "\t--bulk-size=N: set bulk size of batching packet forwarding as N"
+		   " (1 <= N <= 65536, default: %d).\n"
+		   "\t--cfg-path=[file path]: set file path of ntp config 'ntp.cfg',"
+		   " (default: '%s').\n",
+		   prgname, DEFAULT_MTU_SIZE, MAX_NUM_PARTITION,
+		   DEFAULT_NUM_PARTITION, DEFAULT_BULK_SIZE, DEFAULT_CFG_PATH);
+}
+
+static void
+ntp_parse_args(int argc, char **argv)
+{
+	char *prgname = argv[0], **argvopt = argv;
+	int opt, opt_idx, n, i;
+
+	while ((opt = getopt_long(argc, argvopt, short_options,
+							  lgopts, &opt_idx)) != EOF)
+	{
+		switch (opt)
+		{
+		case 'h':
+			ntp_usage(prgname);
+			rte_exit(EXIT_SUCCESS, "\nprint NTP usage tips.\n");
+			break;
+		case OPT_MTU_SIZE_NUM:
+			n = atoi(optarg);
+			if (n > 8 && n < 65536)
+			{
+				NTP_CONFIG.data_packet_size = n;
+				NTP_CONFIG.ntb_packetbits_size = math_log2(NTP_CONFIG.data_packet_size);
+			}
+			else
+			{
+				rte_exit(EXIT_FAILURE, "mtu size must be > 8 and < 65536.\n");
+			}
+			break;
+		case OPT_NUM_PART_NUM:
+			n = atoi(optarg);
+			if (n >= 1 && n <= MAX_NUM_PARTITION)
+			{
+				NTP_CONFIG.num_partition = n;
+			}
+			else
+			{
+				rte_exit(EXIT_FAILURE, "number of parallel partitions "
+						"must be >= 1 and n <= %d.\n",
+						MAX_NUM_PARTITION);
+			}
+			break;
+		case OPT_BULK_SIZE_NUM:
+			n = atoi(optarg);
+			if (n >= 1 && n <= 65536)
+			{
+				NTP_CONFIG.bulk_size = n;
+			}
+			else 
+			{
+				rte_exit(EXIT_FAILURE, "bulk size of batching packet forwarding "
+						"must be >= 1 and <= 65536.\n");
+			}
+			break;
+		case OPT_CONF_FILE_NUM:
+			if (optarg && strlen(optarg) > 0)
+			{
+				if ((access(optarg, F_OK)) != -1)
+				{
+					memcpy(ntp_cfg_path, optarg, strlen(optarg));
+					int rc = load_conf(ntp_cfg_path);
+					if (rc != 0)
+					{
+						rte_exit(EXIT_FAILURE, "Cannot load config file '%s', "
+								"please double check.\n", ntp_cfg_path);
+					}
+				}
+			}
+			else 
+			{
+				rte_exit(EXIT_FAILURE, "Invalid ntp config file path.\n");
+			}
+			break;
+
+		default:
+			ntp_usage(prgname);
+			rte_exit(EXIT_FAILURE, 
+					"Command line is incomplete or incorrect.\n");
+			break;
+		}
+	}
+}
+
+
 int main(int argc, char **argv)
 {
 	uint64_t ntb_link_status;
@@ -345,29 +473,33 @@ int main(int argc, char **argv)
 	{
 		rte_exit(EXIT_FAILURE, "Cannot find any ntb device.\n");
 	}
-
 	dev_id = i;
+
+	if (load_conf(DEFAULT_CFG_PATH) == -1)
+	{
+		rte_exit(EXIT_FAILURE, "Cannot load default config file '%s', "
+								"please double check.\n", ntp_cfg_path);
+	}
 
 	argc -= ret;
 	argv += ret;
-	// ntp_parse_args(argc, argv);
 
-	/** Load the NTP config file */
-	char *conf_file;
+	ntp_parse_args(argc, argv);
 
-	if (!conf_file)
+	/** Load default NTP config file if not set. */
+	if (strlen(ntp_cfg_path) <= 0) 
 	{
-		conf_file = NTP_CONFIG_FILE;
+		memcpy(ntp_cfg_path, DEFAULT_CFG_PATH, strlen(DEFAULT_CFG_PATH));
 	}
-
-	/** load the customized NTP parameters */
-	if (load_conf(conf_file) == -1)
+	else if (load_conf(ntp_cfg_path) == -1)
 	{
-		rte_exit(EXIT_FAILURE, "Cannot load NTP configuration file.\n");
+		rte_exit(EXIT_FAILURE, "Cannot load config file '%s', "
+								"please double check.\n", ntp_cfg_path);
 	}
 	NTP_CONFIG.datapacket_payload_size =
 		NTP_CONFIG.data_packet_size - NTPACKET_HEADER_LEN;
 	print_conf();
+
 
 	/* Waiting for peer dev up at most 100s.*/
 	printf("Checking ntb link status...\n");

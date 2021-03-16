@@ -17,16 +17,6 @@
 #include "nt_log.h"
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
-#define MAX_BUF_LEN 1024
-#define MAX_KEY_LEN 64
-#define MAX_VAL_LEN 256
-#define DEFAULT_NUM_PARTITION 2
-#define DEFAULT_NTPACKET_SIZE 7
-#define DEFAULT_CTRL_PACKET_SIZE 16
-#define DEFAULT_DATA_RING_SIZE 0x4000000 // 8MB --> 64MB
-#define DEFAULT_CTRL_RING_SIZE 0x40000	 // 256KB
-#define MAX_NUM_PARTITION 4
-
 #define NTP_PARAM_DATA_RING_SIZE "sublink_data_ring_size"
 #define NTP_PARAM_CTRL_RING_SIZE "sublink_ctrl_ring_size"
 #define NTP_PARAM_NTS_BUF_SIZE "nts_buff_size"
@@ -38,6 +28,8 @@ DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 #define NTP_PARAM_CTRL_RINGBUF_SIZE "ctrl_ringbuffer_size"
 #define NTP_PARAM_DATA_PACKET_SIZE "data_packet_size"
 
+char ntp_cfg_path[256] = {0};
+
 struct ntp_config NTP_CONFIG = {
 	/* set default configuration */
 	.sublink_data_ring_size = 8388608,
@@ -48,7 +40,8 @@ struct ntp_config NTP_CONFIG = {
 	.ntb_packetbits_size = DEFAULT_NTPACKET_SIZE,
 	.ctrl_packet_size = DEFAULT_CTRL_PACKET_SIZE,
 	.data_ringbuffer_size = DEFAULT_DATA_RING_SIZE,
-	.ctrl_ringbuffer_size = DEFAULT_CTRL_RING_SIZE};
+	.ctrl_ringbuffer_size = DEFAULT_CTRL_RING_SIZE
+};
 
 static int trim(char s[])
 {
@@ -62,7 +55,7 @@ static int trim(char s[])
 	return n;
 }
 
-static int math_log2(int value)
+int math_log2(int value)
 {
 	int log_v = log(value * 1.0) / log(2.0);
 	return log_v;
