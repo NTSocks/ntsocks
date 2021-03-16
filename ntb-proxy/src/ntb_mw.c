@@ -503,7 +503,9 @@ int ntpacket_enqueue(
             packet_header->msg_type |= (1 << 15);
         }
        
-        rte_memcpy(ptr, &source_msg->header, msg_len);
+        rte_memcpy(ptr, &source_msg->header, NTPACKET_HEADER_LEN);
+        rte_memcpy(ptr + NTPACKET_HEADER_LEN,
+                   source_msg->payload, msg_len - NTPACKET_HEADER_LEN);
     }
     else
     {
@@ -515,7 +517,10 @@ int ntpacket_enqueue(
             packet_header->msg_type |= (1 << 15);
         }
     
-        rte_memcpy(ptr, &source_msg->header, NTP_CONFIG.data_packet_size);
+        rte_memcpy(ptr + NTPACKET_HEADER_LEN,
+                   source_msg->payload,
+                   NTP_CONFIG.data_packet_size - NTPACKET_HEADER_LEN);
+        rte_memcpy(ptr, &source_msg->header, NTPACKET_HEADER_LEN);
     }
 
     peer_dataring->cur_index = next_index;
@@ -882,7 +887,7 @@ void ntb_destroy(struct ntb_link_custom *ntb_link,
     {
         epoll_context_t epoll_ctx;
         iter = createHashMapIterator(ntb_link->epoll_ctx_map);
-        
+
         while (hasNextHashMapIterator(iter))
         {
             iter = nextHashMapIterator(iter);
