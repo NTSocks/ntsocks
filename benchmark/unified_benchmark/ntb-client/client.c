@@ -428,8 +428,7 @@ void latency_read_with_ack(int sockfd)
         {
             n = (n - read(sockfd, msg, n));
         }
-        //printf("msg = %s\n", msg);
-        memcpy(ack, msg, payload_size);
+
         ret = write(sockfd, ack, payload_size);
         if (ret != payload_size)
         {
