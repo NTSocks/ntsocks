@@ -117,7 +117,7 @@ int ntb_data_msg_add_header(
 int parser_data_len_get_type(
     struct ntb_data_link *data_link, uint16_t msg_type)
 {
-    if (msg_type & 1 << 15)
+    if (UNLIKELY(msg_type & 1 << 15))
     {
         trans_data_link_cur_index(data_link);
     }
@@ -203,7 +203,6 @@ int ntb_pure_data_msg_enqueue(
                  next_index, *data_link->local_cum_ptr);
             usleep(BLOCKING_SLEEP_US);
         }
-        sched_yield();
     }
 
     uint8_t *ptr = r->start_addr +
@@ -277,12 +276,10 @@ int ntb_data_msg_enqueue2(
         if (full_cnt % cnt_window == 0)
         {
             full_cnt = 0;
-            DEBUG("[ntb_data_msg_enqueue2] \
-*****blocking 'next_write_idx=%ld, shadown_read_idx=%ld'\n",
+            DEBUG("[ntb_data_msg_enqueue2] ** blocking 'next_write_idx=%ld, shadown_read_idx=%ld'**\n",
                   next_write_idx, *data_link->local_cum_ptr);
             usleep(BLOCKING_SLEEP_US);
         }
-        sched_yield();
     }
 
     uint8_t *write_addr = peer_dataring->start_addr +
@@ -370,7 +367,6 @@ int ntb_data_msg_enqueue(
 
             usleep(BLOCKING_SLEEP_US);
         }
-        sched_yield();
     }
 
     uint8_t *ptr = r->start_addr +
@@ -479,22 +475,20 @@ int ntpacket_enqueue(
     uint64_t next_index;
     next_index =
         peer_dataring->cur_index + 1 < peer_dataring->capacity
-            ? peer_dataring->cur_index + 1
-            : 0;
+            ? peer_dataring->cur_index + 1 : 0;
 
     int full_cnt = 0;
     int sleep_us = 100, cnt_window = 50;
 
     // compare the next write_index to current read_index,
     //  judge whether ntb ringbuffer is full
-    while (next_index == *data_link->local_cum_ptr)
+    while (UNLIKELY(next_index == *data_link->local_cum_ptr))
     {
         full_cnt++;
         if (full_cnt % cnt_window == 0)
         {
             usleep(sleep_us);
         }
-        sched_yield();
     }
 
     uint8_t *ptr = peer_dataring->start_addr +
@@ -508,9 +502,8 @@ int ntpacket_enqueue(
             //PSH: update local shadow read_index using remote write by peer side
             packet_header->msg_type |= (1 << 15);
         }
-        rte_memcpy(ptr + NTPACKET_HEADER_LEN,
-                   source_msg->payload, msg_len - NTPACKET_HEADER_LEN);
-        rte_memcpy(ptr, &source_msg->header, NTPACKET_HEADER_LEN);
+       
+        rte_memcpy(ptr, &source_msg->header, msg_len);
     }
     else
     {
@@ -521,10 +514,8 @@ int ntpacket_enqueue(
         {
             packet_header->msg_type |= (1 << 15);
         }
-        rte_memcpy(ptr + NTPACKET_HEADER_LEN,
-                   source_msg->payload,
-                   NTP_CONFIG.data_packet_size - NTPACKET_HEADER_LEN);
-        rte_memcpy(ptr, &source_msg->header, NTPACKET_HEADER_LEN);
+    
+        rte_memcpy(ptr, &source_msg->header, NTP_CONFIG.data_packet_size);
     }
 
     peer_dataring->cur_index = next_index;
@@ -887,54 +878,65 @@ void ntb_destroy(struct ntb_link_custom *ntb_link,
 
     // free epoll-related resources
     HashMapIterator iter;
-    epoll_context_t epoll_ctx;
-    iter = createHashMapIterator(ntb_link->epoll_ctx_map);
-    while (hasNextHashMapIterator(iter))
+    if (ntb_link->epoll_ctx_map)
     {
-        iter = nextHashMapIterator(iter);
-        epoll_ctx = (epoll_context_t)iter->entry->value;
-
-        if (!epoll_ctx)
+        epoll_context_t epoll_ctx;
+        iter = createHashMapIterator(ntb_link->epoll_ctx_map);
+        
+        while (hasNextHashMapIterator(iter))
         {
-            continue;
-        }
+            iter = nextHashMapIterator(iter);
+            epoll_ctx = (epoll_context_t)iter->entry->value;
 
-        ntb_conn_t tmp_conn;
-        HashMapIterator ep_conn_map_iter;
-        ep_conn_map_iter = createHashMapIterator(epoll_ctx->ep_conn_map);
-        while (hasNextHashMapIterator(ep_conn_map_iter))
-        {
-            ep_conn_map_iter = nextHashMapIterator(ep_conn_map_iter);
-            tmp_conn = (ntb_conn_t)ep_conn_map_iter->entry->value;
-            if (!tmp_conn)
+            if (!epoll_ctx)
             {
                 continue;
             }
 
-            tmp_conn->epoll = NTS_EPOLLNONE;
-            tmp_conn->ep_data = 0;
-            tmp_conn->sockid = 0;
-            tmp_conn->epoll_ctx = NULL;
-        }
-        freeHashMapIterator(&ep_conn_map_iter);
-        Clear(epoll_ctx->ep_conn_map);
-        free(epoll_ctx->ep_conn_map);
-        epoll_ctx->ep_conn_map = NULL;
+            if (epoll_ctx->ep_conn_map) 
+            {
+                ntb_conn_t tmp_conn;
+                HashMapIterator ep_conn_map_iter;
+                ep_conn_map_iter = createHashMapIterator(epoll_ctx->ep_conn_map);
 
-        epoll_ctx->ep_io_queue = NULL;
-        if (epoll_ctx->ep_io_queue_ctx)
-        {
-            ep_event_queue_free(epoll_ctx->ep_io_queue_ctx, false);
-            epoll_ctx->ep_io_queue_ctx = NULL;
+                while (hasNextHashMapIterator(ep_conn_map_iter))
+                {
+                    ep_conn_map_iter = nextHashMapIterator(ep_conn_map_iter);
+                    tmp_conn = (ntb_conn_t)ep_conn_map_iter->entry->value;
+                    if (!tmp_conn)
+                    {
+                        continue;
+                    }
+
+                    tmp_conn->epoll = NTS_EPOLLNONE;
+                    tmp_conn->ep_data = 0;
+                    tmp_conn->sockid = 0;
+                    tmp_conn->epoll_ctx = NULL;
+                }
+
+                freeHashMapIterator(&ep_conn_map_iter);
+                Clear(epoll_ctx->ep_conn_map);
+                free(epoll_ctx->ep_conn_map);
+                epoll_ctx->ep_conn_map = NULL;
+            }
+
+            epoll_ctx->ep_io_queue = NULL;
+            if (epoll_ctx->ep_io_queue_ctx)
+            {
+                ep_event_queue_free(epoll_ctx->ep_io_queue_ctx, false);
+                epoll_ctx->ep_io_queue_ctx = NULL;
+            }
+
+            free(epoll_ctx);
+            epoll_ctx = NULL;
         }
 
-        free(epoll_ctx);
-        epoll_ctx = NULL;
+        freeHashMapIterator(&iter);
+        Clear(ntb_link->epoll_ctx_map);
+        free(ntb_link->epoll_ctx_map);
+        ntb_link->epoll_ctx_map = NULL;
     }
-    freeHashMapIterator(&iter);
-    Clear(ntb_link->epoll_ctx_map);
-    free(ntb_link->epoll_ctx_map);
-    ntb_link->epoll_ctx_map = NULL;
+    
 
     // free send/receive epoll context resources
     if (ntb_link->ntp_ep_recv_ctx)

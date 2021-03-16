@@ -61,8 +61,6 @@ extern "C"
 
     typedef struct ntpacket
     {
-        // ntpacket_header_t header;
-        // char *payload;
         struct ntpacket_header header;
         char payload[0];
     } ntp_msg, ntpacket;

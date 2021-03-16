@@ -392,10 +392,6 @@ int main(int argc, char **argv)
 		rte_exit(EXIT_FAILURE, "NTB Link start failed.\n");
 	}
 
-	DEBUG("mem addr == %ld ,len == %ld",
-		  ntb_link->hw->pci_dev->mem_resource[2].phys_addr,
-		  ntb_link->hw->pci_dev->mem_resource[2].len);
-
 	if (!ntb_link->hw)
 	{
 		ERR("Invalid device.");
