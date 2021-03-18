@@ -1347,9 +1347,9 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes)
 
 			if (buf_avail_bytes >= bytes_left)
 			{
-				DEBUG("bytes_left < NTP_PAYLOAD_MAX_SIZE \
-(NTS_CONFIG.max_payloadsize) and buf_avail_bytes >= bytes_left with bytes_read=%d",
-					  bytes_read);
+				DEBUG("bytes_left < NTP_PAYLOAD_MAX_SIZE (NTS_CONFIG.max_payloadsize) " 
+					 "and buf_avail_bytes >= bytes_left with bytes_read=%d",
+					bytes_read);
 				memcpy(ptr + bytes_read, payload, bytes_left);
 				bytes_read += bytes_left;
 
@@ -1371,11 +1371,11 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes)
 				DEBUG("bytes_left < NTP_PAYLOAD_MAX_SIZE(NTS_CONFIG.max_payloadsize) \
 and buf_avail_bytes < bytes_left with bytes_read=%d",
 					  bytes_read);
-				// memcpy(ptr + bytes_read, payload, bytes_left);
 				memcpy(ptr + bytes_read, payload, buf_avail_bytes);
+				bytes_read += buf_avail_bytes;
+
 				payload += buf_avail_bytes;
 				bytes_left -= buf_avail_bytes;
-				bytes_read += buf_avail_bytes;
 				memcpy(nt_sock_ctx->ntp_buf, payload, bytes_left);
 				nt_sock_ctx->ntp_buflen = bytes_left;
 
@@ -1391,9 +1391,10 @@ and buf_avail_bytes < bytes_left with bytes_read=%d",
 			if (buf_avail_bytes < bytes_left)
 			{
 				memcpy(ptr + bytes_read, payload, buf_avail_bytes);
+				bytes_read += buf_avail_bytes;
+
 				payload += buf_avail_bytes;
 				bytes_left -= buf_avail_bytes;
-				bytes_read += buf_avail_bytes;
 				memcpy(nt_sock_ctx->ntp_buf, payload, bytes_left);
 				nt_sock_ctx->ntp_buflen = bytes_left;
 
