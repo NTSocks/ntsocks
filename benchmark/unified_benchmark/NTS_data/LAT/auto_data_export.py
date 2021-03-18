@@ -70,7 +70,7 @@ for file in files:
 
                     t90_avg = sum(t90_list) / len(t90_list)
                     t90_min = min(t90_list)
-                    t99_max = max(t90_list)
+                    t90_max = max(t90_list)
 
                     t99_avg = sum(t99_list) / len(t99_list)
                     t99_min = min(t99_list)

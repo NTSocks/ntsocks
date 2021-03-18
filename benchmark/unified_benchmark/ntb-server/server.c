@@ -270,7 +270,20 @@ void latency_write_with_ack(int sockfd,
 
     usleep(50);
 
-    for (size_t i = 0; i < num_req; ++i)
+    // Discard first 5000 data because of the cold start
+    for (size_t i = 0; i < 5000; ++i)
+    {
+        ret = write(sockfd, msg, payload_size);
+        if (ret <= 0)
+            printf("[sockid = %d] ret = %d WRITE FAILED!!!!!!!!!!\n", sockfd, ret);
+        n = payload_size;
+        while (n > 0)
+        {
+            n = (n - read(sockfd, ack, n));
+        }
+    }
+
+     for (size_t i = 0; i < num_req; ++i)
     {
         start_cycles[i] = get_cycles();
 
@@ -624,16 +637,16 @@ AVERAGE = %.2f us\n50 TAIL = %.2f us\n90 TAIL = %.2f us\n99 TAIL = %.2f us\n99.9
 void latency_report_perf_to_file(
     size_t *start_cycles, size_t *end_cycles, int sockfd)
 {
-
     double *lat = (double *)malloc(num_req * sizeof(double));
     double cpu_mhz = get_cpu_mhz();
     double sum = 0.0;
     // printf("\nbefore sort:\n");
-    for (size_t i = 0; i < num_req; i++)
+    for (size_t i = 0; i < num_req; i++) // Discard first 5000 data because of the cold start
     {
         lat[i] = (double)(end_cycles[i] - start_cycles[i]) / cpu_mhz;
         sum += lat[i];
     }
+
     qsort(lat, num_req, sizeof(lat[0]), cmp);
     size_t idx_50, idx_90, idx_99, idx_99_9;
     idx_50 = floor(num_req * 0.5);
@@ -646,10 +659,10 @@ void latency_report_perf_to_file(
 
     log_ctx_t ctx = log_init(file_path, strlen(file_path));
 
-    fprintf(ctx->file, "@MEASUREMENT(requests = %d, payload size = %d, sockfd = %d):\n\
+        fprintf(ctx->file, "@MEASUREMENT(requests = %d, payload size = %d, sockfd = %d):\n\
 AVERAGE = %.2f us\n50 TAIL = %.2f us\n90 TAIL = %.2f us\n99 TAIL = %.2f us\n99.9 TAIL = %.2f us\n",
-            num_req, payload_size, sockfd, sum / num_req, lat[idx_50],
-            lat[idx_90], lat[idx_99], lat[idx_99_9]);
+                num_req, payload_size, sockfd, sum / num_req, lat[idx_50],
+                lat[idx_90], lat[idx_99], lat[idx_99_9]);
 
     log_destroy(ctx);
 

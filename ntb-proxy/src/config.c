@@ -17,15 +17,18 @@
 #include "nt_log.h"
 DEBUG_SET_LEVEL(DEBUG_LEVEL_DEBUG);
 
-#define MAX_BUF_LEN 1024
-#define MAX_KEY_LEN 64
-#define MAX_VAL_LEN 256
-#define DEFAULT_NUM_PARTITION 2
-#define DEFAULT_NTPACKET_SIZE 7
-#define DEFAULT_CTRL_PACKET_SIZE 16
-#define DEFAULT_DATA_RING_SIZE 0x4000000 // 8MB --> 64MB
-#define DEFAULT_CTRL_RING_SIZE 0x40000	 // 256KB
-#define MAX_NUM_PARTITION 4
+#define NTP_PARAM_DATA_RING_SIZE "sublink_data_ring_size"
+#define NTP_PARAM_CTRL_RING_SIZE "sublink_ctrl_ring_size"
+#define NTP_PARAM_NTS_BUF_SIZE "nts_buff_size"
+#define NTP_PARAM_BULK_SIZE "bulk_size"
+#define NTP_PARAM_NUM_PARTITION "num_partition"
+#define NTP_PARAM_PACKET_BITS "ntb_packetbits_size"
+#define NTP_PARAM_CTRL_PACKET_SIZE "ctrl_packet_size"
+#define NTP_PARAM_DATA_RINGBUF_SIZE "data_ringbuffer_size"
+#define NTP_PARAM_CTRL_RINGBUF_SIZE "ctrl_ringbuffer_size"
+#define NTP_PARAM_DATA_PACKET_SIZE "data_packet_size"
+
+char ntp_cfg_path[256] = {0};
 
 struct ntp_config NTP_CONFIG = {
 	/* set default configuration */
@@ -37,7 +40,8 @@ struct ntp_config NTP_CONFIG = {
 	.ntb_packetbits_size = DEFAULT_NTPACKET_SIZE,
 	.ctrl_packet_size = DEFAULT_CTRL_PACKET_SIZE,
 	.data_ringbuffer_size = DEFAULT_DATA_RING_SIZE,
-	.ctrl_ringbuffer_size = DEFAULT_CTRL_RING_SIZE};
+	.ctrl_ringbuffer_size = DEFAULT_CTRL_RING_SIZE
+};
 
 static int trim(char s[])
 {
@@ -51,7 +55,7 @@ static int trim(char s[])
 	return n;
 }
 
-static int math_log2(int value)
+int math_log2(int value)
 {
 	int log_v = log(value * 1.0) / log(2.0);
 	return log_v;
@@ -69,6 +73,7 @@ int load_conf(const char *fname)
 
 	char buf[MAX_BUF_LEN];
 	int text_comment = 0;
+
 	while (fgets(buf, MAX_BUF_LEN, file) != NULL)
 	{
 		trim(buf);
@@ -102,6 +107,7 @@ int load_conf(const char *fname)
 		char _paramk[MAX_KEY_LEN] = {0}, _paramv[MAX_VAL_LEN] = {0};
 		int _kv = 0, _klen = 0, _vlen = 0;
 		int i = 0;
+
 		for (i = 0; i < buf_len; ++i)
 		{
 			if (buf[i] == ' ')
@@ -124,26 +130,28 @@ int load_conf(const char *fname)
 				break;
 			_paramv[_vlen++] = buf[i];
 		}
+
 		if (strcmp(_paramk, "") == 0 || strcmp(_paramv, "") == 0)
 			continue;
+
 		// DEBUG("ntb proxy configuration %s=%s", _paramk, _paramv);
-		if (strcmp(_paramk, "sublink_data_ring_size") == 0)
+		if (strcmp(_paramk, NTP_PARAM_DATA_RING_SIZE) == 0)
 		{
 			NTP_CONFIG.sublink_data_ring_size = atoi(_paramv);
 		}
-		else if (strcmp(_paramk, "sublink_ctrl_ring_size") == 0)
+		else if (strcmp(_paramk, NTP_PARAM_CTRL_RING_SIZE) == 0)
 		{
 			NTP_CONFIG.sublink_ctrl_ring_size = atoi(_paramv);
 		}
-		else if (strcmp(_paramk, "nts_buff_size") == 0)
+		else if (strcmp(_paramk, NTP_PARAM_NTS_BUF_SIZE) == 0)
 		{
 			NTP_CONFIG.nts_buff_size = atoi(_paramv);
 		}
-		else if (strcmp(_paramk, "bulk_size") == 0)
+		else if (strcmp(_paramk, NTP_PARAM_BULK_SIZE) == 0)
 		{
 			NTP_CONFIG.bulk_size = atoi(_paramv);
 		}
-		else if (strcmp(_paramk, "num_partition") == 0)
+		else if (strcmp(_paramk, NTP_PARAM_NUM_PARTITION) == 0)
 		{
 			NTP_CONFIG.num_partition = atoi(_paramv);
 			NTP_CONFIG.num_partition =
@@ -151,38 +159,38 @@ int load_conf(const char *fname)
 					? NTP_CONFIG.num_partition
 					: MAX_NUM_PARTITION;
 		}
-		else if (strcmp(_paramk, "ntb_packetbits_size") == 0)
+		else if (strcmp(_paramk, NTP_PARAM_PACKET_BITS) == 0)
 		{
 			NTP_CONFIG.ntb_packetbits_size = atoi(_paramv);
 			NTP_CONFIG.data_packet_size = 1 << NTP_CONFIG.ntb_packetbits_size;
 		}
-		else if (strcmp(_paramk, "ctrl_packet_size") == 0)
+		else if (strcmp(_paramk, NTP_PARAM_CTRL_PACKET_SIZE) == 0)
 		{
 			NTP_CONFIG.ctrl_packet_size = atoi(_paramv);
 		}
-		else if (strcmp(_paramk, "data_ringbuffer_size") == 0)
+		else if (strcmp(_paramk, NTP_PARAM_DATA_RINGBUF_SIZE) == 0)
 		{
 			char *end;
 			NTP_CONFIG.data_ringbuffer_size = strtoull(_paramv, &end, 16);
 		}
-		else if (strcmp(_paramk, "ctrl_ringbuffer_size") == 0)
+		else if (strcmp(_paramk, NTP_PARAM_CTRL_RINGBUF_SIZE) == 0)
 		{
 			char *end;
 			NTP_CONFIG.ctrl_ringbuffer_size = strtoll(_paramv, &end, 16);
 		}
-		else if (strcmp(_paramk, "data_packet_size") == 0)
+		else if (strcmp(_paramk, NTP_PARAM_DATA_PACKET_SIZE) == 0)
 		{
 			NTP_CONFIG.data_packet_size = atoi(_paramv);
 			NTP_CONFIG.ntb_packetbits_size = math_log2(NTP_CONFIG.data_packet_size);
 		}
 		else
 		{
-			fclose(file);
-			return -1;
+			ERR("Invalid param '%s=%s' for nts", _paramk, _paramv);
+			continue;
 		}
 	}
-	fclose(file);
 
+	fclose(file);
 	return 0;
 }
 

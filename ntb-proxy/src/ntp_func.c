@@ -327,10 +327,16 @@ int ntp_send_buff_data(struct ntb_data_link *data_link,
     return recv_cnt;
 }
 
-int ntp_receive_data_to_buff(struct ntb_data_link *data_link,
-                             struct ntb_link_custom *ntb_link,
-                             ntb_partition_t partition)
+int ntp_recv_data_to_buf(struct ntb_data_link *data_link,
+                            struct ntb_link_custom *ntb_link,
+                            ntb_partition_t partition, 
+                            struct ntp_lcore_conf * conf)
 {
+    assert(data_link);
+    assert(ntb_link);
+    assert(partition);
+    assert(conf);
+
     // local NTB-based data ringbuffer
     struct ntb_ring_buffer *recv_dataring = data_link->local_ring;
     volatile ntpacket_t msg, fin_msg;
@@ -347,6 +353,9 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link,
     int i, count;
     uint64_t next_index, fin_index, temp_index;
     int rc;
+    uint64_t loop_cnt = 0;
+
+    memset(recv_dataring->start_addr, 0, NTP_CONFIG.data_ringbuffer_size);
 
     while (!ntb_link->is_stop)
     {
@@ -354,8 +363,17 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link,
                               (recv_dataring->cur_index << NTP_CONFIG.ntb_packetbits_size));
         rc = parse_ntpacket(packet_ptr, &msg);
 
+        loop_cnt++;
+        if (loop_cnt % 100000 == 0)
+        {
+            if (conf->stopped)
+                break;
+
+            loop_cnt = 0;
+        }
+
         // if no msg,continue
-        if (rc == -1 || (msg && msg->header.msg_len == 0))
+        if (msg && msg->header.msg_len == 0) 
         {
             continue;
         }
@@ -417,17 +435,12 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link,
         ntp_msg_t recv_msg;
         rc = ntp_shm_ntpacket_alloc(conn->nts_recv_ring,
                                     &recv_msg, NTP_CONFIG.data_packet_size);
-        if (UNLIKELY(rc == -1))
-        {
-            ERR("ntp_shm_ntpacket_alloc failed");
-            return -1;
-        }
+        assert(rc == 0);
 
         // report the statistics about the used element ratio of data ringbuffer,
         // if write_idx > read_idx, then write_idx - read_idx
         // else, r->capacity - (read_idx - write_idx)
 
-        int rc;
         if (msg_type == SINGLE_PKG)
         {
             recv_msg->header.msg_type = NTP_DATA;
@@ -436,11 +449,12 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link,
                        msg->payload, recv_msg->header.msg_len);
 
             rc = ntp_shm_send(conn->nts_recv_ring, recv_msg);
-            if (UNLIKELY(rc == -1))
-            {
-                ERR("ntp_shm_send failed");
-                return -1;
-            }
+            assert(rc == 0);
+            // if (UNLIKELY(rc == -1))
+            // {
+            //     ERR("ntp_shm_send failed");
+            //     return -1;
+            // }
 
             //将msg_len置为0，cur_index++
             msg->header.msg_len = 0;
@@ -450,7 +464,6 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link,
                     ? recv_dataring->cur_index + 1
                     : 0;
 
-            DEBUG("recv_msg->payload = %s", recv_msg->payload);
             DEBUG("receive SINGLE_PKG end");
 
             // after forwarding data packet, check whether epoll or not
@@ -472,8 +485,8 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link,
         }
         else if (msg_type == MULTI_PKG)
         {
-            recv_msg->header.msg_type = NTP_DATA;
             recv_msg->header.msg_len = msg_len - NTPACKET_HEADER_LEN;
+            recv_msg->header.msg_type = NTP_DATA;
 
             temp_index = recv_dataring->cur_index;
             // fix recv_msg->header.msg_len to msg_len
@@ -490,13 +503,9 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link,
                                   (fin_index << NTP_CONFIG.ntb_packetbits_size));
 
             rc = parse_ntpacket(packet_ptr, &fin_msg);
-            if (UNLIKELY(rc == -1))
-            {
-                return -1;
-            }
+            assert(rc == 0);
 
-            while (UNLIKELY(fin_msg->header.msg_len == 0))
-                ;
+            while (UNLIKELY(fin_msg->header.msg_len == 0));
 
             if (next_index <= recv_dataring->capacity)
             {
@@ -512,8 +521,7 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link,
                 rte_memcpy(recv_msg->payload, msg->payload, first_len);
 
                 rte_memcpy((recv_msg->payload + first_len),
-                           recv_dataring->start_addr,
-                           recv_msg->header.msg_len - first_len);
+                    recv_dataring->start_addr, recv_msg->header.msg_len - first_len);
             }
 
             // 将所有接收到的消息清空
@@ -522,16 +530,12 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link,
                 packet_ptr = (void *)(recv_dataring->start_addr +
                                       (temp_index << NTP_CONFIG.ntb_packetbits_size));
 
-                temp_index = temp_index + 1 <
-                                     recv_dataring->capacity
-                                 ? temp_index + 1
-                                 : 0;
+                temp_index = temp_index + 1 < recv_dataring->capacity
+                                 ? temp_index + 1 : 0;
 
                 rc = parse_ntpacket(packet_ptr, &msg);
-                if (UNLIKELY(rc == -1))
-                {
-                    continue;
-                }
+                assert(rc == 0);
+                
                 msg->header.msg_len = 0;
             }
 
@@ -573,8 +577,7 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link,
             msg->header.msg_len = 0;
             recv_dataring->cur_index =
                 recv_dataring->cur_index + 1 < recv_dataring->capacity
-                    ? recv_dataring->cur_index + 1
-                    : 0;
+                    ? recv_dataring->cur_index + 1 : 0;
         }
         else if (msg_type == FIN_PKG)
         {
@@ -596,8 +599,7 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link,
             //  遍历ring_list时判断conn->state来close移出node并free
             recv_dataring->cur_index =
                 recv_dataring->cur_index + 1 < recv_dataring->capacity
-                    ? recv_dataring->cur_index + 1
-                    : 0;
+                    ? recv_dataring->cur_index + 1 : 0;
 
             // after forwarding data packet, check whether epoll or not
             if (conn->epoll && (conn->epoll & NTS_EPOLLIN))
@@ -633,6 +635,7 @@ int ntp_receive_data_to_buff(struct ntb_data_link *data_link,
         }
     }
 
+    printf("[RECV] conf: %p, stopped=%d\n", conf, conf->stopped);
     return 0;
 }
 

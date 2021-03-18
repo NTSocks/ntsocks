@@ -98,6 +98,9 @@ HashMapIterator nextHashMapIterator(HashMapIterator iterator);
 // 释放迭代器内存
 void freeHashMapIterator(HashMapIterator * iterator);
 
+// for integer HashCode
+int intHashCode(HashMap hashMap, let key);
+
 
 #define Put(map, key, value) map->put(map, (void *)key, (void *)value);
 #define Get(map, key) (char *)map->get(map, (void *)key)

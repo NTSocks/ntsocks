@@ -23,6 +23,20 @@ extern "C"
 
 #define CONFIG_FILE "/etc/ntp.cfg"
 
+#define MAX_BUF_LEN 1024
+#define MAX_KEY_LEN 64
+#define MAX_VAL_LEN 256
+#define DEFAULT_NTPACKET_SIZE 7
+#define DEFAULT_CTRL_PACKET_SIZE 16
+#define DEFAULT_DATA_RING_SIZE 0x4000000 // 8MB --> 64MB
+#define DEFAULT_CTRL_RING_SIZE 0x40000	 // 256KB
+#define MAX_NUM_PARTITION 8
+
+#define DEFAULT_MTU_SIZE 1024
+#define DEFAULT_BULK_SIZE 16
+#define DEFAULT_NUM_PARTITION 1
+#define DEFAULT_CFG_PATH "/etc/ntp.cfg"
+
     struct ntp_config
     {
         int sublink_data_ring_size;
@@ -41,6 +55,7 @@ extern "C"
         uint16_t datapacket_payload_size; // = data_packet_size - DATA_PACKET_HEADER_SIZE
     };
 
+    extern char ntp_cfg_path[256];
     extern struct ntp_config NTP_CONFIG;
 
     /* load configuration from specified configuration file name */
@@ -48,6 +63,8 @@ extern "C"
 
     /* print setted configuration */
     void print_conf(void);
+
+    int math_log2(int value);
 
 #ifdef __cplusplus
 };

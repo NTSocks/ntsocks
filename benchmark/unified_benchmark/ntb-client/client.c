@@ -421,15 +421,14 @@ void latency_read_with_ack(int sockfd)
     char ack[payload_size];
     int n = 0;
     int ret;
-    for (size_t i = 0; i < num_req; ++i)
+    for (size_t i = 0; i < num_req + 5000; ++i) // Discard first 5000 data because of the cold start
     {
         n = payload_size;
         while (n > 0)
         {
             n = (n - read(sockfd, msg, n));
         }
-        //printf("msg = %s\n", msg);
-        memcpy(ack, msg, payload_size);
+
         ret = write(sockfd, ack, payload_size);
         if (ret != payload_size)
         {

@@ -12,7 +12,7 @@
 
 int main()
 {
-    bool ret;
+    int ret;
     shm_mp_handler_t mp_handler;
     shmring_handle_t shmring_handle;
     const int mp_size = 2048;
@@ -58,7 +58,7 @@ int main()
 
         ret = shmring_push_bulk(
             shmring_handle, node_idxs, ele_lens, bulk_size);
-        while (!ret)
+        while (ret)
         {
             fprintf(stderr, "shmring_push_bulk failed, retry...\n");
             sched_yield();

@@ -11,8 +11,9 @@
 #include <signal.h>
 #include <string.h>
 #include <getopt.h>
-
+#include <sys/types.h>
 #include <errno.h>
+#include <fcntl.h>
 
 #include <rte_io.h>
 #include <rte_eal.h>
@@ -74,12 +75,13 @@ static uint16_t dev_id;
 
 struct ntb_link_custom *ntb_link;
 
-unsigned lcore_id;
-
 // define the CPU cores set for ntb_partitions as an array
 // 1. the array index indicates the ntb_partition id
 // 2. the array value indicates the assigned CPU cores lcore_id;
-static int cpu_cores[8] = {8, 9, 10, 11, 12, 13, 14, 15};
+static int cpu_cores[MAX_NUM_PARTITION * 2] = 
+	{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 32};
+
+static struct ntp_lcore_conf lcore_conf[RTE_MAX_LCORE];
 
 static int
 ntb_send_thread(__attribute__((unused)) void *arg)
@@ -87,16 +89,36 @@ ntb_send_thread(__attribute__((unused)) void *arg)
 	assert(ntb_link);
 	assert(arg);
 
+	struct lcore_ctx * core_ctx;
+	core_ctx = (struct lcore_ctx *) arg;
+
 	ntb_partition_t partition;
-	partition = (ntb_partition_t)arg;
+	partition = (ntb_partition_t)core_ctx->partition;
 	DEBUG("enter partition %d", partition->id);
+
+	struct ntp_lcore_conf * conf;
+	conf = core_ctx->conf;
 
 	ntp_send_list_node *pre_node = partition->send_list.ring_head;
 	ntp_send_list_node *curr_node = NULL;
 	uint64_t counter = 0;
+	uint64_t loop_cnt = 0;
+
+	memset(partition->data_link->remote_ring->start_addr, 0, NTP_CONFIG.data_ringbuffer_size);
+
 	while (!ntb_link->is_stop)
 	{
 		curr_node = pre_node->next_node;
+
+		loop_cnt++;
+		if (loop_cnt % 100000 == 0)
+        {
+            if (conf->stopped)
+                break;
+
+            loop_cnt = 0;
+        }
+
 		// indicate non-existing ntb connection
 		//	when head node in ntb-conn list is EMPTY.
 		if (curr_node == partition->send_list.ring_head)
@@ -142,6 +164,10 @@ ntb_send_thread(__attribute__((unused)) void *arg)
 		pre_node = curr_node; // move the current point to next ntb conn
 	}
 
+	printf("\n[Partition-%d] SEND Thread EXIT\n", partition->id);
+	free(core_ctx);
+	core_ctx = NULL;
+
 	return 0;
 }
 
@@ -151,12 +177,19 @@ ntb_receive_thread(__attribute__((unused)) void *arg)
 	assert(ntb_link);
 	assert(arg);
 
+	struct lcore_ctx * core_ctx;
+	core_ctx = (struct lcore_ctx *) arg;
+
 	ntb_partition_t partition;
-	partition = (ntb_partition_t)arg;
+	partition = (ntb_partition_t)core_ctx->partition;
 	DEBUG("enter partition %d", partition->id);
 
-	ntp_receive_data_to_buff(
-		partition->data_link, ntb_link, partition);
+	ntp_recv_data_to_buf(
+		partition->data_link, ntb_link, partition, core_ctx->conf);
+
+	printf("\n[Partition-%d] RECV Thread EXIT\n", partition->id);
+	free(core_ctx);
+	core_ctx = NULL;
 
 	return 0;
 }
@@ -204,23 +237,42 @@ ntm_ntp_receive_thread(__attribute__((unused)) void *arg)
 	return NULL;
 }
 
-void ntp_on_exit(void)
+// for quit signal
+static volatile bool s_signal_quit = false;
+static volatile int s_signum = -1;
+
+static void before_exit(void)
 {
-	INFO("destroy ntp resource when on exit.");
-	ntb_destroy(ntb_link);
+	INFO("destroy all ntm resources when on exit.");
+	if (!s_signal_quit) 
+	{
+		s_signal_quit = true;
+		ntb_destroy(ntb_link, lcore_conf);
+
+		if (s_signum != -1)
+		{
+			kill(getpid(), s_signum);
+		}
+	}
 }
 
-void signal_crash_handler(int sig)
+static void crash_handler(int signum)
 {
-	INFO("destroy ntp resource when on crash.");
+	printf("\n[Crash]: Signal %d received, preparing to exit...\n", signum);
+	s_signum = signum;
 	exit(-1);
 }
 
-void signal_exit_handler(int sig)
+static void signal_exit_handler(int signum)
 {
-	INFO("destroy ntp resource when normally exit.");
+	if (signum == SIGINT || signum == SIGTERM) 
+	{
+		printf("\nSignal %d received, preparing to exit...\n", signum);
+		s_signum = signum;
+	}
 	exit(0);
 }
+
 
 static void *
 ntp_epoll_listen_thread(__attribute__((unused)) void *arg)
@@ -236,17 +288,14 @@ ntp_epoll_listen_thread(__attribute__((unused)) void *arg)
 	while (!ntb_link->is_stop)
 	{
 		rc = epoll_sem_shm_recv(ep_recv_ctx, &req_msg);
-		if (LIKELY(rc == 0))
+		if (UNLIKELY(rc != 0 || ntb_link->is_stop))
 		{
-			DEBUG("receive one epoll_msg from ntm");
-			rc = ntp_handle_epoll_msg(ntb_link, &req_msg);
-
-			if (rc != 0)
-			{
-				break;
-			}
+			break;
 		}
-		else
+		
+		DEBUG("receive one epoll_msg from ntm");
+		rc = ntp_handle_epoll_msg(ntb_link, &req_msg);
+		if (rc != 0)
 		{
 			break;
 		}
@@ -256,13 +305,157 @@ ntp_epoll_listen_thread(__attribute__((unused)) void *arg)
 	return NULL;
 }
 
+
+/* for NTP usage and cmd params parser */
+
+#define OPT_MTU_SIZE "mtu-size"
+#define OPT_NUM_PART "num-partitions"
+#define OPT_BULK_SIZE "bulk-size"
+#define OPT_CONF_FILE "cfg-path"
+
+enum
+{
+	/* long options mapped to a short option */
+	OPT_MTU_SIZE_NUM = 1,
+	OPT_NUM_PART_NUM = 2,
+	OPT_BULK_SIZE_NUM = 3,
+	OPT_CONF_FILE_NUM = 4,
+};
+
+static const char short_options[] = "h";
+
+static const struct option lgopts[] = {
+	{OPT_MTU_SIZE, 2, NULL, OPT_MTU_SIZE_NUM},
+	{OPT_NUM_PART, 2, NULL, OPT_NUM_PART_NUM},
+	{OPT_BULK_SIZE, 2, NULL, OPT_BULK_SIZE_NUM},
+	{OPT_CONF_FILE, 2, NULL, OPT_CONF_FILE_NUM},
+	{0, 0, NULL, 0}
+};
+
+static void
+ntp_usage(const char *prgname)
+{
+	printf("\nUsage: %s [EAL options] -- [options]\n"
+		   "Startup NTP daemon for NTB transport.\n\n"
+		   "\t-h: print usage.\n"
+		   "\t--mtu-size=N: set MTU size as N (8 < N < 65536, default: %d).\n"
+		   "\t--num-partitions=N: set the number of parllel partitions as N"
+		   " (1 <= N <= %d, default: %d).\n"
+		   "\t--bulk-size=N: set bulk size of batching packet forwarding as N"
+		   " (1 <= N <= 65536, default: %d).\n"
+		   "\t--cfg-path=[file path]: set file path of ntp config 'ntp.cfg',"
+		   " (default: '%s').\n",
+		   prgname, DEFAULT_MTU_SIZE, MAX_NUM_PARTITION,
+		   DEFAULT_NUM_PARTITION, DEFAULT_BULK_SIZE, DEFAULT_CFG_PATH);
+}
+
+static void
+ntp_parse_args(int argc, char **argv)
+{
+	char *prgname = argv[0], **argvopt = argv;
+	int opt, opt_idx, n, i;
+
+	while ((opt = getopt_long(argc, argvopt, short_options,
+							  lgopts, &opt_idx)) != EOF)
+	{
+		switch (opt)
+		{
+		case 'h':
+			ntp_usage(prgname);
+			rte_exit(EXIT_SUCCESS, "\nprint NTP usage tips.\n");
+			break;
+		case OPT_MTU_SIZE_NUM:
+			n = atoi(optarg);
+			if (n > 8 && n < 65536)
+			{
+				NTP_CONFIG.data_packet_size = n;
+				NTP_CONFIG.ntb_packetbits_size = math_log2(NTP_CONFIG.data_packet_size);
+			}
+			else
+			{
+				rte_exit(EXIT_FAILURE, "mtu size must be > 8 and < 65536.\n");
+			}
+			break;
+		case OPT_NUM_PART_NUM:
+			n = atoi(optarg);
+			if (n >= 1 && n <= MAX_NUM_PARTITION)
+			{
+				NTP_CONFIG.num_partition = n;
+			}
+			else
+			{
+				rte_exit(EXIT_FAILURE, "number of parallel partitions "
+						"must be >= 1 and n <= %d.\n",
+						MAX_NUM_PARTITION);
+			}
+			break;
+		case OPT_BULK_SIZE_NUM:
+			n = atoi(optarg);
+			if (n >= 1 && n <= 65536)
+			{
+				NTP_CONFIG.bulk_size = n;
+			}
+			else 
+			{
+				rte_exit(EXIT_FAILURE, "bulk size of batching packet forwarding "
+						"must be >= 1 and <= 65536.\n");
+			}
+			break;
+		case OPT_CONF_FILE_NUM:
+			if (optarg && strlen(optarg) > 0)
+			{
+				if ((access(optarg, F_OK)) != -1)
+				{
+					memcpy(ntp_cfg_path, optarg, strlen(optarg));
+					int rc = load_conf(ntp_cfg_path);
+					if (rc != 0)
+					{
+						rte_exit(EXIT_FAILURE, "Cannot load config file '%s', "
+								"please double check.\n", ntp_cfg_path);
+					}
+				}
+			}
+			else 
+			{
+				rte_exit(EXIT_FAILURE, "Invalid ntp config file path.\n");
+			}
+			break;
+
+		default:
+			ntp_usage(prgname);
+			rte_exit(EXIT_FAILURE, 
+					"Command line is incomplete or incorrect.\n");
+			break;
+		}
+	}
+}
+
+
 int main(int argc, char **argv)
 {
+	uint64_t ntb_link_status;
 	int ret, i;
+
+	// register exit event processing
+	s_signal_quit = false;
+	atexit(before_exit);
+	signal(SIGTERM, signal_exit_handler);
+	signal(SIGINT, signal_exit_handler);
+
+	signal(SIGBUS, crash_handler);  // 总线错误
+	signal(SIGSEGV, crash_handler); // SIGSEGV，非法内存访问
+	signal(SIGFPE, crash_handler);  // SIGFPE，数学相关的异常，如被0除，浮点溢出，等等
+	signal(SIGABRT, crash_handler); // SIGABRT，由调用abort函数产生，进程非正常退出
+
 	ret = rte_eal_init(argc, argv);
 	if (ret < 0)
 	{
 		rte_exit(EXIT_FAILURE, "Error with EAL initialization.\n");
+	}
+
+	if (rte_lcore_count() < 2) 
+	{
+		rte_exit(EXIT_FAILURE, "Need at least 2 cores\n");
 	}
 
 	/* Find 1st ntb rawdev. */
@@ -280,57 +473,70 @@ int main(int argc, char **argv)
 	{
 		rte_exit(EXIT_FAILURE, "Cannot find any ntb device.\n");
 	}
-
-	// register exit event processing
-	atexit(ntp_on_exit);
-	signal(SIGTERM, signal_exit_handler);
-	signal(SIGINT, signal_exit_handler);
-
-	signal(SIGBUS, signal_crash_handler);  // 总线错误
-	signal(SIGSEGV, signal_crash_handler); // SIGSEGV，非法内存访问
-	signal(SIGFPE, signal_crash_handler);  // SIGFPE，数学相关的异常，如被0除，浮点溢出，等等
-	signal(SIGABRT, signal_crash_handler); // SIGABRT，由调用abort函数产生，进程非正常退出
-
 	dev_id = i;
 
-	/** Load the NTP config file */
-	char *conf_file;
-
-	if (!conf_file)
+	if (load_conf(DEFAULT_CFG_PATH) == -1)
 	{
-		conf_file = NTP_CONFIG_FILE;
+		rte_exit(EXIT_FAILURE, "Cannot load default config file '%s', "
+								"please double check.\n", ntp_cfg_path);
 	}
 
-	/** load the customized NTP parameters */
-	if (load_conf(conf_file) == -1)
+	argc -= ret;
+	argv += ret;
+
+	ntp_parse_args(argc, argv);
+
+	/** Load default NTP config file if not set. */
+	if (strlen(ntp_cfg_path) <= 0) 
 	{
-		rte_exit(EXIT_FAILURE, "Cannot load NTP configuration file.\n");
+		memcpy(ntp_cfg_path, DEFAULT_CFG_PATH, strlen(DEFAULT_CFG_PATH));
 	}
-
-	print_conf();
-
+	else if (load_conf(ntp_cfg_path) == -1)
+	{
+		rte_exit(EXIT_FAILURE, "Cannot load config file '%s', "
+								"please double check.\n", ntp_cfg_path);
+	}
 	NTP_CONFIG.datapacket_payload_size =
 		NTP_CONFIG.data_packet_size - NTPACKET_HEADER_LEN;
+	print_conf();
+
+
+	/* Waiting for peer dev up at most 100s.*/
+	printf("Checking ntb link status...\n");
+	for (i = 0; i < 1000; i++) {
+		rte_rawdev_get_attr(dev_id, NTB_LINK_STATUS_NAME,
+				    &ntb_link_status);
+		if (ntb_link_status) {
+			printf("Peer dev ready, ntb link up.\n");
+			break;
+		}
+		rte_delay_ms(1000);
+	}
+	rte_rawdev_get_attr(dev_id, NTB_LINK_STATUS_NAME, &ntb_link_status);
+	if (ntb_link_status == 0)
+		printf("Expire 100s. Link is not up. Please restart app.\n");
+
 
 	ntb_link = ntb_start(dev_id);
-
-	DEBUG("mem addr == %ld ,len == %ld",
-		  ntb_link->hw->pci_dev->mem_resource[2].phys_addr,
-		  ntb_link->hw->pci_dev->mem_resource[2].len);
-
-	uint16_t reg_val;
-	if (ntb_link->hw == NULL)
+	if (!ntb_link) 
 	{
-		ERR("Invalid device.");
-		return -1;
+		fprintf(stderr, "\n*********** NTB Link start failed ***********\n");
+		rte_exit(EXIT_FAILURE, "NTB Link start failed.\n");
 	}
 
+	if (!ntb_link->hw)
+	{
+		ERR("Invalid device.");
+		rte_exit(EXIT_FAILURE, "Invalid NTB device.\n");
+	}
+
+	uint16_t reg_val;
 	ret = rte_pci_read_config(ntb_link->hw->pci_dev, &reg_val,
 							  sizeof(reg_val), XEON_LINK_STATUS_OFFSET);
 	if (ret < 0)
 	{
-		ERR("Unable to get link status.");
-		return -1;
+		ERR("Unable to get NTB link status.");
+        rte_exit(EXIT_FAILURE, "Unable to get NTB link status.\n");
 	}
 
 	ntb_link->hw->link_status = NTB_LNK_STA_ACTIVE(reg_val);
@@ -340,31 +546,61 @@ int main(int argc, char **argv)
 		ntb_link->hw->link_width = NTB_LNK_STA_WIDTH(reg_val);
 	}
 
+	struct ntp_lcore_conf *conf;
+	struct lcore_ctx *core_ctx;
+	uint32_t lcore_id;
+
+	RTE_LCORE_FOREACH_SLAVE(lcore_id)
+	{
+		conf = &lcore_conf[lcore_id];
+		conf->lcore_id = lcore_id;
+		conf->is_enabled = 0;
+		conf->stopped = 1;
+
+		for (int i = 0; i < ntb_link->num_partition; i++)
+		{
+			int j = i * 2;
+			if (lcore_id == cpu_cores[j])
+			{
+				conf->is_enabled = 1;
+				conf->stopped = 0;
+
+				core_ctx = (struct lcore_ctx *)calloc(1, sizeof(struct lcore_ctx));
+				assert(core_ctx);
+
+				core_ctx->conf = conf;
+				core_ctx->partition = &ntb_link->partitions[i];
+
+				rte_eal_remote_launch(ntb_receive_thread,
+									  (void *)core_ctx, lcore_id);
+			}
+			if (lcore_id == cpu_cores[j + 1])
+			{
+				conf->is_enabled = 1;
+				conf->stopped = 0;
+
+				core_ctx = (struct lcore_ctx *)calloc(1, sizeof(struct lcore_ctx));
+				assert(core_ctx);
+
+				core_ctx->conf = conf;
+				core_ctx->partition = &ntb_link->partitions[i];
+
+				rte_eal_remote_launch(ntb_send_thread,
+									  (void *)core_ctx, lcore_id);
+			}
+		}
+	}
+
 	pthread_create(&ntb_link->ntm_ntp_listener,
 				   NULL, ntm_ntp_receive_thread, NULL);
 	pthread_create(&ntb_link->ctrl_recv_thr,
 				   NULL, ntb_ctrl_receive_thread, NULL);
 	pthread_create(&ntb_link->epoll_listen_thr,
 				   NULL, ntp_epoll_listen_thread, NULL);
-
-	RTE_LCORE_FOREACH_SLAVE(lcore_id)
-	{
-		for (int i = 0; i < ntb_link->num_partition; i++)
-		{
-			int j = i * 2;
-			if (lcore_id == cpu_cores[j])
-			{
-				rte_eal_remote_launch(ntb_receive_thread,
-									  (void *)&ntb_link->partitions[i], lcore_id);
-			}
-			if (lcore_id == cpu_cores[j + 1])
-			{
-				rte_eal_remote_launch(ntb_send_thread,
-									  (void *)&ntb_link->partitions[i], lcore_id);
-			}
-		}
-	}
+				   
 	rte_eal_mp_wait_lcore();
+
+	printf("**************** ntp exit... ****************\n");
 
 	return 0;
 }

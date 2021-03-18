@@ -69,16 +69,6 @@ typedef struct
         int shm_mem_fd;
         char *shm_mem;
 
-        /**
-         * @brief  hold <shm segment addr offset, shm mp node_idx>
-         * @note   key: shm segment virtual memory addr offset,  
-         *         value: shm mp node index
-         * @retval None
-         */
-        HashMap mp_node_map;
-        int *node_idxs;
-        char **offset_strs;
-
 } __attribute__((packed)) shm_mp_handler;
 typedef shm_mp_handler *shm_mp_handler_t;
 

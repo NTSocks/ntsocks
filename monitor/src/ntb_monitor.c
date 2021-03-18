@@ -56,14 +56,6 @@ int ntm_init(const char *config_file)
 {
 
 	/**
-	 * register signal callback functions
-	 */
-	// signal(SIGINT, ntm_destroy);
-	// signal(SIGKILL, ntm_destroy);
-	// signal(SIGSEGV, ntm_destroy);
-	// signal(SIGTERM, ntm_destroy);
-
-	/**
 	 * read conf file and init ntm params
 	 */
 	DEBUG("load the ntm config file");
@@ -305,7 +297,7 @@ void ntm_destroy()
 		return;
 	}
 
-	DEBUG("nt_destroy ready...");
+	printf("\n ******************* NTM Exit... *******************\n");
 	bool ret;
 	void *status;
 
@@ -335,41 +327,34 @@ void ntm_destroy()
 	 * between local and remote ntb-monitor
 	 */
 	HashMapIterator iter;
-	ntm_conn_t ntm_conn;
-	iter = createHashMapIterator(ntm_mgr->ntm_conn_ctx->conn_map);
-	while (hasNextHashMapIterator(iter))
+	if (ntm_mgr->ntm_conn_ctx->conn_map) 
 	{
-		DEBUG("iter next");
-		iter = nextHashMapIterator(iter);
-		ntm_conn = (ntm_conn_t)iter->entry->value;
-
-		/**
-		 * Disconnect and exit `client_conn->recv_thr` [ntm_sock_recv_thread()]
-		 * 	in 'ntm_mgr->ntm_conn_ctx->conn_map'
-		 */
-		ntm_conn->running_signal = false;
-		shutdown(ntm_conn->client_sock->socket_fd, SHUT_RDWR);
-		pthread_join(ntm_conn->recv_thr, &status);
-
-		if (ntm_conn->client_sock)
+		ntm_conn_t ntm_conn;
+		iter = createHashMapIterator(ntm_mgr->ntm_conn_ctx->conn_map);
+		while (hasNextHashMapIterator(iter))
 		{
-			ntm_free(ntm_conn->client_sock);
+			iter = nextHashMapIterator(iter);
+			ntm_conn = (ntm_conn_t)iter->entry->value;
+
+			/**
+			 * Disconnect and exit `client_conn->recv_thr` [ntm_sock_recv_thread()]
+			 * 	in 'ntm_mgr->ntm_conn_ctx->conn_map'
+			 */
+			ntm_conn->running_signal = false;
+			shutdown(ntm_conn->client_sock->socket_fd, SHUT_RDWR);
+			pthread_join(ntm_conn->recv_thr, &status);
 		}
-		if (ntm_conn)
-		{
-			free(ntm_conn);
-			ntm_conn = NULL;
-		}
+
+		freeHashMapIterator(&iter);
+		Clear(ntm_mgr->ntm_conn_ctx->conn_map);
+		free(ntm_mgr->ntm_conn_ctx->conn_map);
+		ntm_mgr->ntm_conn_ctx->conn_map = NULL;
+		DEBUG("free hashmap for ntm_conn context success");
 	}
-	freeHashMapIterator(&iter);
-	Clear(ntm_mgr->ntm_conn_ctx->conn_map);
-	free(ntm_mgr->ntm_conn_ctx->conn_map);
-	ntm_mgr->ntm_conn_ctx->conn_map = NULL;
-	DEBUG("free hashmap for ntm_conn context success");
+	
 
 	if (ntm_mgr->ntm_conn_ctx->server_sock)
 	{
-		DEBUG("close server_sock");
 		ntm_free(ntm_mgr->ntm_conn_ctx->server_sock);
 	}
 	DEBUG("Destroy ntm listen socket resources success");
@@ -378,81 +363,94 @@ void ntm_destroy()
 	 * Destroy the nt_listener related resources for the ntb-based
 	 * listen socket
 	 */
-	HashMapIterator nt_conn_iter;
-	nt_listener_wrapper_t nt_listener_wrapper;
-	iter = createHashMapIterator(ntm_mgr->nt_listener_ctx->listener_map);
-	while (hasNextHashMapIterator(iter))
+	if (ntm_mgr->nt_listener_ctx->listener_map) 
 	{
-		iter = nextHashMapIterator(iter);
-		nt_listener_wrapper = (nt_listener_wrapper_t)iter->entry->value;
+		HashMapIterator nt_conn_iter;
+		nt_listener_wrapper_t nt_listener_wrapper;
+		iter = createHashMapIterator(ntm_mgr->nt_listener_ctx->listener_map);
 
-		nt_conn_iter = createHashMapIterator(nt_listener_wrapper->accepted_conn_map);
-
-		while (hasNextHashMapIterator(nt_conn_iter))
+		while (hasNextHashMapIterator(iter))
 		{
-			nt_socket_t tmp_socket;
-			nt_conn_iter = nextHashMapIterator(iter);
-			tmp_socket = (nt_socket_t)nt_conn_iter->entry->value;
-			if (tmp_socket)
-			{
-			}
-		}
-		freeHashMapIterator(&nt_conn_iter);
-		Clear(nt_listener_wrapper->accepted_conn_map);
-		nt_listener_wrapper->accepted_conn_map = NULL;
-		free(nt_listener_wrapper->accepted_conn_map);
-		DEBUG("free hash map for \
-client socket connection accepted by the specified nt_listener socket success");
+			iter = nextHashMapIterator(iter);
+			nt_listener_wrapper = (nt_listener_wrapper_t)iter->entry->value;
 
-		// free or unbound nt_listener socket id
-		free_socket(ntm_mgr->nt_sock_ctx,
-					nt_listener_wrapper->listener->sockid, 1);
-		free(nt_listener_wrapper);
+			nt_conn_iter = createHashMapIterator(nt_listener_wrapper->accepted_conn_map);
+
+			while (hasNextHashMapIterator(nt_conn_iter))
+			{
+				nt_socket_t tmp_socket;
+				nt_conn_iter = nextHashMapIterator(nt_conn_iter);
+				tmp_socket = (nt_socket_t)nt_conn_iter->entry->value;
+				if (tmp_socket)
+				{
+				}
+			}
+			freeHashMapIterator(&nt_conn_iter);
+			Clear(nt_listener_wrapper->accepted_conn_map);
+			nt_listener_wrapper->accepted_conn_map = NULL;
+			free(nt_listener_wrapper->accepted_conn_map);
+			DEBUG("free hash map for \
+	client socket connection accepted by the specified nt_listener socket success");
+
+			// free or unbound nt_listener socket id
+			free_socket(ntm_mgr->nt_sock_ctx,
+						nt_listener_wrapper->listener->sockid, 1);
+			free(nt_listener_wrapper);
+		}
+		
+		freeHashMapIterator(&iter);
+		Clear(ntm_mgr->nt_listener_ctx->listener_map);
+		free(ntm_mgr->nt_listener_ctx->listener_map);
+		ntm_mgr->nt_listener_ctx->listener_map = NULL;
+		DEBUG("Destroy the nt_listener related resources success");
 	}
-	freeHashMapIterator(&iter);
-	Clear(ntm_mgr->nt_listener_ctx->listener_map);
-	free(ntm_mgr->nt_listener_ctx->listener_map);
-	ntm_mgr->nt_listener_ctx->listener_map = NULL;
-	DEBUG("Destroy the nt_listener related resources success");
+	
 
 	/**
 	 * Destroy the ntm-nts context resources
 	 */
-	nts_shm_conn_t nts_shm_conn;
-	iter = createHashMapIterator(ntm_mgr->nts_ctx->nts_shm_conn_map);
-	while (hasNextHashMapIterator(iter))
+	if (ntm_mgr->nts_ctx->nts_shm_conn_map)
 	{
-		iter = nextHashMapIterator(iter);
-		nts_shm_conn = (nts_shm_conn_t)iter->entry->value;
+		nts_shm_conn_t nts_shm_conn;
+		iter = createHashMapIterator(ntm_mgr->nts_ctx->nts_shm_conn_map);
 
-		// free or unbound socket id
-		DEBUG("free_socket");
-		free_socket(ntm_mgr->nt_sock_ctx, nts_shm_conn->sockid, 1);
-
-		// free nts_shm_context
-		if (nts_shm_conn->nts_shm_ctx &&
-			nts_shm_conn->nts_shm_ctx->shm_stat == NTS_SHM_READY)
+		while (hasNextHashMapIterator(iter))
 		{
-			DEBUG("nts_shm_conn->nts_shm_ctx close start");
-			nts_shm_ntm_close(nts_shm_conn->nts_shm_ctx);
-			DEBUG("nts_shm_destroy start");
-			nts_shm_destroy(nts_shm_conn->nts_shm_ctx);
+			iter = nextHashMapIterator(iter);
+			nts_shm_conn = (nts_shm_conn_t)iter->entry->value;
+
+			// free or unbound socket id
+			free_socket(ntm_mgr->nt_sock_ctx, nts_shm_conn->sockid, 1);
+
+			// free nts_shm_context
+			if (nts_shm_conn->nts_shm_ctx &&
+				nts_shm_conn->nts_shm_ctx->shm_stat == NTS_SHM_READY)
+			{
+				DEBUG("nts_shm_conn->nts_shm_ctx close start");
+				nts_shm_ntm_close(nts_shm_conn->nts_shm_ctx);
+				DEBUG("nts_shm_destroy start");
+				nts_shm_destroy(nts_shm_conn->nts_shm_ctx);
+			}
+
+			DEBUG("free nts_shm_conn");
+			free(nts_shm_conn);
 		}
 
-		DEBUG("free nts_shm_conn");
-		free(nts_shm_conn);
+		freeHashMapIterator(&iter);
+		Clear(ntm_mgr->nts_ctx->nts_shm_conn_map);
+		free(ntm_mgr->nts_ctx->nts_shm_conn_map);
+		ntm_mgr->nts_ctx->nts_shm_conn_map = NULL;
+		DEBUG("free hash map for nts_shm_conn success");
 	}
-
-	freeHashMapIterator(&iter);
-	Clear(ntm_mgr->nts_ctx->nts_shm_conn_map);
-	free(ntm_mgr->nts_ctx->nts_shm_conn_map);
-	ntm_mgr->nts_ctx->nts_shm_conn_map = NULL;
-	DEBUG("free hash map for nts_shm_conn success");
-
+	
 	// Destroy the port_sock_map hashmap
-	Clear(ntm_mgr->port_sock_map);
-	free(ntm_mgr->port_sock_map);
-	ntm_mgr->port_sock_map = NULL;
+	if (ntm_mgr->port_sock_map)
+	{
+		Clear(ntm_mgr->port_sock_map);
+		free(ntm_mgr->port_sock_map);
+		ntm_mgr->port_sock_map = NULL;
+	}
+	
 
 	/**
 	 * Destroy the ntp-related (ntp <==> ntm) resources/context, including:
@@ -488,13 +486,6 @@ client socket connection accepted by the specified nt_listener socket success");
 	}
 	DEBUG("Destroy the ntm-nts context resources success");
 
-	//	nts_shm_context_t shm_send_ctx;
-	//	shm_send_ctx = ntm_mgr->nts_ctx->shm_send_ctx;
-	//	if (shm_send_ctx && shm_send_ctx->shm_stat == NTS_SHM_READY) {
-	//		nts_shm_ntm_close(shm_send_ctx);
-	//		nts_shm_destroy(shm_send_ctx);
-	//	}
-
 	/**
 	 * Destroy the context structure
 	 */
@@ -527,9 +518,7 @@ client socket connection accepted by the specified nt_listener socket success");
      */
 	free_conf();
 
-	DEBUG("ntm_destroy success");
-
-	exit(0);
+	printf("\n***************** NTM Exit Completely *****************\n");
 }
 
 ntm_manager_t init_ntm_manager()
@@ -1177,7 +1166,7 @@ handle_stop_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg)
 
 	// wait a while and destroy local ntm_conn
 	usleep(1000);
-	ntm_close_socket(ntm_conn->client_sock);
+	ntm_free(ntm_conn->client_sock);
 
 	DEBUG("handle_stop_msg success");
 
@@ -1200,7 +1189,7 @@ handle_stop_confirm_msg(ntm_conn_t ntm_conn, ntm_sock_msg msg)
 	ntm_conn->running_signal = false;
 
 	usleep(1000);
-	ntm_close_socket(ntm_conn->client_sock);
+	ntm_free(ntm_conn->client_sock);
 
 	DEBUG("handle_stop_confirm_msg success");
 }
@@ -1245,11 +1234,18 @@ void *ntm_sock_listen_thread(void *args)
 		{
 			if (!ntm_conn_ctx->running_signal)
 			{
-				ntm_close_socket(client_sock);
+				ntm_free(client_sock);
 				break;
 			}
 			continue;
 		}
+
+		if (!ntm_conn_ctx->running_signal) 
+        {
+			printf("\nRecv exit signal, exit...\n");
+			ntm_free(client_sock);
+			break;
+        }
 
 		// start async recv thread to receive messages
 		ntm_conn_t client_conn = (ntm_conn_t)calloc(1, sizeof(struct ntm_conn));
@@ -1297,15 +1293,19 @@ void *ntm_sock_recv_thread(void *args)
 		ntm_sock_msg incoming_msg;
 		retval = ntm_recv_tcp_msg(
 			ntm_conn->client_sock, (char *)&incoming_msg, sizeof(incoming_msg));
-		if (!retval == 0 && !ntm_conn->running_signal)
+		if (retval <= 0 || !ntm_conn->running_signal)
 		{
+			if (ntm_conn->running_signal && retval < 0 &&
+				((errno == EINTR || errno == EWOULDBLOCK || errno == EAGAIN)))
+			{
+				continue;
+			} 
+
 			break;
 		}
-		if (!ntm_conn->running_signal)
-		{
-			break;
-		}
-		DEBUG("recv a message");
+
+		DEBUG("recv a message with sockfd = %d", ntm_conn->client_sock->socket_fd);
+
 		retval = ntm_sock_handle_msg(ntm_conn, incoming_msg);
 		if (retval == -1)
 		{
@@ -1314,7 +1314,6 @@ void *ntm_sock_recv_thread(void *args)
 		}
 	}
 
-	Remove(ntm_mgr->ntm_conn_ctx->conn_map, ntm_conn->ip);
 	if (ntm_conn->client_sock)
 	{
 		ntm_free(ntm_conn->client_sock);
@@ -1730,8 +1729,6 @@ for response to NT_ERR_REQUIRE_CLOSED_OR_BOUND_FIRST");
 			client_sock, NTM_LISTEN_PORT, nts_shm_conn->ip);
 		if (retval)
 		{
-			ntm_close_socket(client_sock);
-
 			response_msg.retval = -1;
 			response_msg.nt_errno = NT_ERR_REMOTE_NTM_NOT_FOUND;
 			retval = nts_shm_send(
@@ -2907,18 +2904,15 @@ void *nts_shm_recv_thread(void *args)
 	{
 		int retval;
 		retval = ntm_shm_recv(nts_ctx->shm_recv_ctx, &recv_msg);
-		if (nts_ctx->shm_recv_signal == 0)
-			break;
-		if (retval == 0)
-		{
-			DEBUG("receive a message");
-			nts_shm_handle_msg(ntm_mgr, recv_msg);
-		}
-		else
+		if (retval != 0 || nts_ctx->shm_recv_signal == 0) 
 		{
 			ERR("failed to receive a message");
+			printf("\nshm_recv_signal is 0 and exit...\n");
 			break;
 		}
+
+		DEBUG("receive a message");
+		nts_shm_handle_msg(ntm_mgr, recv_msg);
 	}
 
 	DEBUG("nts_shm_recv_thread end!");

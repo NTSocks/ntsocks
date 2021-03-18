@@ -11,6 +11,8 @@
 #include <getopt.h>
 #include <string.h>
 #include <signal.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "ntb_monitor.h"
 #include "config.h"
@@ -35,32 +37,53 @@ static void usage(const char *argv0)
 	fprintf(stdout, "  -c, --conf			 monitor config file path\n");
 }
 
-void ntm_on_exit(void)
+
+// for quit signal
+static volatile bool s_signal_quit = false;
+static volatile int s_signum = -1;
+
+static void before_exit(void)
 {
 	INFO("destroy all ntm resources when on exit.");
-	ntm_destroy();
+	if (!s_signal_quit) 
+	{
+		s_signal_quit = true;
+		ntm_destroy();
+
+		if (s_signum != -1)
+		{
+			kill(getpid(), s_signum);
+		}
+	}
 }
 
-void signal_crash_handler(int sig)
+static void crash_handler(int signum)
 {
+	printf("\n[Crash]: Signal %d received, preparing to exit...\n", signum);
+	s_signum = signum;
 	exit(-1);
 }
 
-void signal_exit_handler(int sig)
+static void signal_exit_handler(int signum)
 {
+	if (signum == SIGINT || signum == SIGTERM) 
+	{
+		printf("\nSignal %d received, preparing to exit...\n", signum);
+		s_signum = signum;
+	}
 	exit(0);
 }
 
 int main(int argc, char **argv)
 {
-	atexit(ntm_on_exit);
+	atexit(before_exit);
 	signal(SIGTERM, signal_exit_handler);
 	signal(SIGINT, signal_exit_handler);
 
-	signal(SIGBUS, signal_crash_handler);  // 总线错误
-	signal(SIGSEGV, signal_crash_handler); // SIGSEGV，非法内存访问
-	signal(SIGFPE, signal_crash_handler);  // SIGFPE，数学相关的异常，如被0除，浮点溢出，等等
-	signal(SIGABRT, signal_crash_handler); // SIGABRT，由调用abort函数产生，进程非正常退出
+	signal(SIGBUS, crash_handler);  // 总线错误
+	signal(SIGSEGV, crash_handler); // SIGSEGV，非法内存访问
+	signal(SIGFPE, crash_handler);  // SIGFPE，数学相关的异常，如被0除，浮点溢出，等等
+	signal(SIGABRT, crash_handler); // SIGABRT，由调用abort函数产生，进程非正常退出
 
 	char *conf_file;
 

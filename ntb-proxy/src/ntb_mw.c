@@ -117,7 +117,7 @@ int ntb_data_msg_add_header(
 int parser_data_len_get_type(
     struct ntb_data_link *data_link, uint16_t msg_type)
 {
-    if (msg_type & 1 << 15)
+    if (UNLIKELY(msg_type & 1 << 15))
     {
         trans_data_link_cur_index(data_link);
     }
@@ -203,7 +203,6 @@ int ntb_pure_data_msg_enqueue(
                  next_index, *data_link->local_cum_ptr);
             usleep(BLOCKING_SLEEP_US);
         }
-        sched_yield();
     }
 
     uint8_t *ptr = r->start_addr +
@@ -277,12 +276,10 @@ int ntb_data_msg_enqueue2(
         if (full_cnt % cnt_window == 0)
         {
             full_cnt = 0;
-            DEBUG("[ntb_data_msg_enqueue2] \
-*****blocking 'next_write_idx=%ld, shadown_read_idx=%ld'\n",
+            DEBUG("[ntb_data_msg_enqueue2] ** blocking 'next_write_idx=%ld, shadown_read_idx=%ld'**\n",
                   next_write_idx, *data_link->local_cum_ptr);
             usleep(BLOCKING_SLEEP_US);
         }
-        sched_yield();
     }
 
     uint8_t *write_addr = peer_dataring->start_addr +
@@ -370,7 +367,6 @@ int ntb_data_msg_enqueue(
 
             usleep(BLOCKING_SLEEP_US);
         }
-        sched_yield();
     }
 
     uint8_t *ptr = r->start_addr +
@@ -479,22 +475,20 @@ int ntpacket_enqueue(
     uint64_t next_index;
     next_index =
         peer_dataring->cur_index + 1 < peer_dataring->capacity
-            ? peer_dataring->cur_index + 1
-            : 0;
+            ? peer_dataring->cur_index + 1 : 0;
 
     int full_cnt = 0;
     int sleep_us = 100, cnt_window = 50;
 
     // compare the next write_index to current read_index,
     //  judge whether ntb ringbuffer is full
-    while (next_index == *data_link->local_cum_ptr)
+    while (UNLIKELY(next_index == *data_link->local_cum_ptr))
     {
         full_cnt++;
         if (full_cnt % cnt_window == 0)
         {
             usleep(sleep_us);
         }
-        sched_yield();
     }
 
     uint8_t *ptr = peer_dataring->start_addr +
@@ -508,9 +502,10 @@ int ntpacket_enqueue(
             //PSH: update local shadow read_index using remote write by peer side
             packet_header->msg_type |= (1 << 15);
         }
+       
+        rte_memcpy(ptr, &source_msg->header, NTPACKET_HEADER_LEN);
         rte_memcpy(ptr + NTPACKET_HEADER_LEN,
                    source_msg->payload, msg_len - NTPACKET_HEADER_LEN);
-        rte_memcpy(ptr, &source_msg->header, NTPACKET_HEADER_LEN);
     }
     else
     {
@@ -521,6 +516,7 @@ int ntpacket_enqueue(
         {
             packet_header->msg_type |= (1 << 15);
         }
+    
         rte_memcpy(ptr + NTPACKET_HEADER_LEN,
                    source_msg->payload,
                    NTP_CONFIG.data_packet_size - NTPACKET_HEADER_LEN);
@@ -580,11 +576,11 @@ ntb_mem_formatting(
 
         ntb_link->partitions[i].data_link->local_ring =
             ntb_ring_create((uint8_t *)data_local_ptr + 8,
-                            NTP_CONFIG.data_ringbuffer_size, 
+                            NTP_CONFIG.data_ringbuffer_size,
                             1 << NTP_CONFIG.ntb_packetbits_size);
         ntb_link->partitions[i].data_link->remote_ring =
             ntb_ring_create((uint8_t *)data_remote_ptr + 8,
-                            NTP_CONFIG.data_ringbuffer_size, 
+                            NTP_CONFIG.data_ringbuffer_size,
                             1 << NTP_CONFIG.ntb_packetbits_size);
 
         data_local_ptr = data_local_ptr + NTP_CONFIG.data_ringbuffer_size + 8;
@@ -597,11 +593,12 @@ ntb_mem_formatting(
 
 struct ntb_link_custom *ntb_start(uint16_t dev_id)
 {
-    struct rte_rawdev *dev;
-
-    dev = &rte_rawdevs[dev_id];
-
-    NTP_CONFIG.data_packet_size = 1 << NTP_CONFIG.ntb_packetbits_size;
+    int retval;
+    retval = rte_rawdev_start(dev_id);
+    if (retval != 0)
+    {
+        return NULL;
+    }
 
     struct ntb_link_custom *ntb_link = malloc(sizeof(*ntb_link));
     if (UNLIKELY(!ntb_link))
@@ -609,27 +606,18 @@ struct ntb_link_custom *ntb_start(uint16_t dev_id)
         return NULL;
     }
 
+    struct rte_rawdev *dev;
+    dev = &rte_rawdevs[dev_id];
+
+    ntb_link->dev_id = dev_id;
     ntb_link->dev = dev;
     ntb_link->hw = dev->dev_private;
+
     ntb_link->ctrl_link = malloc(sizeof(struct ntb_ctrl_link));
     if (UNLIKELY(!ntb_link->ctrl_link))
     {
         free(ntb_link);
         return NULL;
-    }
-
-    if (dev->started != 0)
-    {
-        DEBUG("Device with dev_id=%d already started",
-              dev_id);
-        return NULL;
-    }
-
-    int diag = (*dev->dev_ops->dev_start)(dev);
-
-    if (diag == 0)
-    {
-        dev->started = 1;
     }
 
     // init the ntb_link partitions
@@ -837,76 +825,123 @@ FAIL:
         free(ntb_link->partitions);
         ntb_link->partitions = NULL;
     }
+
+    if (ntb_link->dev)
+    {
+        /* Stop traffic and Close port. */
+        rte_rawdev_stop(ntb_link->dev_id);
+        rte_rawdev_close(ntb_link->dev_id);
+    }
+
     free(ntb_link);
     ntb_link = NULL;
 
     return NULL;
 }
 
-void ntb_destroy(struct ntb_link_custom *ntb_link)
+void ntb_destroy(struct ntb_link_custom *ntb_link,
+                 struct ntp_lcore_conf *lcore_conf)
 {
     if (!ntb_link)
         return;
 
+    if (ntb_link->is_stop)
+        return;
+
+    printf("\n***************** NTP Exit... *****************\n");
+
     ntb_link->is_stop = true;
+
+    struct ntp_lcore_conf *conf;
+	uint32_t lcore_id;
+
+    /* Stop transmission first. */
+    RTE_LCORE_FOREACH_SLAVE(lcore_id)
+	{
+        conf = &lcore_conf[lcore_id];
+
+		if (!conf->is_enabled)
+			continue;
+
+		if (conf->stopped)
+			continue;
+
+		conf->stopped = 1;
+    }
+    printf("\nWaiting for lcores to finish...\n");
+	rte_eal_mp_wait_lcore();
 
     // wait or join for ntb_link->ntm_ntp_listener
     pthread_join(ntb_link->ntm_ntp_listener, NULL);
 
     pthread_join(ntb_link->ntm_ntp_listener, NULL);
     pthread_join(ntb_link->ctrl_recv_thr, NULL);
+
+    // required by epoll daemon thread
+    epoll_sem_try_exit(ntb_link->ntp_ep_recv_ctx);
     pthread_join(ntb_link->epoll_listen_thr, NULL);
 
     // free epoll-related resources
     HashMapIterator iter;
-    epoll_context_t epoll_ctx;
-    iter = createHashMapIterator(ntb_link->epoll_ctx_map);
-    while (hasNextHashMapIterator(iter))
+    if (ntb_link->epoll_ctx_map)
     {
-        iter = nextHashMapIterator(iter);
-        epoll_ctx = (epoll_context_t)iter->entry->value;
+        epoll_context_t epoll_ctx;
+        iter = createHashMapIterator(ntb_link->epoll_ctx_map);
 
-        if (!epoll_ctx)
+        while (hasNextHashMapIterator(iter))
         {
-            continue;
-        }
+            iter = nextHashMapIterator(iter);
+            epoll_ctx = (epoll_context_t)iter->entry->value;
 
-        ntb_conn_t tmp_conn;
-        HashMapIterator ep_conn_map_iter;
-        ep_conn_map_iter = createHashMapIterator(epoll_ctx->ep_conn_map);
-        while (hasNextHashMapIterator(ep_conn_map_iter))
-        {
-            ep_conn_map_iter = nextHashMapIterator(ep_conn_map_iter);
-            tmp_conn = (ntb_conn_t)ep_conn_map_iter->entry->value;
-            if (!tmp_conn)
+            if (!epoll_ctx)
             {
                 continue;
             }
 
-            tmp_conn->epoll = NTS_EPOLLNONE;
-            tmp_conn->ep_data = 0;
-            tmp_conn->sockid = 0;
-            tmp_conn->epoll_ctx = NULL;
-        }
-        freeHashMapIterator(&ep_conn_map_iter);
-        Clear(epoll_ctx->ep_conn_map);
-        free(epoll_ctx->ep_conn_map);
-        epoll_ctx->ep_conn_map = NULL;
+            if (epoll_ctx->ep_conn_map) 
+            {
+                ntb_conn_t tmp_conn;
+                HashMapIterator ep_conn_map_iter;
+                ep_conn_map_iter = createHashMapIterator(epoll_ctx->ep_conn_map);
 
-        epoll_ctx->ep_io_queue = NULL;
-        if (epoll_ctx->ep_io_queue_ctx)
-        {
-            ep_event_queue_free(epoll_ctx->ep_io_queue_ctx, false);
-            epoll_ctx->ep_io_queue_ctx = NULL;
+                while (hasNextHashMapIterator(ep_conn_map_iter))
+                {
+                    ep_conn_map_iter = nextHashMapIterator(ep_conn_map_iter);
+                    tmp_conn = (ntb_conn_t)ep_conn_map_iter->entry->value;
+                    if (!tmp_conn)
+                    {
+                        continue;
+                    }
+
+                    tmp_conn->epoll = NTS_EPOLLNONE;
+                    tmp_conn->ep_data = 0;
+                    tmp_conn->sockid = 0;
+                    tmp_conn->epoll_ctx = NULL;
+                }
+
+                freeHashMapIterator(&ep_conn_map_iter);
+                Clear(epoll_ctx->ep_conn_map);
+                free(epoll_ctx->ep_conn_map);
+                epoll_ctx->ep_conn_map = NULL;
+            }
+
+            epoll_ctx->ep_io_queue = NULL;
+            if (epoll_ctx->ep_io_queue_ctx)
+            {
+                ep_event_queue_free(epoll_ctx->ep_io_queue_ctx, false);
+                epoll_ctx->ep_io_queue_ctx = NULL;
+            }
+
+            free(epoll_ctx);
+            epoll_ctx = NULL;
         }
 
-        free(epoll_ctx);
-        epoll_ctx = NULL;
+        freeHashMapIterator(&iter);
+        Clear(ntb_link->epoll_ctx_map);
+        free(ntb_link->epoll_ctx_map);
+        ntb_link->epoll_ctx_map = NULL;
     }
-    freeHashMapIterator(&iter);
-    Clear(epoll_ctx->ep_conn_map);
-    free(epoll_ctx->ep_conn_map);
-    epoll_ctx->ep_conn_map = NULL;
+    
 
     // free send/receive epoll context resources
     if (ntb_link->ntp_ep_recv_ctx)
@@ -1072,9 +1107,17 @@ void ntb_destroy(struct ntb_link_custom *ntb_link)
     free(ntb_link->port2conn);
     ntb_link->port2conn = NULL;
 
+    uint16_t dev_id = ntb_link->dev_id;
+
     // free ntb_link
     free(ntb_link);
     ntb_link = NULL;
 
+    /* Stop traffic and Close port. */
+    printf("\nStop traffic and Close port...\n");
+	rte_rawdev_stop(dev_id);
+	rte_rawdev_close(dev_id);
+
     DEBUG("ntb_destroy success");
+    printf("\n***************** NTP Exit Completely *****************\n");
 }

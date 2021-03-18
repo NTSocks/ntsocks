@@ -13,7 +13,7 @@
 int main(int argc, char *argv[])
 {
 
-        bool ret;
+        int ret;
         int node_idx;
         shm_mp_handler_t mp_handler;
         shmring_handle_t shmring_handle;
@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
 
         ret = shmring_push(shmring_handle,
                            (char *)(int *)&node_idx, sizeof(node_idx));
-        while (!ret)
+        while (ret)
         {
                 sched_yield();
                 ret = shmring_push(shmring_handle,
@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
         int recv_idx;
         ret = shmring_pop(shmring_handle,
                           (char *)(int *)&recv_idx, sizeof(recv_idx));
-        while (!ret)
+        while (ret)
         {
                 sched_yield();
                 ret = shmring_pop(shmring_handle,

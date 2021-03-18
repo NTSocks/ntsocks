@@ -194,6 +194,29 @@ typedef struct ntb_partition
 } __attribute__((packed)) ntb_partition;
 
 /**
+ * @brief  for lcore context state
+ * @note   
+ * @retval None
+ */
+struct ntp_lcore_conf
+{
+    uint32_t lcore_id;
+    uint8_t is_enabled;
+    volatile uint8_t stopped;
+};
+
+/**
+ * @brief  for lcore context
+ * @note   
+ * @retval None
+ */
+struct lcore_ctx
+{
+    struct ntp_lcore_conf *conf;
+    struct ntb_partition *partition;
+};
+
+/**
  * The ntb_link_custom represents the global NTP context, contains:
  * 1. abstract of ntb raw device;
  * 2. ntb-related operations over ntb links;
@@ -206,6 +229,7 @@ typedef struct ntb_partition
  */
 struct ntb_link_custom
 {
+    uint16_t dev_id;        // ntb raw device id
     struct rte_rawdev *dev; // the abstract of ntb raw device
     struct ntb_hw *hw;      // the operation methods about ntb device
 
@@ -301,6 +325,7 @@ int ntpacket_enqueue(struct ntb_data_link *data_link,
 //start the ntb device,and return a ntb_link
 struct ntb_link_custom *ntb_start(uint16_t dev_id);
 
-void ntb_destroy(struct ntb_link_custom *ntb_link);
+void ntb_destroy(
+    struct ntb_link_custom *ntb_link, struct ntp_lcore_conf *lcore_conf);
 
 #endif /* NTB_MW_H_ */

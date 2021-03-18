@@ -12,6 +12,7 @@
 #define NTP2NTS_MSG_H_
 
 #include <stdint.h>
+#include <assert.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -60,8 +61,6 @@ extern "C"
 
     typedef struct ntpacket
     {
-        // ntpacket_header_t header;
-        // char *payload;
         struct ntpacket_header header;
         char payload[0];
     } ntp_msg, ntpacket;
@@ -73,18 +72,15 @@ extern "C"
     */
     inline int parse_ntpacket(void *packet_ptr, ntp_msg **buf)
     {
-        if (!packet_ptr || !buf)
-        {
-            return -1;
-        }
+        assert(packet_ptr);
+        assert(buf);
 
         *buf = (ntp_msg *)packet_ptr;
-
         return 0;
     }
 
 #define NTP_MSG_IDX_SIZE sizeof(int)
-#define DEFAULT_MAX_NUM_NTP_MSG 2048
+#define DEFAULT_MAX_NUM_NTP_MSG 1024
 
 #ifdef __cplusplus
 };

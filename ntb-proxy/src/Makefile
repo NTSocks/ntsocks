@@ -12,11 +12,6 @@ SRCS-y += config.c ntb_mw.c ntp_func.c
 
 SRCS-y += ntm_msg.c ntm_ntp_shm.c ntm_ntp_shmring.c
 SRCS-y += ntp_ntm_shm.c ntp_ntm_shmring.c
-#SRCS-y += ntp2nts_msg.c ntp2nts_shm.c ntp_nts_shmring.c
-
-#SRCS-y += array.c hash_map.c utils.c
-
-
 
 # Build using pkg-config variables if possible
 $(shell pkg-config --exists libdpdk)
@@ -28,11 +23,6 @@ shared: build/$(APP)-shared
 	ln -sf $(APP)-shared build/$(APP)
 static: build/$(APP)-static
 	ln -sf $(APP)-static build/$(APP)
-
-
-CFLAGS += -D_FILE_OFFSET_BITS=64 
-CFLAGS += -DHAVE_GCC_C11_ATOMICS 
-
 
 PC_FILE := $(shell pkg-config --path libdpdk)
 CFLAGS += -O3 $(shell pkg-config --cflags libdpdk)
@@ -73,19 +63,17 @@ else
 VPATH += $(SRCDIR)/utils 
 
 CFLAGS += -D_FILE_OFFSET_BITS=64
-CFLAGS += -O2
+CFLAGS += -O3 #-g -fno-omit-frame-pointer
 CFLAGS += -D_DEFAULT_SOURCE 
 CFLAGS += -DHAVE_GCC_C11_ATOMICS
-# CFLAGS += -DCONFIG_ENABLE_DEBUG
 # CFLAGS += $(WERROR_FLAGS)
-# CFLAGS += -DCONFIG_ENABLE_DEBUG
 CFLAGS += -DALLOW_EXPERIMENTAL_API
 CFLAGS += -pthread  
 CFLAGS += -I$(SRCDIR)/include -I/usr/local/include
-# CFLAGS += -DENABLE_DEBUG
+CFLAGS += -DNDEBUG	# disable assert
+#CFLAGS += -DENABLE_DEBUG
 
 LDLIBS += -L/usr/local/lib -lfdu-utils -L$(RTE_SDK)/$(RTE_TARGET)/build/lib -lpthread
-
 
 include $(RTE_SDK)/mk/rte.extapp.mk
 

@@ -1,5 +1,8 @@
 CC = gcc
-CFLAGS = -c -Wall -pthread -lm -lrt
+
+RELEASE = -DNDEBUG 
+DEBUG = -O3 #-g -fno-omit-frame-pointer
+CFLAGS = $(RELEASE) $(DEBUG) -c -Wall -pthread -lm -lrt 
 LDFLAGS = -pthread -lm -lrt
 TARGETS = client server
 COMMON_DIR = common

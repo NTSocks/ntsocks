@@ -23,7 +23,7 @@ static void *prod(void *args)
     assert(args);
 
     struct shmring_option *ctx = (struct shmring_option *)args;
-    bool ret;
+    int ret;
 
     const int bulk_size = 16;
     shm_mempool_node *mp_nodes[bulk_size];
@@ -50,7 +50,7 @@ static void *prod(void *args)
 
         ret = shmring_push_bulk(
             ctx->shmring_handle, node_idxs, ele_lens, bulk_size);
-        while (!ret)
+        while (ret)
         {
             fprintf(stderr, "shmring_push_bulk(%d) failed, retry...\n", i);
             sched_yield();

@@ -13,7 +13,8 @@ INC_DIR = include
 UTILS_DIR = utils
 
 # Sources for libTest
-lib_libnts_la_SOURCES = socket.c libnts.c $(INC_DIR)/socket.h		        \
+lib_libnts_la_SOURCES = socket.c libnts.c				\
+		$(INC_DIR)/socket.h		        				\
 		nts_config.c $(INC_DIR)/nt_errno.h				\
 		nts_api.c $(INC_DIR)/nts_api.h					\
 		nt_backlog.c $(INC_DIR)/nt_backlog.h 			\
@@ -27,7 +28,8 @@ lib_libnts_la_SOURCES = socket.c libnts.c $(INC_DIR)/socket.h		        \
 		ntm_shmring.c $(INC_DIR)/ntm_shmring.h			\
 		ntm_shm.c $(INC_DIR)/ntm_shm.h					\
 		nt_port.c $(INC_DIR)/nt_port.h					\
-		$(UTILS_DIR)/nt_spsc_shm_queue.c $(UTILS_DIR)/include/nt_spsc_shm_queue.h 		
+		$(UTILS_DIR)/nt_spsc_shm_queue.c 				\
+		$(UTILS_DIR)/include/nt_spsc_shm_queue.h 		
 						
 
 # Linker options libTestProgram
@@ -36,13 +38,16 @@ lib_libnts_la_LDFLAGS =
 
 # Compiler options. Here we are adding the include directory
 # to be searched for headers included in the source code.
-lib_libnts_la_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/src/include 			\
-						 -I$(top_srcdir)/src/utils/include -I/usr/local/include -D_DEFAULT_SOURCE -DHAVE_GCC_C11_ATOMICS
-#-DENABLE_DEBUG
+lib_libnts_la_CPPFLAGS = -I$(top_srcdir)/include 				\
+						 -I$(top_srcdir)/src/include 			\
+						 -I$(top_srcdir)/src/utils/include 		\
+						 -I/usr/local/include 					\
+						 -D_DEFAULT_SOURCE 						\
+						 -DHAVE_GCC_C11_ATOMICS					\
+						 -DNDEBUG								\
+						 -O3 
+#-DENABLE_DEBUG -g -fno-omit-frame-pointer
 
-#lib_libnts_la_CFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/src/include 
-					   
-#libnts_la_CCFLAGS = -I$(top_srcdir)/include
  
 # Specify the Library depencies via `_LIBADD`
 lib_libnts_la_LIBADD = -lz -lrt -lpthread -ldl -luuid -lfdu-utils
