@@ -1311,7 +1311,7 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes)
 
 	if (nt_sock_ctx->ntp_buflen <= 0)
 	{
-		retval = ntp_shm_recv(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
+		retval = ntp_shm_recv(nt_sock_ctx->ntp_recv_ctx, &incoming_data);	//!! required to be optimized
 		if (retval == -1)
 		{
 			ERR("ntp_shm_recv failed");
@@ -1365,8 +1365,8 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes)
 			}
 			else
 			{
-				DEBUG("bytes_left < NTP_PAYLOAD_MAX_SIZE(NTS_CONFIG.max_payloadsize) \
-and buf_avail_bytes < bytes_left with bytes_read=%d",
+				DEBUG("bytes_left < NTP_PAYLOAD_MAX_SIZE(NTS_CONFIG.max_payloadsize) "
+					  "and buf_avail_bytes < bytes_left with bytes_read=%d",
 					  bytes_read);
 				memcpy(ptr + bytes_read, payload, buf_avail_bytes);
 				bytes_read += buf_avail_bytes;
@@ -1384,33 +1384,31 @@ and buf_avail_bytes < bytes_left with bytes_read=%d",
 		else
 		{
 			// msg_len == NTP_PAYLOAD_MAX_SIZE (NTS_CONFIG.max_payloadsize)
-			DEBUG("buf_avail_bytes < bytes_left with bytes_read=%d", bytes_read);
-			if (buf_avail_bytes < bytes_left)
+			DEBUG("buf_avail_bytes <= bytes_left with bytes_read=%d", bytes_read);
+			if (buf_avail_bytes <= bytes_left)
 			{
 				memcpy(ptr + bytes_read, payload, buf_avail_bytes);
 				bytes_read += buf_avail_bytes;
 
-				payload += buf_avail_bytes;
-				bytes_left -= buf_avail_bytes;
-				memcpy(nt_sock_ctx->ntp_buf, payload, bytes_left);
-				nt_sock_ctx->ntp_buflen = bytes_left;
-
-				ntp_shm_ntpacket_free(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
-				break;
-			}
-			else if (buf_avail_bytes == bytes_left)
-			{
-				DEBUG("buf_avail_bytes == bytes_left with bytes_read=%d", bytes_read);
-				memcpy(ptr + bytes_read, payload, bytes_left);
-				bytes_read += bytes_left;
-
-				if (UNLIKELY(is_cached))
+				if (buf_avail_bytes == bytes_left)
 				{
 					// if the payload is copied from ntp_buf
 					nt_sock_ctx->ntp_buflen = 0;
+				} 
+				else
+				{
+					payload += buf_avail_bytes;
+					bytes_left -= buf_avail_bytes;
+					
+					memcpy(nt_sock_ctx->ntp_buf, payload, bytes_left);
+					nt_sock_ctx->ntp_buflen = bytes_left;
 				}
 
-				ntp_shm_ntpacket_free(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
+				if (incoming_data) 
+				{
+					ntp_shm_ntpacket_free(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
+				}
+				
 				break;
 			}
 			else
