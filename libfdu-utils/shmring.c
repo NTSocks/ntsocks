@@ -280,6 +280,26 @@ int shmring_pop(shmring_handle_t self,
     return SUCCESS;
 }
 
+int shmring_plain_pop(shmring_handle_t self) {
+    assert(self);
+
+    uint64_t w_idx = nt_atomic_load64_explicit(
+        &self->queue->write_idx, ATOMIC_MEMORY_ORDER_ACQUIRE);
+    uint64_t r_idx = nt_atomic_load64_explicit(
+        &self->queue->read_idx, ATOMIC_MEMORY_ORDER_RELAXED);
+
+    /// Queue is empty (or was empty when we checked)
+    if (empty(w_idx, r_idx))
+        return -1;
+    
+    nt_atomic_store64_explicit(&self->queue->read_idx,
+                               next_index(r_idx, self->capacity), 
+                               ATOMIC_MEMORY_ORDER_RELEASE);
+
+    DEBUG("shmring_plain_pop success!");
+    return 0;
+}
+
 int shmring_push_bulk(shmring_handle_t self,
                       char **elements, size_t *ele_lens, size_t count)
 {

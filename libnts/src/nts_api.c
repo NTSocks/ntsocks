@@ -1307,21 +1307,21 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes)
 	char *payload;
 	int payload_len;
 	bool is_cached;
+
 	is_cached = false;
 
 	if (nt_sock_ctx->ntp_buflen <= 0)
 	{
-		retval = ntp_shm_recv(nt_sock_ctx->ntp_recv_ctx, &incoming_data);	//!! required to be optimized
-		if (retval == -1)
+		retval = ntp_shm_pop(nt_sock_ctx->ntp_recv_ctx);
+		if (UNLIKELY(retval != 0)) 
 		{
-			ERR("ntp_shm_recv failed");
-			goto FAIL;
+			retval = ntp_shm_recv(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
 		}
 
 		payload = incoming_data->payload;
 		payload_len = incoming_data->header.msg_len;
 		DEBUG("[nts_read] payload='%s', payload_len=%d\n", payload, payload_len);
-	} 
+	}
 	else
 	{
 		payload = nt_sock_ctx->ntp_buf;
@@ -1352,15 +1352,19 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes)
 				memcpy(ptr + bytes_read, payload, bytes_left);
 				bytes_read += bytes_left;
 
-				if (UNLIKELY(is_cached))
+				if (!is_cached)
+				{
+					// free ntpacket into shm mempool
+					ntp_shm_ntpacket_free(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
+				}
+				else 
 				{
 					// if the payload is copied from ntp_buf
 					nt_sock_ctx->ntp_buflen = 0;
 				}
 
-				// free ntpacket into shm mempool
-				ntp_shm_ntpacket_free(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
-
+				DEBUG("bytes_read =%d, bytes_left = %d, data=%s",
+					  bytes_read, bytes_left, ptr);
 				break;
 			}
 			else
@@ -1376,7 +1380,11 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes)
 				memcpy(nt_sock_ctx->ntp_buf, payload, bytes_left);
 				nt_sock_ctx->ntp_buflen = bytes_left;
 
-				ntp_shm_ntpacket_free(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
+				if (!is_cached)
+				{
+					// free ntpacket into shm mempool
+					ntp_shm_ntpacket_free(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
+				}
 
 				break;
 			}
@@ -1455,11 +1463,10 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes)
 
 				if (nt_sock_ctx->ntp_buflen <= 0)
 				{
-					retval = ntp_shm_recv(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
-					if (retval == -1)
+					retval = ntp_shm_pop(nt_sock_ctx->ntp_recv_ctx);
+					if (UNLIKELY(retval != 0)) 
 					{
-						ERR("ntp_shm_recv failed");
-						goto FAIL;
+						retval = ntp_shm_recv(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
 					}
 
 					payload = incoming_data->payload;

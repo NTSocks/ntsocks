@@ -123,6 +123,14 @@ extern "C"
 	int ntp_shm_front(ntp_shm_context_t shm_ctx, ntp_msg **buf);
 
 	/**
+	 * @brief  move forward shmring read_index, and remove top element, no memory copy
+	 * @note   
+	 * @param  shm_ctx: 
+	 * @retval if 0, success; else if -1, failed
+	 */
+	int ntp_shm_pop(ntp_shm_context_t shm_ctx);
+
+	/**
 	 * used by libnts app to close and unlink the shm ring buffer.
 	 */
 	int ntp_shm_close(ntp_shm_context_t shm_ctx);
