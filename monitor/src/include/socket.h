@@ -30,28 +30,28 @@ extern "C"
 
 	typedef enum socket_type
 	{
-		NT_SOCK_UNUSED = 0,
-		NT_SOCK_STREAM, // default, for connect-based socket
-		NT_SOCK_PROXY,
-		NT_SOCK_LISTENER, // for listener socket
-		NT_SOCK_EPOLL,	  // for epoll socket
-		NT_SOCK_PIPE	  // for accepted-based socket
+		NT_SOCK_UNUSED = 1,
+		NT_SOCK_STREAM = 2, // default, for connect-based socket
+		NT_SOCK_PROXY = 3,
+		NT_SOCK_LISTENER = 4, // for listener socket
+		NT_SOCK_EPOLL = 5,	  // for epoll socket
+		NT_SOCK_PIPE = 6	  // for accepted-based socket
 	} socket_type;
 
 	typedef enum socket_state
 	{
 		CLOSED = 1,
-		BOUND,
-		LISTENING,
-		WAIT_CLIENT,
+		BOUND = 2,
+		LISTENING = 3,
+		WAIT_CLIENT = 4,
 
-		WAIT_DISPATCH,
-		WAIT_SERVER,
+		WAIT_DISPATCH = 5,
+		WAIT_SERVER = 6,
 
-		ESTABLISHED,
-		WAIT_ESTABLISHED,
+		ESTABLISHED = 7,
+		WAIT_ESTABLISHED = 8,
 
-		WAIT_CLOSE // WAIT_CLOSE -> CLOSED
+		WAIT_CLOSE = 9	// WAIT_CLOSE -> CLOSED
 
 	} socket_state;
 
@@ -76,7 +76,7 @@ extern "C"
 
 		TAILQ_ENTRY(nt_socket)
 		free_ntsock_link;
-	} nt_socket;
+	} __attribute__((packed)) nt_socket;
 
 	typedef struct nt_socket *nt_socket_t;
 
@@ -86,7 +86,7 @@ extern "C"
 		TAILQ_HEAD(, nt_socket)
 		free_ntsock;
 		pthread_mutex_t socket_lock;
-	};
+	} __attribute__((packed));
 
 	typedef struct nt_sock_context *nt_sock_context_t;
 
@@ -113,7 +113,7 @@ extern "C"
 		pthread_cond_t accept_cond;
 
 		/* hash table entry link */
-	};
+	} __attribute__((packed));
 
 	typedef struct nt_listener *nt_listener_t;
 
@@ -130,7 +130,7 @@ extern "C"
 		in_port_t sin_port; // the nt_port in network order
 		in_addr_t sin_addr; // the ip address in network order
 		sa_family_t sin_family;
-	} nt_backlog_sock;
+	} __attribute__((packed)) nt_backlog_sock;
 
 	typedef struct nt_backlog_sock *nt_backlog_sock_t;
 
