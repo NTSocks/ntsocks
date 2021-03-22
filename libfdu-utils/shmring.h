@@ -40,6 +40,14 @@ extern "C"
         int shmring_pop(
             shmring_handle_t self, char *element, size_t ele_len);
 
+        /**
+         * @brief  
+         * @note   
+         * @param  self: 
+         * @retval if 0, success; else if -1, failed
+         */
+        int shmring_plain_pop(shmring_handle_t self);
+
         int shmring_push_bulk(
             shmring_handle_t self, char **elements,
             size_t *ele_lens, size_t count);

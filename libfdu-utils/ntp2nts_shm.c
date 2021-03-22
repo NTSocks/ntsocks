@@ -451,6 +451,12 @@ int ntp_shm_front(
     return FAILED;
 }
 
+int ntp_shm_pop(ntp_shm_context_t shm_ctx) {
+    assert(shm_ctx);
+
+    return shmring_plain_pop(shm_ctx->ntsring_handle);
+}
+
 //创建者销毁
 int ntp_shm_close(ntp_shm_context_t shm_ctx)
 {

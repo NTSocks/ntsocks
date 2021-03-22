@@ -978,8 +978,7 @@ int nts_close(int sockid)
 	Remove(nts_ctx->nt_sock_map, &sockid);
 
 	int retval;
-	if (nt_sock_ctx->socket->socktype != NT_SOCK_LISTENER 
-			&& nt_sock_ctx->socket->state != ESTABLISHED)
+	if (nt_sock_ctx->socket->socktype != NT_SOCK_LISTENER && nt_sock_ctx->socket->state != ESTABLISHED)
 	{
 		DEBUG("free UNESTABLISHED client nt_socket");
 		nt_sock_ctx->socket->state = CLOSED;
@@ -1308,21 +1307,21 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes)
 	char *payload;
 	int payload_len;
 	bool is_cached;
+
 	is_cached = false;
 
 	if (nt_sock_ctx->ntp_buflen <= 0)
 	{
-		retval = ntp_shm_recv(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
-		if (retval == -1)
+		retval = ntp_shm_pop(nt_sock_ctx->ntp_recv_ctx);
+		if (UNLIKELY(retval != 0)) 
 		{
-			ERR("ntp_shm_recv failed");
-			goto FAIL;
+			retval = ntp_shm_recv(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
 		}
 
 		payload = incoming_data->payload;
 		payload_len = incoming_data->header.msg_len;
 		DEBUG("[nts_read] payload='%s', payload_len=%d\n", payload, payload_len);
-	} 
+	}
 	else
 	{
 		payload = nt_sock_ctx->ntp_buf;
@@ -1347,20 +1346,22 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes)
 
 			if (buf_avail_bytes >= bytes_left)
 			{
-				DEBUG("bytes_left < NTP_PAYLOAD_MAX_SIZE \
-(NTS_CONFIG.max_payloadsize) and buf_avail_bytes >= bytes_left with bytes_read=%d",
-					  bytes_read);
+				DEBUG("bytes_left < NTP_PAYLOAD_MAX_SIZE (NTS_CONFIG.max_payloadsize) " 
+					 "and buf_avail_bytes >= bytes_left with bytes_read=%d",
+					bytes_read);
 				memcpy(ptr + bytes_read, payload, bytes_left);
 				bytes_read += bytes_left;
 
-				if (UNLIKELY(is_cached))
+				if (!is_cached)
+				{
+					// free ntpacket into shm mempool
+					ntp_shm_ntpacket_free(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
+				}
+				else 
 				{
 					// if the payload is copied from ntp_buf
 					nt_sock_ctx->ntp_buflen = 0;
 				}
-
-				// free ntpacket into shm mempool
-				ntp_shm_ntpacket_free(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
 
 				DEBUG("bytes_read =%d, bytes_left = %d, data=%s",
 					  bytes_read, bytes_left, ptr);
@@ -1368,18 +1369,22 @@ ssize_t nts_read(int sockid, void *buf, size_t nbytes)
 			}
 			else
 			{
-				DEBUG("bytes_left < NTP_PAYLOAD_MAX_SIZE(NTS_CONFIG.max_payloadsize) \
-and buf_avail_bytes < bytes_left with bytes_read=%d",
+				DEBUG("bytes_left < NTP_PAYLOAD_MAX_SIZE(NTS_CONFIG.max_payloadsize) "
+					  "and buf_avail_bytes < bytes_left with bytes_read=%d",
 					  bytes_read);
-				// memcpy(ptr + bytes_read, payload, bytes_left);
 				memcpy(ptr + bytes_read, payload, buf_avail_bytes);
+				bytes_read += buf_avail_bytes;
+
 				payload += buf_avail_bytes;
 				bytes_left -= buf_avail_bytes;
-				bytes_read += buf_avail_bytes;
 				memcpy(nt_sock_ctx->ntp_buf, payload, bytes_left);
 				nt_sock_ctx->ntp_buflen = bytes_left;
 
-				ntp_shm_ntpacket_free(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
+				if (!is_cached)
+				{
+					// free ntpacket into shm mempool
+					ntp_shm_ntpacket_free(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
+				}
 
 				break;
 			}
@@ -1387,32 +1392,34 @@ and buf_avail_bytes < bytes_left with bytes_read=%d",
 		else
 		{
 			// msg_len == NTP_PAYLOAD_MAX_SIZE (NTS_CONFIG.max_payloadsize)
-			DEBUG("buf_avail_bytes < bytes_left with bytes_read=%d", bytes_read);
-			if (buf_avail_bytes < bytes_left)
+			DEBUG("buf_avail_bytes <= bytes_left with bytes_read=%d", bytes_read);
+			if (buf_avail_bytes <= bytes_left)
 			{
 				memcpy(ptr + bytes_read, payload, buf_avail_bytes);
-				payload += buf_avail_bytes;
-				bytes_left -= buf_avail_bytes;
 				bytes_read += buf_avail_bytes;
-				memcpy(nt_sock_ctx->ntp_buf, payload, bytes_left);
-				nt_sock_ctx->ntp_buflen = bytes_left;
 
-				ntp_shm_ntpacket_free(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
-				break;
-			}
-			else if (buf_avail_bytes == bytes_left)
-			{
-				DEBUG("buf_avail_bytes == bytes_left with bytes_read=%d", bytes_read);
-				memcpy(ptr + bytes_read, payload, bytes_left);
-				bytes_read += bytes_left;
-
-				if (UNLIKELY(is_cached))
+				if (buf_avail_bytes == bytes_left)
 				{
-					// if the payload is copied from ntp_buf
-					nt_sock_ctx->ntp_buflen = 0;
+					if (UNLIKELY(is_cached))
+					{
+						// if the payload is copied from ntp_buf
+						nt_sock_ctx->ntp_buflen = 0;
+					}
+				} 
+				else
+				{
+					payload += buf_avail_bytes;
+					bytes_left -= buf_avail_bytes;
+					
+					memcpy(nt_sock_ctx->ntp_buf, payload, bytes_left);
+					nt_sock_ctx->ntp_buflen = bytes_left;
 				}
 
-				ntp_shm_ntpacket_free(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
+				if (incoming_data) 
+				{
+					ntp_shm_ntpacket_free(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
+				}
+				
 				break;
 			}
 			else
@@ -1456,11 +1463,10 @@ and buf_avail_bytes < bytes_left with bytes_read=%d",
 
 				if (nt_sock_ctx->ntp_buflen <= 0)
 				{
-					retval = ntp_shm_recv(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
-					if (retval == -1)
+					retval = ntp_shm_pop(nt_sock_ctx->ntp_recv_ctx);
+					if (UNLIKELY(retval != 0)) 
 					{
-						ERR("ntp_shm_recv failed");
-						goto FAIL;
+						retval = ntp_shm_recv(nt_sock_ctx->ntp_recv_ctx, &incoming_data);
 					}
 
 					payload = incoming_data->payload;

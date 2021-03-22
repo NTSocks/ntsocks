@@ -80,7 +80,7 @@ for file in files:
                     t99_9_min = min(t99_9_list)
                     t99_9_max = max(t99_9_list)
 
-                    list_element = [payload, thread, partition, request_num, \
+                    list_element = [payload, thread, partition, packet_size, request_num, \
                                     avg_avg, avg_min, avg_max, \
                                     t50_avg, t50_min, t50_max, \
                                     t90_avg, t90_min, t90_max, \
@@ -133,7 +133,7 @@ list_bw.sort()
 list_tput.sort()
 
 # result lat       
-column_lat = ['Payload Size', '# of Threads', '# of partition', 'request_num', \
+column_lat = ['Payload Size', '# of Threads', '# of partition', 'Packet Size', 'request_num', \
             'Average Average (us)', 'Minimum Average (us)', 'Maximum Average (us)', \
             'Average 50 Tail (us)', 'Minimum 50 Tail (us)', 'Maximum 50 Tail (us)', \
             'Average 90 Tail (us)', 'Minimum 90 Tail (us)', 'Maximum 90 Tail (us)', \
